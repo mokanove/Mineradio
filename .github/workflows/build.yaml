@@ -8,6 +8,7 @@ permissions:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: "ubuntu-latest"
@@ -23,7 +24,6 @@ jobs:
           - os: "windows-latest"
             tag: "windows"
     runs-on: ${{ matrix.os }}
-    fail-fast: false
     name: Build for ${{ matrix.tag }}
 
     steps:
