@@ -1,22 +1,24 @@
 {
   "name": "mineradio",
   "productName": "Mineradio",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "沉浸式音乐播放器，融合天气电台、歌词舞台、粒子视觉和 3D 歌单架。",
+  "desktopName": "Mineradio.desktop",
   "license": "GPL-3.0-or-later",
   "author": "Mineradio",
   "main": "desktop/main.js",
   "private": true,
   "scripts": {
     "dev": "electron .",
-    "build:win": "electron-builder --win nsis",
-    "build:win:dir": "electron-builder --win dir",
-    "build:mac": "electron-builder --mac dmg",
-    "build:mac:dir": "electron-builder --mac dir",
+    "build:linux:pacman": "electron-builder --linux pacman",
+    "build:linux:rpm": "electron-builder --linux rpm",
     "build:linux:AppImage": "electron-builder --linux AppImage",
     "build:linux:deb": "electron-builder --linux deb",
-    "build:linux:pacman": "electron-builder --linux pacman",
-    "build:linux:dir": "electron-builder --linux dir"
+    "build:windows": "electron-builder --win nsis",
+    "build:macos": "electron-builder --mac dmg",
+    "build:linux:dir": "electron-builder --linux dir",
+    "build:windows:dir": "electron-builder --win dir",
+    "build:macos:dir": "electron-builder --mac dir"
   },
   "build": {
     "appId": "com.mineradio.desktop",
@@ -40,18 +42,16 @@
       "public/index.html"
     ],
     "asar": true,
-    "win": {
-      "executableName": "Mineradio",
-      "icon": "build/icon.ico",
-      "signAndEditExecutable": false,
+    "linux": {
+      "icon": "build/icon.png",
+      "maintainer": "MoKanove <me@867678.xyz>",
       "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ]
+        "pacman",
+        "rpm",
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
     },
     "mac": {
       "icon": "build/icon.icns",
@@ -64,15 +64,18 @@
         }
       ]
     },
-    "linux": {
-      "icon": "build/icon.png",
-      "maintainer": "MoKanove <me@867678.xyz>",
+    "win": {
+      "executableName": "Mineradio",
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false,
       "target": [
-        "AppImage",
-        "deb",
-        "pacman"
-      ],
-      "category": "Utility"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
@@ -92,7 +95,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "XxHuberrr",
+        "owner": "MoKanove",
         "repo": "Mineradio"
       }
     ]
@@ -100,7 +103,7 @@
   "mineradio": {
     "update": {
       "provider": "github",
-      "owner": "XxHuberrr",
+      "owner": "MoKanove",
       "repo": "Mineradio",
       "preview": true,
       "preferMirrors": true,
@@ -118,7 +121,7 @@
     "mpg123-decoder": "^1.0.3"
   },
   "devDependencies": {
-    "electron": "^42.4.1",
+    "electron": "^42.5.1",
     "electron-builder": "^26.15.6",
     "rcedit": "^5.0.2"
   }

@@ -57,8 +57,18 @@ const CHROMIUM_PERFORMANCE_SWITCHES = [
   ["disable-renderer-backgrounding"],
   ["disable-backgrounding-occluded-windows"],
   ["force_high_performance_gpu"],
-  ["use-angle", "d3d11"],
 ];
+// 如果你的设备不支持vulkan请删除下面的代码
+if (process.platform === "win32" || process.platform === "linux") {
+  CHROMIUM_PERFORMANCE_SWITCHES.push(["use-angle", "vulkan"]);
+}
+// 如果你的设备不支持Vulkan请取消下面的注释
+// 这边建议换用支持Vulkan的显卡以获取最大性能 当然实测就算不用vulkan性能也足够 谁叫vulkan是趋势呢 用吧
+//if (process.platform === "win32") {
+//  CHROMIUM_PERFORMANCE_SWITCHES.push(["use-angle", "d3d11"]);
+//} else if (process.platform === "linux") {
+//  CHROMIUM_PERFORMANCE_SWITCHES.push(["use-angle", "gl"]);
+//}
 for (const [name, value] of CHROMIUM_PERFORMANCE_SWITCHES) {
   if (value == null) app.commandLine.appendSwitch(name);
   else app.commandLine.appendSwitch(name, value);
