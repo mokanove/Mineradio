@@ -91,14 +91,7 @@
       "installerHeader": "build/installerHeader.bmp",
       "include": "build/installer.nsh",
       "artifactName": "Mineradio-${version}-Setup.${ext}"
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "MoKanove",
-        "repo": "Mineradio"
-      }
-    ]
+    }
   },
   "mineradio": {
     "update": {
