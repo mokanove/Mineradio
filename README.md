@@ -2,7 +2,7 @@
 # Mineradio
 Forked from <https://github.com/XxHuberrr/Mineradio>
 
-Mineradio 是一款 Windows 桌面沉浸式音乐播放器，把天气电台、搜索播放、歌词舞台、粒子视觉和 3D 歌单架组合成一个更接近现场感的私人音乐空间。
+Mineradio 是一款沉浸式音乐播放器，把天气电台、搜索播放、歌词舞台、粒子视觉和 3D 歌单架组合成一个更接近现场感的私人音乐空间。
 
 此修改版在原版的基础上更新了依赖并加入了对macOS和Linux的支持 同时使用Vulkan图形API 需注意Apple这个废物不支持Vulkan 所以用了ANGEL转metal
 
