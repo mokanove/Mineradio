@@ -23,6 +23,7 @@ jobs:
           - os: "windows-latest"
             tag: "windows"
     runs-on: ${{ matrix.os }}
+    fail-fast: false
     name: Build for ${{ matrix.tag }}
 
     steps:
@@ -44,11 +45,13 @@ jobs:
         shell: bash
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
       
+      - name: Install pacman build dependencies
+        if: matrix.os = 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install libarchive-tools
+
       - name: Build!
         shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install libarchive-tools
           pnpm install
           pnpm build:${{ matrix.tag }} -- --publish never
       
