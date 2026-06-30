@@ -47,6 +47,10 @@ pnpm build:windows/macos
 ```
 pnpm build:linux:AppImage # 还支持pacman,rpm,deb 只需要把AppImage替换即可
 ```
+如果你使用archlinux或其他Arch发行版 你可能会遇到fpm不存在 请安装下列软件包指向依赖到一个更新的文件名
+```
+sudo pacman -Syyuu --needed libxcrypt-compat
+```
 对于打包维护者 可能需要输出纯文件而不是已经封装好的安装包 可以使用下列命令
 ```
 pnpm build:原系统:原包格式:dir

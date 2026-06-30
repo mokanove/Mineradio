@@ -45,9 +45,12 @@ jobs:
         shell: bash
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
       
-      - name: Install pacman build dependencies
+      - name: Install Linux build dependencies
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install libarchive-tools
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install libarchive-tools
 
       - name: Build!
         shell: bash
@@ -59,9 +62,14 @@ jobs:
         uses: softprops/action-gh-release@master
         with:
           tag_name: V${{ steps.get_version.outputs.version }}
-          files: dist/mineradio*
+          files: |
+            dist/Mineradio*
+            dist/mineradio*
           body: |
             # 📝 Release Note
             - Fixes and improvements
+            # ⚠️ Release file warning
+            - `*.blockmap` files are used to speed up future updates; they are generally not required.
+            - For the pacman package manager, the suffix is ​​`.pacman`, and it can be installed normally without issues.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
