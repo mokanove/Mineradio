@@ -1,12 +1,12 @@
 ![不知名迪克](https://raw.githubusercontent.com/mokanove/Mineradio/refs/heads/main/build/icon.png)
 # Mineradio
-> Forked from <https://github.com/XxHuberrr/Mineradio>
->
-> Mineradio 是一款 Windows 桌面沉浸式音乐播放器，把天气电台、搜索播放、歌词舞台、粒子视觉和 3D 歌单架组合成一个更接近现场感的私人音乐空间。
->
-> 此修改版在原版的基础上更新了依赖并加入了对macOS和Linux的支持 同时使用Vulkan图形API 需注意Apple这个废物不支持Vulkan 所以用了ANGEL转metal
->
-> 如果你的设备不支持Vulkan请转到desktop/main.js的第61～71行 取消注释和删除`if`行并重新编译即可
+Forked from <https://github.com/XxHuberrr/Mineradio>
+
+Mineradio 是一款 Windows 桌面沉浸式音乐播放器，把天气电台、搜索播放、歌词舞台、粒子视觉和 3D 歌单架组合成一个更接近现场感的私人音乐空间。
+
+此修改版在原版的基础上更新了依赖并加入了对macOS和Linux的支持 同时使用Vulkan图形API 需注意Apple这个废物不支持Vulkan 所以用了ANGEL转metal
+
+如果你的设备不支持Vulkan请转到desktop/main.js的第61～71行 取消注释和删除`if`行并重新编译即可
 ## ↓ 下载
 [GitHub Release](https://github.com/mokanove/Mineradio/releases)
 ## 🚀 核心特性
@@ -24,51 +24,53 @@
 - GitHub Releases 更新检测与下载入口
 - 首次启动内置「默认测试」视觉用户存档，软件内默认视觉参数与该存档一致
 ## 🛠 开发和自编译
-> 确保你已经有了pnpm nodejs和一个可以轻松连接GitHub的网络
+
+确保你已经有了pnpm nodejs和一个可以轻松连接GitHub的网络
 ```
 git clone https://github.com/mokanove/Mineradio.git
 cd Mineradio
 pnpm install
 ```
-> 运行一个Web测试版
+运行一个Web测试版
 ```
 pnpm dev
 ```
-> 编译 对于Windows和macOS
-> 这里Windows只有amd64 macOS只有arm64 以保证主流平台兼容 如果你是小众平台可以自行修改package.json
+编译 对于Windows和macOS
+
+这里Windows只有amd64 macOS只有arm64 以保证主流平台兼容 如果你是小众平台可以自行修改package.json
 ```
 pnpm build:windows/macos
 ```
-> 编译 对于Linux
+编译 对于Linux
 ```
 pnpm build:linux:AppImage # 还支持pacman,rpm,deb 只需要把AppImage替换即可
 ```
-> 对于打包维护者 可能需要输出纯文件而不是已经封装好的安装包 可以使用下列命令
+对于打包维护者 可能需要输出纯文件而不是已经封装好的安装包 可以使用下列命令
 ```
 pnpm build:原系统:原包格式:dir
 ```
 ### ⚠️ 警告
-> 这两个依赖归属于NeteaseCloudMusicApi 但他已经在两年前就停止维护了
+这两个依赖归属于NeteaseCloudMusicApi 但他已经在两年前就停止维护了
 ```
 overrides:
   music-metadata: ">=11.12.2"
   file-type: ">=21.3.1"
 ```
-> 这个也停止维护了 用于windows打包
+这个也停止维护了 用于windows打包
 ```
 "rcedit": "^5.0.2"
 ```
-> 这四个依赖属于electron-builder的一部分 他们随electron-builder一起更新
+这四个依赖属于electron-builder的一部分 他们随electron-builder一起更新
 ```
 boolean@3.2.0, glob@7.2.3, inflight@1.0.6, rimraf@2.6.3
 ```
-> 同时还将能更新的依赖更新至最新版本 其他一切行为均与原版无异 可以参照原版项目的文档
+同时还将能更新的依赖更新至最新版本 其他一切行为均与原版无异 可以参照原版项目的文档
 ## 🙏 致谢
-> 由`MoKanove`二次开发
->
-> Mineradio 由 [XxHuberrr](https://github.com/XxHuberrr) 主要设计与打造。emily 作为早期视觉底层想法与 `emily` 视觉预设改进方向的共创者和灵感来源之一，特此感谢。
->
-> 同时感谢小天才e宝、应春日、锋将军、軌跡、林中、骊、风痕、花椰菜🥦在早期体验、测试反馈和发布准备中的帮助。
+由`MoKanove`二次开发
+
+Mineradio 由 [XxHuberrr](https://github.com/XxHuberrr) 主要设计与打造。emily 作为早期视觉底层想法与 `emily` 视觉预设改进方向的共创者和灵感来源之一，特此感谢。
+
+同时感谢小天才e宝、应春日、锋将军、軌跡、林中、骊、风痕、花椰菜🥦在早期体验、测试反馈和发布准备中的帮助。
 ## ⚖️ 条款、许可和法律、版权声明
 ### 第三方音乐平台说明
 
