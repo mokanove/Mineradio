@@ -1559,8 +1559,8 @@ async function createWindow() {
 
   mainWindow = new BrowserWindow({
     ...initialBounds,
-    minWidth: 960,
-    minHeight: 540,
+    minWidth: 800,
+    minHeight: 600,
     show: false,
     frame: false,
     fullscreen: false,
@@ -1570,6 +1570,8 @@ async function createWindow() {
     autoHideMenuBar: true,
     title: APP_NAME,
     icon: APP_ICON_ICO,
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : undefined,
+    fullscreenable: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
