@@ -124,5 +124,12 @@
     "electron": "^42.5.1",
     "electron-builder": "^26.15.6",
     "rcedit": "^5.0.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron-winstaller",
+      "electron",
+      "rcedit"
+    ]
   }
 }

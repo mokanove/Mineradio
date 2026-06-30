@@ -48,8 +48,6 @@ jobs:
         shell: bash
         run: |
           pnpm install
-          pnpm audit fix
-          pnpm approve-builds
           pnpm build:${{ matrix.tag }}
       
       - name: Release
