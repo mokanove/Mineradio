@@ -21,6 +21,7 @@
     "build:macos:dir": "electron-builder --mac dir"
   },
   "build": {
+    "publish": null,
     "appId": "com.mineradio.desktop",
     "productName": "Mineradio",
     "directories": {
