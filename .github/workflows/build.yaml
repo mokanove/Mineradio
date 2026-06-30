@@ -46,7 +46,7 @@ jobs:
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
       
       - name: Install pacman build dependencies
-        if: matrix.os == "ubuntu-latest"
+        if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get update && sudo apt-get install libarchive-tools
 
       - name: Build!
