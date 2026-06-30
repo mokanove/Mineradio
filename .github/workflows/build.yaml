@@ -1,0 +1,63 @@
+name: courir,partir,venir,mourir
+
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: "ubuntu-latest"
+            tag: "linux:pacman"
+          - os: "ubuntu-latest"
+            tag: "linux:rpm"
+          - os: "ubuntu-latest"
+            tag: "linux:AppImage"
+          - os: "ubuntu-latest"
+            tag: "linux:deb"
+          - os: "macos-latest"
+            tag: "macos"
+          - os: "windows-latest"
+            tag: "windows"
+    runs-on: ${{ matrix.os }}
+    name: Build for ${{ matrix.tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@main
+        with:
+          node-version: latest
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@master
+        with:
+          version: latest
+      
+      - name: Get Version
+        id: get_version
+        shell: bash
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      
+      - name: Build!
+        shell: bash
+        run: |
+          pnpm install
+          pnpm audit fix
+          pnpm build:${{ matrix.tag }}
+      
+      - name: Release
+        uses: softprops/action-gh-release@master
+        with:
+          tag_name: V${{ steps.get_version.outputs.version }}
+          files: dist/mineradio*
+          body: |
+            # 📝 Release Note
+            - Fixes and improvements
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
