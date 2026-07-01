@@ -70,6 +70,6 @@ jobs:
             - Fixes and improvements
             # ⚠️ Release file warning
             - `*.blockmap` files are used to speed up future updates; they are generally not required.
-            - For the pacman package manager, the suffix is ​​`.pacman`, and it can be installed normally without issues.
+            - For the pacman package manager, the suffix is `.pacman`, and it can be installed normally without issues.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

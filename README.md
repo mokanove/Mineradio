@@ -4,11 +4,11 @@ Forked from <https://github.com/XxHuberrr/Mineradio>
 
 Mineradio 是一款沉浸式音乐播放器，把天气电台、搜索播放、歌词舞台、粒子视觉和 3D 歌单架组合成一个更接近现场感的私人音乐空间。
 
-此修改版在原版的基础上更新了依赖并加入了对macOS和Linux的支持 同时使用Vulkan图形API 需注意Apple这个废物不支持Vulkan 所以用了ANGEL转metal
+此修改版在原版的基础上更新了依赖并加入了对macOS和Linux的支持 同时默认使用Vulkan图形API 需注意Apple这个废物不支持Vulkan 所以用了ANGEL转metal
 
-如果你的设备不支持Vulkan请转到desktop/main.js的第61～71行 取消注释和删除`if`行并重新编译即可
+如果你的设备不支持Vulkan请转到desktop/main.js的第61～71行 取消注释和删除`if`行并重新编译即可 macOS无需这一步
 ## ↓ 下载
-为了确保本项目与主线项目是分支关系 本项目版本号从V2.0.0起步
+本项目版本号从V2.0.0起步
 
 [GitHub Release](https://github.com/mokanove/Mineradio/releases)
 ## 🚀 核心特性
@@ -70,7 +70,7 @@ overrides:
 ```
 boolean@3.2.0, glob@7.2.3, inflight@1.0.6, rimraf@2.6.3
 ```
-同时还将能更新的依赖更新至最新版本 其他一切行为均与原版无异 可以参照原版项目的文档
+上述已被弃用的软件包不能随便更新 这只是一个警告 仅此而已
 ## 🙏 致谢
 由`MoKanove`二次开发
 
