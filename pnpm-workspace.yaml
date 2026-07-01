@@ -1,7 +1,7 @@
 allowBuilds:
   electron-winstaller: true
 minimumReleaseAgeExclude:
-  - electron@42.5.1
+  - electron@43.0.0
 overrides:
   music-metadata: ">=11.12.2"
   file-type: ">=21.3.1"
