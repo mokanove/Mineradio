@@ -350,7 +350,7 @@ function buildBeatMapFromLowEnergy(lowEnergy, hitEnergy, hopSec, durationSec) {
   const beats = [];
   let gridIndex = 0;
   let cursorIdx = 0;
-  for (let gridT = anchor; gridT < duration - 0.04; ) {
+  for (let gridT = anchor; gridT < duration - 0.04;) {
     const localStep = stepAt(gridT) || globalStep || 0.5;
     const winSec = Math.max(0.06, Math.min(0.135, localStep * 0.2));
     while (

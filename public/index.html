@@ -26864,7 +26864,7 @@ void main(){
         var beats = [];
         var gridIndex = 0;
         var cursorIdx = 0;
-        for (var gridT = anchor; gridT < duration - 0.04; ) {
+        for (var gridT = anchor; gridT < duration - 0.04;) {
           var localStep2 = stepAt(gridT) || globalStep || 0.5;
           var winSec = Math.max(0.06, Math.min(0.135, localStep2 * 0.2));
           while (
@@ -27496,7 +27496,7 @@ void main(){
           var beats = [];
           var gridIndex = 0;
           var cursorIdx = 0;
-          for (var gridT = anchor; gridT < buffer.duration - 0.05; ) {
+          for (var gridT = anchor; gridT < buffer.duration - 0.05;) {
             var localStep = stepAt(gridT) || globalStep || 0.5;
             var winSec = Math.max(0.07, Math.min(0.145, localStep * 0.22));
             while (

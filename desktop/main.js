@@ -1570,7 +1570,7 @@ async function createWindow() {
     autoHideMenuBar: true,
     title: APP_NAME,
     icon: APP_ICON_ICO,
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : undefined,
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : undefined,
     fullscreenable: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
