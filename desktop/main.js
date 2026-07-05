@@ -12,6 +12,7 @@ const net = require("net");
 const path = require("path");
 const fs = require("fs");
 const { execFile, spawn } = require("child_process");
+const { execSync } = require("child_process");
 
 let mainWindow = null;
 let localServer = null;
@@ -58,17 +59,35 @@ const CHROMIUM_PERFORMANCE_SWITCHES = [
   ["disable-backgrounding-occluded-windows"],
   ["force_high_performance_gpu"],
 ];
-// 如果你的设备不支持vulkan请删除下面的代码
-if (process.platform === "win32" || process.platform === "linux") {
-  CHROMIUM_PERFORMANCE_SWITCHES.push(["use-angle", "vulkan"]);
+function SupportVulkan() {
+  try {
+    if (process.platform === "win32") {
+      const path = require("path");
+      const sys32 = path.join(process.env.WINDIR || "C:\\Windows", "System32", "vulkan-1.dll");
+      return fs.existsSync(sys32);
+    } else if (process.platform === "linux") {
+      try {
+        execSync("vulkaninfo --summary", { stdio: "ignore" });
+        return true;
+      } catch {
+        return fs.existsSync("/usr/lib/x86_64-linux-gnu/libvulkan.so.1") ||
+               fs.existsSync("/usr/lib/libvulkan.so.1");
+      }
+    }
+  } catch (e) {
+    return false;
+  }
+  return false;
 }
-// 如果你的设备不支持Vulkan请取消下面的注释
-// 这边建议换用支持Vulkan的显卡以获取最大性能 当然实测就算不用vulkan性能也足够 谁叫vulkan是趋势呢 用吧
-//if (process.platform === "win32") {
-//  CHROMIUM_PERFORMANCE_SWITCHES.push(["use-angle", "d3d11"]);
-//} else if (process.platform === "linux") {
-//  CHROMIUM_PERFORMANCE_SWITCHES.push(["use-angle", "gl"]);
-//}
+if (process.platform === "win32" || process.platform === "linux") {
+  if (SupportVulkan()) {
+    CHROMIUM_PERFORMANCE_SWITCHES.push(["use-angle", "vulkan"]);
+  } else if (process.platform === "win32") {
+    CHROMIUM_PERFORMANCE_SWITCHES.push(["use-angle", "d3d11"]);
+  } else {
+    CHROMIUM_PERFORMANCE_SWITCHES.push(["use-angle", "gl"]);
+  }
+}
 for (const [name, value] of CHROMIUM_PERFORMANCE_SWITCHES) {
   if (value == null) app.commandLine.appendSwitch(name);
   else app.commandLine.appendSwitch(name, value);

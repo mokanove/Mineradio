@@ -1,15 +1,29 @@
-![不知名迪克](https://raw.githubusercontent.com/mokanove/Mineradio/refs/heads/main/build/icon.png)
-
 # Mineradio
+
+![不知名迪克](https://raw.githubusercontent.com/mokanove/Mineradio/refs/heads/main/build/icon.ico)
 
 Forked from <https://github.com/XxHuberrr/Mineradio>
 
 Mineradio 是一款沉浸式音乐播放器，把天气电台、搜索播放、歌词舞台、粒子视觉和 3D 歌单架组合成一个更接近现场感的私人音乐空间。
 
-此修改版在原版的基础上更新了依赖并加入了对macOS和Linux的支持 同时默认使用Vulkan图形API 需注意Apple这个废物不支持Vulkan 所以用了ANGEL转metal
+此修改版在原版的基础上更新了依赖并加入了对macOS和Linux的支持 
 
-如果你的设备不支持Vulkan请转到desktop/main.js的第61～71行 取消注释和删除`if`行并重新编译即可 macOS无需这一步
+如果你希望指定图形API请转到desktop/main.js 然后将第``62～90行``删掉
 
+并替换为下列值
+```
+// 如果你的设备支持Vulkan
+if (process.platform === "win32" || process.platform === "linux") {
+  CHROMIUM_PERFORMANCE_SWITCHES.push(["use-angle", "vulkan"]);
+}
+// 如果你的设备不支持Vulkan
+if (process.platform === "win32") {
+  CHROMIUM_PERFORMANCE_SWITCHES.push(["use-angle", "d3d11"]);
+} else if (process.platform === "linux") {
+  CHROMIUM_PERFORMANCE_SWITCHES.push(["use-angle", "gl"]);
+}
+// Apple Mac由于厨子过于丧心病狂用metal 所以Chromium会自动切换 不用管
+```
 ## ↓ 下载
 
 本项目版本号从V2.0.0起步
