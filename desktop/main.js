@@ -63,15 +63,21 @@ function SupportVulkan() {
   try {
     if (process.platform === "win32") {
       const path = require("path");
-      const sys32 = path.join(process.env.WINDIR || "C:\\Windows", "System32", "vulkan-1.dll");
+      const sys32 = path.join(
+        process.env.WINDIR || "C:\\Windows",
+        "System32",
+        "vulkan-1.dll",
+      );
       return fs.existsSync(sys32);
     } else if (process.platform === "linux") {
       try {
         execSync("vulkaninfo --summary", { stdio: "ignore" });
         return true;
       } catch {
-        return fs.existsSync("/usr/lib/x86_64-linux-gnu/libvulkan.so.1") ||
-               fs.existsSync("/usr/lib/libvulkan.so.1");
+        return (
+          fs.existsSync("/usr/lib/x86_64-linux-gnu/libvulkan.so.1") ||
+          fs.existsSync("/usr/lib/libvulkan.so.1")
+        );
       }
     }
   } catch (e) {
