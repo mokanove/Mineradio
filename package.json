@@ -1,7 +1,7 @@
 {
   "name": "mineradio",
   "productName": "Mineradio",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "description": "沉浸式音乐播放器，融合天气电台、歌词舞台、粒子视觉和 3D 歌单架。",
   "desktopName": "Mineradio.desktop",
   "license": "GPL-3.0-or-later",
@@ -46,7 +46,7 @@
     "asar": true,
     "linux": {
       "icon": "build/icon.png",
-      "maintainer": "MoKanove <me@867678.xyz>",
+      "maintainer": "MoAEIOU <me@867678.xyz>",
       "target": [
         "pacman",
         "rpm",

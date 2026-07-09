@@ -75,8 +75,10 @@ function SupportVulkan() {
         return true;
       } catch {
         return (
-          fs.existsSync("/usr/lib/x86_64-linux-gnu/libvulkan.so.1") ||
-          fs.existsSync("/usr/lib/libvulkan.so.1")
+          fs.existsSync("/usr/lib/libvulkan.so") ||
+          fs.existsSync("/usr/lib/libvulkan.so.1") ||
+          fs.existsSync("/usr/lib/libvulkan.so.1.4.350") ||
+          fs.existsSync("/usr/lib/x86_64-linux-gnu/libvulkan.so")
         );
       }
     }

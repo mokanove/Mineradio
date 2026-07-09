@@ -63,13 +63,12 @@ jobs:
         with:
           tag_name: V${{ steps.get_version.outputs.version }}
           files: |
-            dist/Mineradio*
             dist/mineradio*
+            dist/Mineradio-${{ steps.get_version.outputs.version }}-arm64.dmg
+            dist/Mineradio-${{ steps.get_version.outputs.version }}-Setup.exe
           body: |
             # 📝 Release Note
             - Fixes and improvements
-            # ⚠️ Release file warning
-            - `*.blockmap` files are used to speed up future updates; they are generally not required.
             - For the pacman package manager, the suffix is `.pacman`, and it can be installed normally without issues.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
