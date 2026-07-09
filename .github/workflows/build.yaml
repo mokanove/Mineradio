@@ -64,6 +64,7 @@ jobs:
           tag_name: V${{ steps.get_version.outputs.version }}
           files: |
             dist/mineradio*
+            dist/Mineradio-${{ steps.get_version.outputs.version }}.AppImage
             dist/Mineradio-${{ steps.get_version.outputs.version }}-arm64.dmg
             dist/Mineradio-${{ steps.get_version.outputs.version }}-Setup.exe
           body: |
