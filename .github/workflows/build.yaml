@@ -13,16 +13,22 @@ jobs:
         include:
           - os: "ubuntu-latest"
             tag: "linux:pacman"
+            release_file: "dist/*.pacman"
           - os: "ubuntu-latest"
             tag: "linux:rpm"
+            release_file: "dist/*.rpm"
           - os: "ubuntu-latest"
             tag: "linux:AppImage"
+            release_file: "dist/*.AppImage"
           - os: "ubuntu-latest"
             tag: "linux:deb"
+            release_file: "dist/*.deb"
           - os: "macos-latest"
             tag: "macos"
+            release_file: "dist/*.dmg"
           - os: "windows-latest"
             tag: "windows"
+            release_file: "dist/*.exe"
     runs-on: ${{ matrix.os }}
     name: Build for ${{ matrix.tag }}
 
@@ -35,13 +41,13 @@ jobs:
         shell: bash
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@master
+
       - name: Set up Node.js
         uses: actions/setup-node@main
         with:
           node-version: latest
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@master
 
       - name: Install Linux build dependencies
         if: matrix.os == 'ubuntu-latest'
@@ -60,16 +66,10 @@ jobs:
         uses: softprops/action-gh-release@master
         with:
           tag_name: V${{ steps.get_version.outputs.version }}
-          files: |
-            dist/mineradio-${{ steps.get_version.outputs.version }}.pacman
-            dist/mineradio-${{ steps.get_version.outputs.version }}.x86_64.rpm
-            dist/Mineradio-${{ steps.get_version.outputs.version }}.AppImage
-            dist/mineradio_${{ steps.get_version.outputs.version }}_amd64.deb
-            dist/Mineradio-${{ steps.get_version.outputs.version }}-arm64.dmg
-            dist/Mineradio-${{ steps.get_version.outputs.version }}-Setup.exe
+          files: ${{ matrix.release_file }}
+          fail_on_unmatched_files: true
           body: |
             # 📝 Release Note
             - Fixes and improvements
-            - For the pacman package manager, the suffix is `.pacman`, and it can be installed normally without issues.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -24665,7 +24665,7 @@ void main(){
                 songId,
                 diskMap,
                 token,
-                "D盘节拍缓存命中:",
+                "节拍缓存命中:",
               );
               return;
             }
@@ -24921,7 +24921,7 @@ void main(){
           var diskMap = await readBeatDiskCache(key);
           if (diskMap) {
             console.log(
-              "队列节奏D盘缓存命中:",
+              "队列节奏缓存命中:",
               song.name || key,
               diskMap.visualBeatCount || 0,
             );
@@ -37661,7 +37661,7 @@ void main(){ vec4 t = texture2D(uDotTex, gl_PointCoord); if (t.a < 0.02) discard
                   syncBeatMapPlaybackCursor(audio ? audio.currentTime : 0);
                   notifyDesktopLyricsBeatMapReady();
                   console.log(
-                    "beatmap D盘缓存命中:",
+                    "beatmap 缓存命中:",
                     currentBeatMap.kicks.length,
                     "个鼓点",
                   );

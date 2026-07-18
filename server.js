@@ -48,6 +48,7 @@ const http = require("http");
 const https = require("https");
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 const crypto = require("crypto");
 const tls = require("tls");
 const { once } = require("events");
@@ -58,7 +59,8 @@ const {
 } = require("./dj-analyzer");
 
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || "0.0.0.0";
+const HOST =
+  process.env.MINERADIO_LISTEN_HOST || process.env.HOST || "127.0.0.1";
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 const COOKIE_FILE = process.env.COOKIE_FILE || path.join(__dirname, ".cookie");
@@ -72,8 +74,25 @@ const UPDATE_DOWNLOAD_DIR =
 const UPDATE_PATCH_BACKUP_DIR =
   process.env.MINERADIO_PATCH_BACKUP_DIR ||
   path.join(UPDATE_WORK_DIR, "backups", "patches");
+function defaultBeatMapCacheDir() {
+  if (process.platform === "win32") {
+    return path.join(
+      process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"),
+      "Mineradio",
+      "beatmaps",
+    );
+  }
+  if (process.platform === "darwin") {
+    return path.join(os.homedir(), "Library", "Caches", "Mineradio", "beatmaps");
+  }
+  return path.join(
+    process.env.XDG_CACHE_HOME || path.join(os.homedir(), ".cache"),
+    "Mineradio",
+    "beatmaps",
+  );
+}
 const BEATMAP_CACHE_DIR =
-  process.env.MINERADIO_BEAT_CACHE_DIR || "D:\\MineradioCache\\beatmaps";
+  process.env.MINERADIO_BEAT_CACHE_DIR || defaultBeatMapCacheDir();
 const APP_PACKAGE = readPackageInfo();
 const APP_VERSION =
   process.env.MINERADIO_VERSION || APP_PACKAGE.version || "0.9.11";
@@ -93,7 +112,8 @@ const UPDATE_FALLBACK_NOTES = [
 ];
 const OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
 const OPEN_METEO_GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search";
-const WEATHER_IP_LOCATION_URL = "http://ip-api.com/json/";
+const WEATHER_IPINFO_URL = "https://ipinfo.io/json";
+const WEATHER_IPIP_URL = "https://myip.ipip.net/";
 const WEATHER_DEFAULT_LOCATION = {
   name: "上海",
   country: "China",
@@ -660,15 +680,15 @@ function beatCacheRootInfo() {
   const dir = path.resolve(BEATMAP_CACHE_DIR);
   const root = path.parse(dir).root;
   const drive = root ? root.replace(/[\\\/]+$/, "").toUpperCase() : "";
-  const allowed = !!root && !/^C:$/i.test(drive);
+  const allowed = !!root && dir !== root;
   const available = allowed && fs.existsSync(root);
   return { dir, root, drive, allowed, available };
 }
 function ensureBeatMapCacheDir() {
   const info = beatCacheRootInfo();
   if (!info.allowed) {
-    const err = new Error("BEAT_CACHE_ON_C_DRIVE_DISABLED");
-    err.code = "BEAT_CACHE_ON_C_DRIVE_DISABLED";
+    const err = new Error("BEAT_CACHE_ROOT_DIR_DISABLED");
+    err.code = "BEAT_CACHE_ROOT_DIR_DISABLED";
     err.info = info;
     throw err;
   }
@@ -2701,34 +2721,70 @@ async function fetchOpenMeteoWeather(params) {
 }
 
 async function fetchIpWeatherLocation() {
-  const u = new URL(WEATHER_IP_LOCATION_URL);
-  u.searchParams.set(
-    "fields",
-    "status,message,country,regionName,city,lat,lon,timezone,query",
-  );
-  u.searchParams.set("lang", "zh-CN");
-  const body = await requestJson(u.toString(), {
+  const body = await requestJson(WEATHER_IPINFO_URL, {
     headers: { "User-Agent": UA },
   });
-  if (
-    !body ||
-    body.status !== "success" ||
-    !Number.isFinite(Number(body.lat)) ||
-    !Number.isFinite(Number(body.lon))
-  ) {
-    const err = new Error((body && body.message) || "IP_LOCATION_FAILED");
+  let city = String((body && body.city) || "").trim();
+  let region = String((body && body.region) || "").trim();
+  let country = String((body && body.country) || "").trim();
+  let timezone = String((body && body.timezone) || "").trim();
+  let provider = "ipinfo";
+  let latitude = NaN;
+  let longitude = NaN;
+  const loc = String((body && body.loc) || "").split(",");
+  if (loc.length === 2) {
+    latitude = Number(loc[0]);
+    longitude = Number(loc[1]);
+  }
+
+  if (country.toUpperCase() === "CN") {
+    try {
+      const text = await requestText(WEATHER_IPIP_URL, {
+        headers: { "User-Agent": UA },
+      });
+      const match = String(text || "").match(
+        /当前\s*IP[：:]\s*(\S+)\s+来自于[：:]\s*(.+?)\s*$/,
+      );
+      const parts = match
+        ? match[2].trim().split(/\s+/).filter(Boolean)
+        : [];
+      if (parts.length >= 3) {
+        country = parts[0] || country;
+        region = parts[1] || region;
+        city = parts[2] || city || region;
+        const resolved = await resolveOpenMeteoLocation(city || region);
+        if (!resolved.fallback) {
+          latitude = Number(resolved.latitude);
+          longitude = Number(resolved.longitude);
+          timezone = resolved.timezone || timezone;
+        }
+        provider = "ipip+open-meteo";
+      }
+    } catch (e) {
+      console.warn("[WeatherIpLocation] IPIP fallback skipped:", e.message);
+    }
+  }
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    const resolved = await resolveOpenMeteoLocation(city || region);
+    latitude = Number(resolved.latitude);
+    longitude = Number(resolved.longitude);
+    timezone = resolved.timezone || timezone;
+  }
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    const err = new Error("IP_LOCATION_FAILED");
     err.body = body;
     throw err;
   }
   return {
-    provider: "ip-api",
-    city: body.city || WEATHER_DEFAULT_LOCATION.name,
-    region: body.regionName || "",
-    country: body.country || "",
-    latitude: Number(body.lat),
-    longitude: Number(body.lon),
-    timezone: body.timezone || "auto",
-    ip: body.query || "",
+    provider,
+    city: city || WEATHER_DEFAULT_LOCATION.name,
+    region,
+    country,
+    latitude,
+    longitude,
+    timezone: timezone || "auto",
+    ip: (body && body.ip) || "",
   };
 }
 
@@ -6033,7 +6089,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log("======================================================");
-  console.log(" 粒子音乐可视化 v2  →  http://localhost:" + PORT);
+  console.log(" 粒子音乐可视化 v2  →  http://" + HOST + ":" + PORT);
   console.log(" 登录态: " + (userCookie ? "已登录(cookie已加载)" : "未登录"));
   console.log("======================================================");
 });

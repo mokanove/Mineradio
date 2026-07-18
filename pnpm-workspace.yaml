@@ -3,6 +3,10 @@ allowBuilds:
   electron-winstaller: true
 minimumReleaseAgeExclude:
   - electron@43.1.1
+  - app-builder-lib@26.15.7
+  - dmg-builder@26.15.7
+  - electron-builder-squirrel-windows@26.15.7
+  - electron-builder@26.15.7
 overrides:
   music-metadata: ">=11.12.2"
   file-type: ">=21.3.1"

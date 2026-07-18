@@ -47,6 +47,42 @@ const NETEASE_LOGIN_URL = "https://music.163.com/#/login";
 const QQ_LOGIN_PARTITION = "persist:mineradio-qqmusic-login";
 const QQ_LOGIN_URL = "https://y.qq.com/n/ryqq/profile";
 
+const ALLOWED_EXTERNAL_PROTOCOLS = new Set(["https:", "file:"]);
+
+function openExternalUrl(url) {
+  try {
+    const target = new URL(String(url || ""));
+    if (!ALLOWED_EXTERNAL_PROTOCOLS.has(target.protocol)) {
+      console.warn("Blocked external URL protocol:", target.protocol);
+      return;
+    }
+    shell
+      .openExternal(target.href)
+      .catch((e) => console.warn("Failed to open external URL:", e.message));
+  } catch (e) {
+    console.warn("Blocked invalid external URL:", e.message);
+  }
+}
+
+function readListenHost(argv = process.argv) {
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = String(argv[i] || "");
+    if (arg === "-l" || arg === "--listen") {
+      const value = String(argv[i + 1] || "").trim();
+      if (value && !value.startsWith("-")) return value;
+    }
+    if (arg.startsWith("--listen=")) {
+      const value = arg.slice("--listen=".length).trim();
+      if (value) return value;
+    }
+  }
+  return (
+    process.env.MINERADIO_LISTEN_HOST || process.env.HOST || "127.0.0.1"
+  );
+}
+
+const LISTEN_HOST = readListenHost();
+
 const CHROMIUM_PERFORMANCE_SWITCHES = [
   ["autoplay-policy", "no-user-gesture-required"],
   ["ignore-gpu-blocklist"],
@@ -558,8 +594,8 @@ async function openNeteaseMusicLoginWindow(owner) {
           .catch((e) =>
             console.warn("Netease login popup navigation failed:", e.message),
           );
-      } else if (/^https?:\/\//i.test(url)) {
-        shell.openExternal(url).catch(() => {});
+      } else {
+        openExternalUrl(url);
       }
       return { action: "deny" };
     });
@@ -686,7 +722,7 @@ async function openQQMusicLoginWindow(owner) {
             console.warn("QQ login popup navigation failed:", e.message),
           );
       } else {
-        shell.openExternal(url).catch(() => {});
+        openExternalUrl(url);
       }
       return { action: "deny" };
     });
@@ -1562,10 +1598,18 @@ async function createWindow() {
   const port = await findOpenPort(3000);
   mainServerPort = port;
 
-  process.env.HOST = "127.0.0.1";
+  process.env.MINERADIO_LISTEN_HOST = LISTEN_HOST;
+  process.env.HOST = LISTEN_HOST;
   process.env.PORT = String(port);
   process.env.COOKIE_FILE = path.join(app.getPath("userData"), ".cookie");
   process.env.QQ_COOKIE_FILE = path.join(app.getPath("userData"), ".qq-cookie");
+  if (!process.env.MINERADIO_BEAT_CACHE_DIR) {
+    process.env.MINERADIO_BEAT_CACHE_DIR = path.join(
+      app.getPath("cache"),
+      APP_NAME,
+      "beatmaps",
+    );
+  }
   process.env.MINERADIO_UPDATE_DIR = getUpdateDownloadDir();
   try {
     const legacyQQCookie = path.join(__dirname, "..", ".qq-cookie");
@@ -1609,7 +1653,7 @@ async function createWindow() {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    openExternalUrl(url);
     return { action: "deny" };
   });
 
