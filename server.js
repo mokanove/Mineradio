@@ -83,7 +83,13 @@ function defaultBeatMapCacheDir() {
     );
   }
   if (process.platform === "darwin") {
-    return path.join(os.homedir(), "Library", "Caches", "Mineradio", "beatmaps");
+    return path.join(
+      os.homedir(),
+      "Library",
+      "Caches",
+      "Mineradio",
+      "beatmaps",
+    );
   }
   return path.join(
     process.env.XDG_CACHE_HOME || path.join(os.homedir(), ".cache"),
@@ -2745,9 +2751,7 @@ async function fetchIpWeatherLocation() {
       const match = String(text || "").match(
         /当前\s*IP[：:]\s*(\S+)\s+来自于[：:]\s*(.+?)\s*$/,
       );
-      const parts = match
-        ? match[2].trim().split(/\s+/).filter(Boolean)
-        : [];
+      const parts = match ? match[2].trim().split(/\s+/).filter(Boolean) : [];
       if (parts.length >= 3) {
         country = parts[0] || country;
         region = parts[1] || region;

@@ -76,9 +76,7 @@ function readListenHost(argv = process.argv) {
       if (value) return value;
     }
   }
-  return (
-    process.env.MINERADIO_LISTEN_HOST || process.env.HOST || "127.0.0.1"
-  );
+  return process.env.MINERADIO_LISTEN_HOST || process.env.HOST || "127.0.0.1";
 }
 
 const LISTEN_HOST = readListenHost();
