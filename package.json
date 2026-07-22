@@ -1,7 +1,7 @@
 {
   "name": "mineradio",
   "productName": "Mineradio",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "description": "沉浸式音乐播放器，融合天气电台、歌词舞台、粒子视觉和 3D 歌单架。",
   "desktopName": "Mineradio.desktop",
   "license": "GPL-3.0-or-later",
@@ -117,7 +117,7 @@
     "rcedit": "^5.0.2"
   },
   "devDependencies": {
-    "electron": "^43.1.1",
+    "electron": "^43.2.0",
     "electron-builder": "^26.15.7",
     "prettier": "^3.9.6"
   },

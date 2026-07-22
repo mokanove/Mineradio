@@ -2,7 +2,7 @@ allowBuilds:
   electron: true
   electron-winstaller: true
 minimumReleaseAgeExclude:
-  - electron@43.1.1
+  - electron@43.2.0
   - app-builder-lib@26.15.7
   - dmg-builder@26.15.7
   - electron-builder-squirrel-windows@26.15.7
