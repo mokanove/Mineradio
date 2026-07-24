@@ -1,24 +1,31 @@
 #!/usr/bin/env node
-'use strict';
+"use strict";
 
-const assert = require('assert');
+const assert = require("assert");
 
 const port = Number(process.argv[2] || 9231);
 
 async function main() {
-  const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((response) => response.json());
-  const target = targets.find((item) => item.type === 'page' && /127\.0\.0\.1/.test(item.url || ''));
-  assert(target && target.webSocketDebuggerUrl, 'Mineradio CDP page target was not found');
+  const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then(
+    (response) => response.json(),
+  );
+  const target = targets.find(
+    (item) => item.type === "page" && /127\.0\.0\.1/.test(item.url || ""),
+  );
+  assert(
+    target && target.webSocketDebuggerUrl,
+    "Mineradio CDP page target was not found",
+  );
 
   const socket = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {
-    socket.addEventListener('open', resolve, { once: true });
-    socket.addEventListener('error', reject, { once: true });
+    socket.addEventListener("open", resolve, { once: true });
+    socket.addEventListener("error", reject, { once: true });
   });
 
   let sequence = 0;
   const pending = new Map();
-  socket.addEventListener('message', (event) => {
+  socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
     if (!message.id || !pending.has(message.id)) return;
     const waiter = pending.get(message.id);
@@ -36,19 +43,23 @@ async function main() {
   }
 
   async function evaluate(expression) {
-    const response = await call('Runtime.evaluate', {
+    const response = await call("Runtime.evaluate", {
       expression,
       awaitPromise: true,
       returnByValue: true,
-      userGesture: true
+      userGesture: true,
     });
     if (response.exceptionDetails) {
-      throw new Error(response.exceptionDetails.exception?.description || response.exceptionDetails.text || 'Renderer evaluation failed');
+      throw new Error(
+        response.exceptionDetails.exception?.description ||
+          response.exceptionDetails.text ||
+          "Renderer evaluation failed",
+      );
     }
     return response.result?.value;
   }
 
-  await call('Runtime.enable');
+  await call("Runtime.enable");
   const result = await evaluate(`(async () => {
     const waitFor = async (predicate, timeoutMs = 15000) => {
       const deadline = performance.now() + timeoutMs;
@@ -214,7 +225,7 @@ async function main() {
   })()`);
 
   socket.close();
-  assert.strictEqual(result.readyState, 'complete');
+  assert.strictEqual(result.readyState, "complete");
   assert.strictEqual(result.hasDesktopApi, true);
   assert.strictEqual(result.hasIndependentLayer, true);
   assert.strictEqual(result.hasOriginalLayer, true);
@@ -223,30 +234,66 @@ async function main() {
   assert(result.projectCount > 0);
   assert.strictEqual(result.projectCount, result.snapshotCount);
   assert.strictEqual(result.cardCount, result.projectCount);
-  assert(result.gridMetrics.scrollHeight > result.gridMetrics.clientHeight * 3, 'Wallpaper library must keep its full scroll range');
-  assert(result.lazyLoadedPreviews < result.previewCount, `Wallpaper previews must load lazily, not all at once (${result.lazyLoadedPreviews}/${result.previewCount})`);
-  assert.strictEqual(result.bottomPreviewLoaded, true, 'Wallpaper library must lazy-load previews after scrolling to the end');
+  assert(
+    result.gridMetrics.scrollHeight > result.gridMetrics.clientHeight * 3,
+    "Wallpaper library must keep its full scroll range",
+  );
+  assert(
+    result.lazyLoadedPreviews < result.previewCount,
+    `Wallpaper previews must load lazily, not all at once (${result.lazyLoadedPreviews}/${result.previewCount})`,
+  );
+  assert.strictEqual(
+    result.bottomPreviewLoaded,
+    true,
+    "Wallpaper library must lazy-load previews after scrolling to the end",
+  );
   assert.strictEqual(result.keyboardActionScoped, true);
   assert.strictEqual(result.selected, true);
   assert.strictEqual(result.layerReady, true);
   assert.strictEqual(result.applied.selectionActive, true);
-  assert.strictEqual(result.applied.bodyActive, true, result.applied.runtimeError || 'Wallpaper Engine layer did not become ready');
+  assert.strictEqual(
+    result.applied.bodyActive,
+    true,
+    result.applied.runtimeError ||
+      "Wallpaper Engine layer did not become ready",
+  );
   assert.strictEqual(result.applied.originalLayerPresent, true);
-  assert(/^mineradio-wallpaper:\/\//.test(result.applied.imageSrc || result.applied.videoSrc));
-  assert(/[?&]token=[a-f0-9]{48}/.test(result.applied.imageSrc || result.applied.videoSrc));
+  assert(
+    /^mineradio-wallpaper:\/\//.test(
+      result.applied.imageSrc || result.applied.videoSrc,
+    ),
+  );
+  assert(
+    /[?&]token=[a-f0-9]{48}/.test(
+      result.applied.imageSrc || result.applied.videoSrc,
+    ),
+  );
   assert.strictEqual(result.hiddenOriginalGuard.playCalls, 0);
   assert.strictEqual(result.hiddenOriginalGuard.sourceUnchanged, true);
   assert.strictEqual(result.hiddenOriginalGuard.wallpaperStillActive, true);
   assert.strictEqual(result.previewLayerReady, true);
-  assert.strictEqual(result.previewApplied.kind, 'preview');
-  assert.strictEqual(result.previewApplied.mediaType, 'image');
-  assert.strictEqual(result.previewApplied.bodyActive, true, result.previewApplied.runtimeError || 'Preview-only layer did not become ready');
-  assert(/^mineradio-wallpaper:\/\/preview\//.test(result.previewApplied.imageSrc));
+  assert.strictEqual(result.previewApplied.kind, "preview");
+  assert.strictEqual(result.previewApplied.mediaType, "image");
+  assert.strictEqual(
+    result.previewApplied.bodyActive,
+    true,
+    result.previewApplied.runtimeError ||
+      "Preview-only layer did not become ready",
+  );
+  assert(
+    /^mineradio-wallpaper:\/\/preview\//.test(result.previewApplied.imageSrc),
+  );
   assert(/[?&]token=[a-f0-9]{48}/.test(result.previewApplied.imageSrc));
-  assert.strictEqual(result.previewApplied.videoSrc, '');
+  assert.strictEqual(result.previewApplied.videoSrc, "");
   assert.strictEqual(result.largeLibrary.total, 960);
-  assert(result.largeLibrary.initialCards < result.largeLibrary.total, 'Very large wallpaper libraries must be rendered in batches');
-  assert(result.largeLibrary.extendedCards > result.largeLibrary.initialCards, 'Scrolling near the end must append the next wallpaper batch');
+  assert(
+    result.largeLibrary.initialCards < result.largeLibrary.total,
+    "Very large wallpaper libraries must be rendered in batches",
+  );
+  assert(
+    result.largeLibrary.extendedCards > result.largeLibrary.initialCards,
+    "Scrolling near the end must append the next wallpaper batch",
+  );
   assert.strictEqual(result.restored.selectionActive, false);
   assert.strictEqual(result.restored.bodyActive, false);
   assert.deepStrictEqual(result.restored.originalState, result.before);

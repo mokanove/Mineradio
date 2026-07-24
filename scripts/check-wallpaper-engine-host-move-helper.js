@@ -1,7 +1,7 @@
-'use strict';
+"use strict";
 
-const assert = require('assert');
-const { spawnSync } = require('child_process');
+const assert = require("assert");
+const { spawnSync } = require("child_process");
 
 const port = Number(process.argv[2] || 9231);
 const hostPid = Number(process.argv[3] || 0);
@@ -11,44 +11,62 @@ function sleep(milliseconds) {
 }
 
 async function main() {
-  assert(Number.isInteger(hostPid) && hostPid > 0, 'A Mineradio host PID is required');
-  const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((response) => response.json());
-  const target = targets.find((item) => item.type === 'page' && /127\.0\.0\.1/.test(item.url || ''));
-  assert(target && target.webSocketDebuggerUrl, 'Mineradio renderer target was not found');
+  assert(
+    Number.isInteger(hostPid) && hostPid > 0,
+    "A Mineradio host PID is required",
+  );
+  const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then(
+    (response) => response.json(),
+  );
+  const target = targets.find(
+    (item) => item.type === "page" && /127\.0\.0\.1/.test(item.url || ""),
+  );
+  assert(
+    target && target.webSocketDebuggerUrl,
+    "Mineradio renderer target was not found",
+  );
 
   const socket = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {
-    socket.addEventListener('open', resolve, { once: true });
-    socket.addEventListener('error', reject, { once: true });
+    socket.addEventListener("open", resolve, { once: true });
+    socket.addEventListener("error", reject, { once: true });
   });
   let requestId = 0;
   const pending = new Map();
-  socket.addEventListener('message', (event) => {
-    const message = JSON.parse(String(event.data || '{}'));
+  socket.addEventListener("message", (event) => {
+    const message = JSON.parse(String(event.data || "{}"));
     if (!message.id || !pending.has(message.id)) return;
     const entry = pending.get(message.id);
     pending.delete(message.id);
-    if (message.error) entry.reject(new Error(message.error.message || 'CDP request failed'));
+    if (message.error)
+      entry.reject(new Error(message.error.message || "CDP request failed"));
     else entry.resolve(message.result || {});
   });
-  const call = (method, params = {}) => new Promise((resolve, reject) => {
-    const id = ++requestId;
-    pending.set(id, { resolve, reject });
-    socket.send(JSON.stringify({ id, method, params }));
-  });
+  const call = (method, params = {}) =>
+    new Promise((resolve, reject) => {
+      const id = ++requestId;
+      pending.set(id, { resolve, reject });
+      socket.send(JSON.stringify({ id, method, params }));
+    });
   const evaluate = async (expression) => {
-    const response = await call('Runtime.evaluate', {
+    const response = await call("Runtime.evaluate", {
       expression,
       awaitPromise: true,
       returnByValue: true,
       userGesture: true,
     });
-    if (response.exceptionDetails) throw new Error(response.exceptionDetails.exception?.description || response.exceptionDetails.text || 'Renderer evaluation failed');
+    if (response.exceptionDetails)
+      throw new Error(
+        response.exceptionDetails.exception?.description ||
+          response.exceptionDetails.text ||
+          "Renderer evaluation failed",
+      );
     return response.result?.value;
   };
-  await call('Runtime.enable');
+  await call("Runtime.enable");
 
-  const readState = () => evaluate(`(async () => {
+  const readState = () =>
+    evaluate(`(async () => {
     const api = wallpaperEngineDesktopApi();
     const runtime = api && typeof api.getWallpaperEngineRuntimeStatus === 'function'
       ? await api.getWallpaperEngineRuntimeStatus({})
@@ -69,14 +87,20 @@ async function main() {
       if (predicate(state)) return state;
       await sleep(180);
     }
-    throw new Error(`Timed out waiting for Wallpaper Engine state: ${JSON.stringify(state)}`);
+    throw new Error(
+      `Timed out waiting for Wallpaper Engine state: ${JSON.stringify(state)}`,
+    );
   };
 
-  const before = await waitForState((state) => state.active
-    && /^[a-f0-9]{24}$/.test(state.sessionId)
-    && state.runtime
-    && state.runtime.active === true
-    && state.runtime.sourceWindowAligned === true, 45000);
+  const before = await waitForState(
+    (state) =>
+      state.active &&
+      /^[a-f0-9]{24}$/.test(state.sessionId) &&
+      state.runtime &&
+      state.runtime.active === true &&
+      state.runtime.sourceWindowAligned === true,
+    45000,
+  );
 
   const script = `
 $ErrorActionPreference='Stop'
@@ -96,39 +120,53 @@ $rect=New-Object MineradioQaHostMove+RECT
 if (-not [MineradioQaHostMove]::GetWindowRect($app.MainWindowHandle,[ref]$rect)) { throw 'GetWindowRect failed' }
 if (-not [MineradioQaHostMove]::SetWindowPos($app.MainWindowHandle,[IntPtr]::Zero,$rect.Left+80,$rect.Top+40,0,0,0x0015)) { throw 'SetWindowPos failed' }
 `;
-  const encoded = Buffer.from(script, 'utf16le').toString('base64');
-  const moved = spawnSync('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], {
-    encoding: 'utf8',
-    windowsHide: true,
-    timeout: 15000,
-    env: {
-      ...process.env,
-      TEMP: 'D:\\MineradioCache\\native-helper-temp',
-      TMP: 'D:\\MineradioCache\\native-helper-temp',
+  const encoded = Buffer.from(script, "utf16le").toString("base64");
+  const moved = spawnSync(
+    "powershell.exe",
+    ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
+    {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15000,
+      env: {
+        ...process.env,
+        TEMP: "D:\\MineradioCache\\native-helper-temp",
+        TMP: "D:\\MineradioCache\\native-helper-temp",
+      },
     },
-  });
-  assert.strictEqual(moved.status, 0, moved.stderr || moved.stdout || 'Host move failed');
+  );
+  assert.strictEqual(
+    moved.status,
+    0,
+    moved.stderr || moved.stdout || "Host move failed",
+  );
 
-  const after = await waitForState((state) => state.active
-    && state.kind === 'engine'
-    && /^[a-f0-9]{24}$/.test(state.sessionId)
-    && state.sessionId !== before.sessionId
-    && state.runtime
-    && state.runtime.active === true
-    && state.runtime.sessionId === state.sessionId
-    && state.runtime.sourceWindowAligned === true, 45000);
+  const after = await waitForState(
+    (state) =>
+      state.active &&
+      state.kind === "engine" &&
+      /^[a-f0-9]{24}$/.test(state.sessionId) &&
+      state.sessionId !== before.sessionId &&
+      state.runtime &&
+      state.runtime.active === true &&
+      state.runtime.sessionId === state.sessionId &&
+      state.runtime.sourceWindowAligned === true,
+    45000,
+  );
   socket.close();
-  console.log(JSON.stringify({
-    ok: true,
-    beforeSessionId: before.sessionId,
-    afterSessionId: after.sessionId,
-    sourceWindowRect: after.runtime.sourceWindowRect,
-    hostWindowRect: after.runtime.hostWindowRect,
-    audioMuted: after.runtime.audioMuted,
-  }));
+  console.log(
+    JSON.stringify({
+      ok: true,
+      beforeSessionId: before.sessionId,
+      afterSessionId: after.sessionId,
+      sourceWindowRect: after.runtime.sourceWindowRect,
+      hostWindowRect: after.runtime.hostWindowRect,
+      audioMuted: after.runtime.audioMuted,
+    }),
+  );
 }
 
 main().catch((error) => {
-  console.error(error && error.stack || error);
+  console.error((error && error.stack) || error);
   process.exit(1);
 });

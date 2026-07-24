@@ -1,29 +1,40 @@
-'use strict';
+"use strict";
 
-const { app, desktopCapturer } = require('electron');
-const { execFileSync } = require('child_process');
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
+const { app, desktopCapturer } = require("electron");
+const { execFileSync } = require("child_process");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
 
 const outputArgument = process.argv.find((value) => /^--output=/.test(value));
-const outputDirectory = path.resolve(outputArgument
-  ? outputArgument.slice('--output='.length)
-  : path.join(os.tmpdir(), `mineradio-we-pointer-target-${Date.now()}`));
-const titleArgument = process.argv.find((value) => /^--source-title=/.test(value));
+const outputDirectory = path.resolve(
+  outputArgument
+    ? outputArgument.slice("--output=".length)
+    : path.join(os.tmpdir(), `mineradio-we-pointer-target-${Date.now()}`),
+);
+const titleArgument = process.argv.find((value) =>
+  /^--source-title=/.test(value),
+);
 const sourceTitle = titleArgument
-  ? titleArgument.slice('--source-title='.length)
-  : '';
-const settleArgument = process.argv.find((value) => /^--settle=\d+$/.test(value));
-const settleMs = Math.max(250, Math.min(3000,
-  Number(settleArgument && settleArgument.split('=')[1]) || 1100));
+  ? titleArgument.slice("--source-title=".length)
+  : "";
+const settleArgument = process.argv.find((value) =>
+  /^--settle=\d+$/.test(value),
+);
+const settleMs = Math.max(
+  250,
+  Math.min(
+    3000,
+    Number(settleArgument && settleArgument.split("=")[1]) || 1100,
+  ),
+);
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function encodedPowerShell(source) {
-  return Buffer.from(String(source || ''), 'utf16le').toString('base64');
+  return Buffer.from(String(source || ""), "utf16le").toString("base64");
 }
 
 function pointerTargetProbeScript() {
@@ -142,35 +153,41 @@ Add-Type -TypeDefinition $source -Language CSharp
 }
 
 function postPointer(target, xUnit, yUnit) {
-  const stdout = execFileSync('powershell.exe', [
-    '-NoLogo',
-    '-NoProfile',
-    '-NonInteractive',
-    '-EncodedCommand',
-    encodedPowerShell(pointerTargetProbeScript()),
-  ], {
-    encoding: 'utf8',
-    windowsHide: true,
-    env: {
-      ...process.env,
-      MINERADIO_WE_DIAG_SOURCE_TITLE: sourceTitle,
-      MINERADIO_WE_DIAG_TARGET: target,
-      MINERADIO_WE_DIAG_X: String(xUnit),
-      MINERADIO_WE_DIAG_Y: String(yUnit),
+  const stdout = execFileSync(
+    "powershell.exe",
+    [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-EncodedCommand",
+      encodedPowerShell(pointerTargetProbeScript()),
+    ],
+    {
+      encoding: "utf8",
+      windowsHide: true,
+      env: {
+        ...process.env,
+        MINERADIO_WE_DIAG_SOURCE_TITLE: sourceTitle,
+        MINERADIO_WE_DIAG_TARGET: target,
+        MINERADIO_WE_DIAG_X: String(xUnit),
+        MINERADIO_WE_DIAG_Y: String(yUnit),
+      },
     },
-  });
-  return JSON.parse(String(stdout || '').trim());
+  );
+  return JSON.parse(String(stdout || "").trim());
 }
 
 async function captureMineradio(label) {
   const sources = await desktopCapturer.getSources({
-    types: ['window'],
+    types: ["window"],
     thumbnailSize: { width: 1440, height: 810 },
     fetchWindowIcons: false,
   });
-  const matches = sources.filter((source) => source.name === 'Mineradio');
+  const matches = sources.filter((source) => source.name === "Mineradio");
   if (matches.length !== 1) {
-    throw new Error(`Expected one Mineradio window capture source, found ${matches.length}`);
+    throw new Error(
+      `Expected one Mineradio window capture source, found ${matches.length}`,
+    );
   }
   const image = matches[0].thumbnail;
   const size = image.getSize();
@@ -186,7 +203,8 @@ async function captureMineradio(label) {
 }
 
 function meanAbsoluteRgb(first, second) {
-  if (!first || !second || first.bitmap.length !== second.bitmap.length) return null;
+  if (!first || !second || first.bitmap.length !== second.bitmap.length)
+    return null;
   let total = 0;
   let count = 0;
   for (let index = 0; index + 3 < first.bitmap.length; index += 4) {
@@ -206,19 +224,26 @@ async function captureAfter(target, side, xUnit) {
 }
 
 async function run() {
-  if (!sourceTitle) throw new Error('Pass --source-title with the exact Mineradio Wallpaper session title');
+  if (!sourceTitle)
+    throw new Error(
+      "Pass --source-title with the exact Mineradio Wallpaper session title",
+    );
   fs.mkdirSync(outputDirectory, { recursive: true });
-  const baseline = await captureMineradio('baseline');
-  const parentLeft = await captureAfter('parent', 'left', 4096);
-  const parentRight = await captureAfter('parent', 'right', 61439);
-  const childLeft = await captureAfter('child', 'left', 4096);
-  const childRight = await captureAfter('child', 'right', 61439);
+  const baseline = await captureMineradio("baseline");
+  const parentLeft = await captureAfter("parent", "left", 4096);
+  const parentRight = await captureAfter("parent", "right", 61439);
+  const childLeft = await captureAfter("child", "left", 4096);
+  const childRight = await captureAfter("child", "right", 61439);
   const result = {
     ok: true,
     sourceTitle,
     settleMs,
     outputDirectory,
-    baseline: { pngPath: baseline.pngPath, width: baseline.width, height: baseline.height },
+    baseline: {
+      pngPath: baseline.pngPath,
+      width: baseline.width,
+      height: baseline.height,
+    },
     parent: {
       left: parentLeft.posted,
       right: parentRight.posted,
@@ -232,16 +257,23 @@ async function run() {
       images: [childLeft.capture.pngPath, childRight.capture.pngPath],
     },
   };
-  fs.writeFileSync(path.join(outputDirectory, 'result.json'), `${JSON.stringify(result, null, 2)}\n`);
+  fs.writeFileSync(
+    path.join(outputDirectory, "result.json"),
+    `${JSON.stringify(result, null, 2)}\n`,
+  );
   console.log(JSON.stringify(result));
 }
 
-app.whenReady().then(run).then(() => app.quit()).catch((error) => {
-  const message = String(error && error.stack || error);
-  try {
-    fs.mkdirSync(outputDirectory, { recursive: true });
-    fs.writeFileSync(path.join(outputDirectory, 'error.log'), `${message}\n`);
-  } catch (_) { }
-  console.error(message);
-  app.exit(1);
-});
+app
+  .whenReady()
+  .then(run)
+  .then(() => app.quit())
+  .catch((error) => {
+    const message = String((error && error.stack) || error);
+    try {
+      fs.mkdirSync(outputDirectory, { recursive: true });
+      fs.writeFileSync(path.join(outputDirectory, "error.log"), `${message}\n`);
+    } catch (_) {}
+    console.error(message);
+    app.exit(1);
+  });

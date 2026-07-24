@@ -1,73 +1,108 @@
 var albumBackgroundSlot = 0;
 var albumBackgroundClearTimer = 0;
-var albumBackgroundCurrentSrc = '';
+var albumBackgroundCurrentSrc = "";
 
 function showAIDepthChip(text) {
-  document.getElementById('ai-depth-text').textContent = text || 'AI 深度估计…';
-  document.getElementById('ai-depth-chip').classList.add('show');
+  document.getElementById("ai-depth-text").textContent = text || "AI 深度估计…";
+  document.getElementById("ai-depth-chip").classList.add("show");
 }
 function hideAIDepthChip() {
-  document.getElementById('ai-depth-chip').classList.remove('show');
+  document.getElementById("ai-depth-chip").classList.remove("show");
 }
 
 function loadCoverFromUrl(directUrl, opts) {
   opts = opts || {};
-  var preserveOnSwitch = !!(opts.trackSwitch || opts.seamlessCover || opts.seamlessTrackSwitch);
-  if (!directUrl || typeof directUrl !== 'string' || !/^https?:\/\//i.test(directUrl)) {
+  var preserveOnSwitch = !!(
+    opts.trackSwitch ||
+    opts.seamlessCover ||
+    opts.seamlessTrackSwitch
+  );
+  if (
+    !directUrl ||
+    typeof directUrl !== "string" ||
+    !/^https?:\/\//i.test(directUrl)
+  ) {
     if (!coverApplyStillCurrent(opts)) return;
     if (preserveOnSwitch && uniforms.uHasCover.value > 0.5) {
-      document.getElementById('thumb-cover').removeAttribute('src');
-      setControlCoverSrc('');
-      setAlbumBackground('', { preserve: true });
+      document.getElementById("thumb-cover").removeAttribute("src");
+      setControlCoverSrc("");
+      setAlbumBackground("", { preserve: true });
       return;
     }
     currentCoverSource = null;
     coverProcessToken++;
-    uniforms.uHasCover.value = 0; setCoverDepthState(0, 0, 1);
+    uniforms.uHasCover.value = 0;
+    setCoverDepthState(0, 0, 1);
     resetFloatColorsToIdle();
-    setAlbumBackground('');
-    document.getElementById('thumb-cover').removeAttribute('src');
-    setControlCoverSrc('');
+    setAlbumBackground("");
+    document.getElementById("thumb-cover").removeAttribute("src");
+    setControlCoverSrc("");
     return;
   }
   var proxiedUrl = coverProxySrc(directUrl);
   if (!proxiedUrl) {
     if (preserveOnSwitch && uniforms.uHasCover.value > 0.5) return;
-    uniforms.uHasCover.value = 0; setCoverDepthState(0, 0, 1);
+    uniforms.uHasCover.value = 0;
+    setCoverDepthState(0, 0, 1);
     resetFloatColorsToIdle();
-    setAlbumBackground('');
-    setControlCoverSrc('');
+    setAlbumBackground("");
+    setControlCoverSrc("");
     return;
   }
-  var img = new Image(); img.crossOrigin = 'anonymous'; img.decoding = 'async';
+  var img = new Image();
+  img.crossOrigin = "anonymous";
+  img.decoding = "async";
   img.onload = function () {
     if (!coverApplyStillCurrent(opts)) return;
     var size = coverTextureSizeForResolution(fx.coverResolution);
-    var cv = document.createElement('canvas'); cv.width = cv.height = size;
-    var cx = cv.getContext('2d');
-    var iw = img.naturalWidth, ih = img.naturalHeight, s = Math.min(iw, ih);
+    var cv = document.createElement("canvas");
+    cv.width = cv.height = size;
+    var cx = cv.getContext("2d");
+    var iw = img.naturalWidth,
+      ih = img.naturalHeight,
+      s = Math.min(iw, ih);
     cx.drawImage(img, (iw - s) / 2, (ih - s) / 2, s, s, 0, 0, size, size);
     setAlbumBackground(proxiedUrl || directUrl);
-    applyCoverCanvas(cv, proxiedUrl || directUrl, Object.assign({}, opts, { coverKey: directUrl || proxiedUrl || '', coverSourceKind: 'url', coverSource: directUrl }));
+    applyCoverCanvas(
+      cv,
+      proxiedUrl || directUrl,
+      Object.assign({}, opts, {
+        coverKey: directUrl || proxiedUrl || "",
+        coverSourceKind: "url",
+        coverSource: directUrl,
+      }),
+    );
   };
   img.onerror = function () {
-    var img2 = new Image(); img2.crossOrigin = 'anonymous'; img2.decoding = 'async';
+    var img2 = new Image();
+    img2.crossOrigin = "anonymous";
+    img2.decoding = "async";
     img2.onload = function () {
       if (!coverApplyStillCurrent(opts)) return;
       var size = coverTextureSizeForResolution(fx.coverResolution);
-      var cv = document.createElement('canvas'); cv.width = cv.height = size;
-      cv.getContext('2d').drawImage(img2, 0, 0, size, size);
+      var cv = document.createElement("canvas");
+      cv.width = cv.height = size;
+      cv.getContext("2d").drawImage(img2, 0, 0, size, size);
       setAlbumBackground(directUrl);
-      applyCoverCanvas(cv, directUrl, Object.assign({}, opts, { coverKey: directUrl || '', coverSourceKind: 'url', coverSource: directUrl }));
+      applyCoverCanvas(
+        cv,
+        directUrl,
+        Object.assign({}, opts, {
+          coverKey: directUrl || "",
+          coverSourceKind: "url",
+          coverSource: directUrl,
+        }),
+      );
     };
     img2.onerror = function () {
       if (!coverApplyStillCurrent(opts)) return;
       if (preserveOnSwitch && uniforms.uHasCover.value > 0.5) return;
       currentCoverSource = null;
-      uniforms.uHasCover.value = 0; setCoverDepthState(0, 0, 1);
+      uniforms.uHasCover.value = 0;
+      setCoverDepthState(0, 0, 1);
       resetFloatColorsToIdle();
-      setAlbumBackground('');
-      setControlCoverSrc('');
+      setAlbumBackground("");
+      setControlCoverSrc("");
     };
     img2.src = directUrl;
   };
@@ -75,61 +110,83 @@ function loadCoverFromUrl(directUrl, opts) {
 }
 
 function cssBackgroundUrl(src) {
-  return 'url("' + String(src || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '")';
+  return (
+    'url("' +
+    String(src || "")
+      .replace(/\\/g, "\\\\")
+      .replace(/"/g, '\\"') +
+    '")'
+  );
 }
 
 function setAlbumBackground(src, opts) {
   opts = opts || {};
-  var bg = document.getElementById('album-bg');
-  var next = document.getElementById('album-bg-next');
+  var bg = document.getElementById("album-bg");
+  var next = document.getElementById("album-bg-next");
   if (!bg) return;
   if (!src) {
     if (opts.preserve) return;
-    albumBackgroundCurrentSrc = '';
-    bg.classList.remove('visible');
-    if (next) next.classList.remove('visible');
-    bg.style.backgroundImage = '';
-    if (next) next.style.backgroundImage = '';
+    albumBackgroundCurrentSrc = "";
+    bg.classList.remove("visible");
+    if (next) next.classList.remove("visible");
+    bg.style.backgroundImage = "";
+    if (next) next.style.backgroundImage = "";
     refreshCustomBackgroundAlbumMedia();
     return;
   }
   albumBackgroundCurrentSrc = src;
   if (!next) {
     bg.style.backgroundImage = cssBackgroundUrl(src);
-    bg.classList.add('visible');
+    bg.classList.add("visible");
     refreshCustomBackgroundAlbumMedia();
     return;
   }
   var outgoing = albumBackgroundSlot === 0 ? bg : next;
   var incoming = albumBackgroundSlot === 0 ? next : bg;
   incoming.style.backgroundImage = cssBackgroundUrl(src);
-  incoming.classList.add('visible');
-  outgoing.classList.remove('visible');
+  incoming.classList.add("visible");
+  outgoing.classList.remove("visible");
   albumBackgroundSlot = albumBackgroundSlot === 0 ? 1 : 0;
   if (albumBackgroundClearTimer) clearTimeout(albumBackgroundClearTimer);
   albumBackgroundClearTimer = setTimeout(function () {
     albumBackgroundClearTimer = 0;
-    if (!outgoing.classList.contains('visible')) outgoing.style.backgroundImage = '';
+    if (!outgoing.classList.contains("visible"))
+      outgoing.style.backgroundImage = "";
   }, 900);
   refreshCustomBackgroundAlbumMedia();
 }
 
 function refreshCustomBackgroundAlbumMedia() {
-  if (typeof customBackgroundUsesAlbumCover !== 'function' || !customBackgroundUsesAlbumCover()) return;
-  if (typeof updateCustomBackgroundControls === 'function') updateCustomBackgroundControls();
-  else if (typeof applyCustomBackground === 'function') applyCustomBackground();
+  if (
+    typeof customBackgroundUsesAlbumCover !== "function" ||
+    !customBackgroundUsesAlbumCover()
+  )
+    return;
+  if (typeof updateCustomBackgroundControls === "function")
+    updateCustomBackgroundControls();
+  else if (typeof applyCustomBackground === "function") applyCustomBackground();
 }
 
 function makeSquareCoverCanvas(img, size, crop) {
   size = size || 512;
-  var cv = document.createElement('canvas');
+  var cv = document.createElement("canvas");
   cv.width = cv.height = size;
-  var cx = cv.getContext('2d');
+  var cx = cv.getContext("2d");
   cx.clearRect(0, 0, size, size);
   var iw = img.naturalWidth || img.width;
   var ih = img.naturalHeight || img.height;
   if (crop) {
-    cx.drawImage(img, crop.sx, crop.sy, crop.sSize, crop.sSize, 0, 0, size, size);
+    cx.drawImage(
+      img,
+      crop.sx,
+      crop.sy,
+      crop.sSize,
+      crop.sSize,
+      0,
+      0,
+      size,
+      size,
+    );
   } else {
     var s = Math.min(iw, ih);
     cx.drawImage(img, (iw - s) / 2, (ih - s) / 2, s, s, 0, 0, size, size);
@@ -139,30 +196,40 @@ function makeSquareCoverCanvas(img, size, crop) {
 
 function coverCanvasToDataUrl(cv) {
   try {
-    var webp = cv.toDataURL('image/webp', 0.88);
+    var webp = cv.toDataURL("image/webp", 0.88);
     if (/^data:image\/webp/i.test(webp)) return webp;
-  } catch (e) { }
-  return cv.toDataURL('image/jpeg', 0.88);
+  } catch (e) {}
+  return cv.toDataURL("image/jpeg", 0.88);
 }
 
 function applyCoverDataUrl(dataUrl, opts) {
   opts = opts || {};
   if (!dataUrl) return;
   var img = new Image();
-  img.decoding = 'async';
+  img.decoding = "async";
   img.onload = function () {
     if (!coverApplyStillCurrent(opts)) return;
-    var cv = makeSquareCoverCanvas(img, coverTextureSizeForResolution(fx.coverResolution));
+    var cv = makeSquareCoverCanvas(
+      img,
+      coverTextureSizeForResolution(fx.coverResolution),
+    );
     setAlbumBackground(dataUrl);
-    applyCoverCanvas(cv, dataUrl, Object.assign({}, opts, { coverSourceKind: 'data', coverSource: dataUrl }));
+    applyCoverCanvas(
+      cv,
+      dataUrl,
+      Object.assign({}, opts, {
+        coverSourceKind: "data",
+        coverSource: dataUrl,
+      }),
+    );
   };
   img.src = dataUrl;
 }
 
 function commitCustomCoverCanvas(cv, opts) {
-  var out = document.createElement('canvas');
+  var out = document.createElement("canvas");
   out.width = out.height = 512;
-  out.getContext('2d').drawImage(cv, 0, 0, 512, 512);
+  out.getContext("2d").drawImage(cv, 0, 0, 512, 512);
   setCustomCoverForCurrent(coverCanvasToDataUrl(out), opts);
 }
 
@@ -187,21 +254,23 @@ function loadCoverFromFile(file, opts) {
 function bindCoverCropModal() {
   if (coverCropBound) return;
   coverCropBound = true;
-  var stage = document.getElementById('cover-crop-stage');
-  var zoom = document.getElementById('cover-crop-zoom');
+  var stage = document.getElementById("cover-crop-stage");
+  var zoom = document.getElementById("cover-crop-zoom");
   if (!stage || !zoom) return;
-  stage.addEventListener('pointerdown', function (e) {
+  stage.addEventListener("pointerdown", function (e) {
     if (!coverCropState) return;
     e.preventDefault();
     coverCropState.dragging = true;
     coverCropState.lastX = e.clientX;
     coverCropState.lastY = e.clientY;
-    stage.classList.add('dragging');
+    stage.classList.add("dragging");
     if (stage.setPointerCapture) {
-      try { stage.setPointerCapture(e.pointerId); } catch (err) { }
+      try {
+        stage.setPointerCapture(e.pointerId);
+      } catch (err) {}
     }
   });
-  stage.addEventListener('pointermove', function (e) {
+  stage.addEventListener("pointermove", function (e) {
     if (!coverCropState || !coverCropState.dragging) return;
     e.preventDefault();
     var dx = e.clientX - coverCropState.lastX;
@@ -215,34 +284,41 @@ function bindCoverCropModal() {
   function stopDrag() {
     if (!coverCropState) return;
     coverCropState.dragging = false;
-    stage.classList.remove('dragging');
+    stage.classList.remove("dragging");
   }
-  stage.addEventListener('pointerup', stopDrag);
-  stage.addEventListener('pointercancel', stopDrag);
-  stage.addEventListener('wheel', function (e) {
+  stage.addEventListener("pointerup", stopDrag);
+  stage.addEventListener("pointercancel", stopDrag);
+  stage.addEventListener(
+    "wheel",
+    function (e) {
+      if (!coverCropState) return;
+      e.preventDefault();
+      var next = coverCropState.scaleFactor + (e.deltaY < 0 ? 0.1 : -0.1);
+      coverCropState.scaleFactor = Math.max(1, Math.min(3.2, next));
+      zoom.value = coverCropState.scaleFactor;
+      updateCoverCropTransform();
+    },
+    { passive: false },
+  );
+  zoom.addEventListener("input", function () {
     if (!coverCropState) return;
-    e.preventDefault();
-    var next = coverCropState.scaleFactor + (e.deltaY < 0 ? 0.10 : -0.10);
-    coverCropState.scaleFactor = Math.max(1, Math.min(3.2, next));
-    zoom.value = coverCropState.scaleFactor;
-    updateCoverCropTransform();
-  }, { passive: false });
-  zoom.addEventListener('input', function () {
-    if (!coverCropState) return;
-    coverCropState.scaleFactor = Math.max(1, Math.min(3.2, parseFloat(zoom.value) || 1));
+    coverCropState.scaleFactor = Math.max(
+      1,
+      Math.min(3.2, parseFloat(zoom.value) || 1),
+    );
     updateCoverCropTransform();
   });
 }
 
 function openCoverCropModal(img, dataUrl) {
   bindCoverCropModal();
-  var modal = document.getElementById('cover-crop-modal');
-  var stage = document.getElementById('cover-crop-stage');
-  var imgEl = document.getElementById('cover-crop-img');
-  var zoom = document.getElementById('cover-crop-zoom');
+  var modal = document.getElementById("cover-crop-modal");
+  var stage = document.getElementById("cover-crop-stage");
+  var imgEl = document.getElementById("cover-crop-img");
+  var zoom = document.getElementById("cover-crop-zoom");
   if (!modal || !stage || !imgEl || !zoom) return;
   imgEl.src = dataUrl;
-  zoom.value = '1';
+  zoom.value = "1";
   coverCropState = {
     img: img,
     dataUrl: dataUrl,
@@ -255,7 +331,7 @@ function openCoverCropModal(img, dataUrl) {
     y: 0,
     dragging: false,
     lastX: 0,
-    lastY: 0
+    lastY: 0,
   };
   openGsapModal(modal);
   requestAnimationFrame(function () {
@@ -266,11 +342,12 @@ function openCoverCropModal(img, dataUrl) {
 
 function initCoverCropGeometry() {
   if (!coverCropState) return;
-  var stage = document.getElementById('cover-crop-stage');
+  var stage = document.getElementById("cover-crop-stage");
   var rect = stage ? stage.getBoundingClientRect() : null;
   var size = rect ? Math.max(220, Math.round(rect.width)) : 312;
   coverCropState.stageSize = size;
-  coverCropState.baseScale = size / Math.min(coverCropState.naturalW, coverCropState.naturalH);
+  coverCropState.baseScale =
+    size / Math.min(coverCropState.naturalW, coverCropState.naturalH);
   coverCropState.x = 0;
   coverCropState.y = 0;
   updateCoverCropTransform();
@@ -290,13 +367,20 @@ function clampCoverCropPan() {
 function updateCoverCropTransform() {
   if (!coverCropState) return;
   clampCoverCropPan();
-  var imgEl = document.getElementById('cover-crop-img');
+  var imgEl = document.getElementById("cover-crop-img");
   if (!imgEl) return;
   var baseW = coverCropState.naturalW * coverCropState.baseScale;
   var baseH = coverCropState.naturalH * coverCropState.baseScale;
-  imgEl.style.width = baseW + 'px';
-  imgEl.style.height = baseH + 'px';
-  imgEl.style.transform = 'translate(-50%, -50%) translate(' + coverCropState.x + 'px,' + coverCropState.y + 'px) scale(' + coverCropState.scaleFactor + ')';
+  imgEl.style.width = baseW + "px";
+  imgEl.style.height = baseH + "px";
+  imgEl.style.transform =
+    "translate(-50%, -50%) translate(" +
+    coverCropState.x +
+    "px," +
+    coverCropState.y +
+    "px) scale(" +
+    coverCropState.scaleFactor +
+    ")";
   drawCoverCropPreview();
 }
 
@@ -317,25 +401,39 @@ function currentCoverCropRect() {
 
 function drawCoverCropPreview() {
   if (!coverCropState) return;
-  var preview = document.getElementById('cover-crop-preview');
+  var preview = document.getElementById("cover-crop-preview");
   var crop = currentCoverCropRect();
   if (!preview || !crop) return;
-  var ctx = preview.getContext('2d');
+  var ctx = preview.getContext("2d");
   ctx.clearRect(0, 0, preview.width, preview.height);
-  ctx.drawImage(coverCropState.img, crop.sx, crop.sy, crop.sSize, crop.sSize, 0, 0, preview.width, preview.height);
+  ctx.drawImage(
+    coverCropState.img,
+    crop.sx,
+    crop.sy,
+    crop.sSize,
+    crop.sSize,
+    0,
+    0,
+    preview.width,
+    preview.height,
+  );
 }
 
 function pulseCoverCropStage() {
-  var stage = document.getElementById('cover-crop-stage');
+  var stage = document.getElementById("cover-crop-stage");
   if (!stage || !window.gsap) return;
-  window.gsap.fromTo(stage, { scale: 0.985 }, { scale: 1, duration: 0.72, ease: 'expo.out', overwrite: true });
+  window.gsap.fromTo(
+    stage,
+    { scale: 0.985 },
+    { scale: 1, duration: 0.72, ease: "expo.out", overwrite: true },
+  );
 }
 
 function closeCoverCropModal() {
-  var modal = document.getElementById('cover-crop-modal');
+  var modal = document.getElementById("cover-crop-modal");
   closeGsapModal(modal, function () {
-    var imgEl = document.getElementById('cover-crop-img');
-    if (imgEl) imgEl.removeAttribute('src');
+    var imgEl = document.getElementById("cover-crop-img");
+    if (imgEl) imgEl.removeAttribute("src");
     coverCropState = null;
   });
 }

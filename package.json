@@ -1,17 +1,24 @@
 {
   "name": "mineradio",
   "productName": "Mineradio",
-  "version": "2.0.1",
+  "version": "3.0.2",
   "description": "Windows 沉浸式音乐播放器，融合桌面模式、歌词舞台、粒子视觉和 3D 歌单架。",
   "author": "Mineradio",
   "license": "GPL-3.0-only",
   "main": "desktop/main.js",
   "private": true,
   "scripts": {
-    "start": "electron .",
-    "build:win": "electron-builder --win nsis --publish never",
-    "build:win:dir": "electron-builder --win dir",
-    "build:win:internal-beta": "electron-builder --config electron-builder.internal-beta.json --win nsis --publish never"
+    "dev": "electron .",
+    "format": "prettier . --write",
+    "build:linux:pacman": "electron-builder --linux pacman",
+    "build:linux:rpm": "electron-builder --linux rpm",
+    "build:linux:AppImage": "electron-builder --linux AppImage",
+    "build:linux:deb": "electron-builder --linux deb",
+    "build:linux:dir": "electron-builder --linux dir",
+    "build:windows": "electron-builder --win nsis",
+    "build:macos": "electron-builder --mac dmg",
+    "build:windows:dir": "electron-builder --win dir",
+    "build:macos:dir": "electron-builder --mac dir"
   },
   "build": {
     "appId": "com.mineradio.desktop",
@@ -43,6 +50,28 @@
       "public/index.html"
     ],
     "asar": false,
+    "linux": {
+      "icon": "build/icon.png",
+      "maintainer": "MoAEIOU <me@867678.xyz>",
+      "target": [
+        "pacman",
+        "rpm",
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
+    },
+    "mac": {
+      "icon": "build/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
+    },
     "win": {
       "executableName": "Mineradio",
       "icon": "build/icon.ico",
@@ -74,7 +103,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "XxHuberrr",
+        "owner": "MoAEIOU",
         "repo": "Mineradio"
       }
     ]
@@ -82,21 +111,22 @@
   "mineradio": {
     "update": {
       "provider": "github",
-      "owner": "XxHuberrr",
+      "owner": "MoAEIOU",
       "repo": "Mineradio",
       "preview": true,
       "preferMirrors": true,
       "mirrors": [
+        "https://gh-proxy.com/",
         "https://gh.llkk.cc/",
-        "https://ghfast.top/",
-        "https://gh-proxy.com/"
+        "https://ghproxy.link/"
       ]
     }
   },
   "dependencies": {
+    "NeteaseCloudMusicApi": "^4.32.0",
     "gsap": "^3.15.0",
     "mpg123-decoder": "^1.0.3",
-    "NeteaseCloudMusicApi": "^4.32.0"
+    "prettier": "^3.9.6"
   },
   "overrides": {
     "axios": "1.18.1",
@@ -104,8 +134,9 @@
     "music-metadata": "11.14.0"
   },
   "devDependencies": {
-    "electron": "^42.4.1",
-    "electron-builder": "^26.15.3",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.7",
     "rcedit": "^5.0.2"
-  }
+  },
+  "packageManager": "pnpm@11.17.0+sha512.cca3cea332ad254bb84145f966d19f4879615210346fc92c79a047f23a0d7b3cca3c3792f0076ba1f1831d277efbcf0a9119b31a9a60eca7fb3d6231f331ef72"
 }

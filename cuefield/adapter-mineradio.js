@@ -3,14 +3,24 @@ function toNumber(value, fallback) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-const MINERADIO_BEAT_COMBOS = ['', 'downbeat', 'push', 'drop', 'rebound', 'accent'];
+const MINERADIO_BEAT_COMBOS = [
+  "",
+  "downbeat",
+  "push",
+  "drop",
+  "rebound",
+  "accent",
+];
 
 function clamp01(value) {
   return Math.max(0, Math.min(1, toNumber(value, 0)));
 }
 
 function median(values) {
-  const list = (values || []).filter(Number.isFinite).slice().sort((a, b) => a - b);
+  const list = (values || [])
+    .filter(Number.isFinite)
+    .slice()
+    .sort((a, b) => a - b);
   if (!list.length) return 0;
   const middle = Math.floor(list.length / 2);
   return list.length % 2 ? list[middle] : (list[middle - 1] + list[middle]) / 2;
@@ -20,7 +30,8 @@ function normalizeBeatEvent(raw, index, gridStep) {
   if (Array.isArray(raw)) {
     const time = toNumber(raw[0], 0);
     const flags = Math.max(0, Math.round(toNumber(raw[8], 0)));
-    const combo = MINERADIO_BEAT_COMBOS[Math.max(0, Math.round(toNumber(raw[7], 0)))] || '';
+    const combo =
+      MINERADIO_BEAT_COMBOS[Math.max(0, Math.round(toNumber(raw[7], 0)))] || "";
     return {
       time,
       index,
@@ -31,7 +42,7 @@ function normalizeBeatEvent(raw, index, gridStep) {
       body: toNumber(raw[5], 0),
       snap: toNumber(raw[6], toNumber(raw[10], 0)),
       combo,
-      downbeat: combo === 'downbeat',
+      downbeat: combo === "downbeat",
       primary: !!(flags & 1),
       camera: !!(flags & 2),
       pulse: !!(flags & 4),
@@ -43,7 +54,7 @@ function normalizeBeatEvent(raw, index, gridStep) {
       step: toNumber(raw[11], gridStep || 0),
     };
   }
-  const time = typeof raw === 'number' ? raw : toNumber(raw && raw.time, 0);
+  const time = typeof raw === "number" ? raw : toNumber(raw && raw.time, 0);
   return {
     time,
     index,
@@ -53,8 +64,10 @@ function normalizeBeatEvent(raw, index, gridStep) {
     low: toNumber(raw && raw.low, 0),
     body: toNumber(raw && raw.body, 0),
     snap: toNumber(raw && raw.snap, 0),
-    combo: String(raw && raw.combo || ''),
-    downbeat: !!(raw && raw.downbeat) || String(raw && raw.combo || '') === 'downbeat',
+    combo: String((raw && raw.combo) || ""),
+    downbeat:
+      !!(raw && raw.downbeat) ||
+      String((raw && raw.combo) || "") === "downbeat",
     phrase: !!(raw && raw.phrase),
     primary: raw && raw.primary !== false,
     camera: raw && raw.camera !== false,
@@ -78,18 +91,26 @@ function beatGridQuality(beats, gridStep, downbeats, map) {
   const deviations = intervals.map((value) => Math.abs(value - step));
   const relativeMad = step > 0 ? median(deviations) / step : 1;
   const tempoStability = clamp01(1 - relativeMad / 0.12);
-  const confidence = clamp01(beats.length
-    ? beats.reduce((sum, beat) => sum + clamp01(beat.confidence), 0) / beats.length
-    : 0);
+  const confidence = clamp01(
+    beats.length
+      ? beats.reduce((sum, beat) => sum + clamp01(beat.confidence), 0) /
+          beats.length
+      : 0,
+  );
   const downbeatIntervals = [];
   for (let i = 1; i < downbeats.length; i += 1) {
     const delta = downbeats[i].time - downbeats[i - 1].time;
     if (delta > 0) downbeatIntervals.push(delta);
   }
   const expectedBar = step > 0 ? step * 4 : 0;
-  const downbeatError = expectedBar && downbeatIntervals.length
-    ? median(downbeatIntervals.map((value) => Math.abs(value - expectedBar) / expectedBar))
-    : 1;
+  const downbeatError =
+    expectedBar && downbeatIntervals.length
+      ? median(
+          downbeatIntervals.map(
+            (value) => Math.abs(value - expectedBar) / expectedBar,
+          ),
+        )
+      : 1;
   const downbeatStability = clamp01(1 - downbeatError / 0.18);
   const enoughBeats = clamp01(beats.length / 48);
   const rangeValid = step >= 0.3 && step <= 1 ? 1 : 0;
@@ -99,7 +120,14 @@ function beatGridQuality(beats, gridStep, downbeats, map) {
     tempoStability,
     beatConfidence: confidence,
     downbeatStability,
-    dataConfidence: clamp01((tempoStability * 0.36 + confidence * 0.22 + downbeatStability * 0.24 + enoughBeats * 0.18) * rangeValid * partialPenalty),
+    dataConfidence: clamp01(
+      (tempoStability * 0.36 +
+        confidence * 0.22 +
+        downbeatStability * 0.24 +
+        enoughBeats * 0.18) *
+        rangeValid *
+        partialPenalty,
+    ),
   };
 }
 
@@ -121,10 +149,18 @@ function normalizeMineradioBeatMap(track, map, extra = {}) {
     .map((beat, index) => normalizeBeatEvent(beat, index, gridStep))
     .filter((beat) => Number.isFinite(beat.time))
     .sort((a, b) => a.time - b.time);
-  const duration = toNumber(track && track.duration, toNumber(map && map.duration, beats.length ? beats[beats.length - 1].time : 0));
-  const hasExplicitMeter = beats.some((beat) => beat.downbeat || beat.phrase || !!beat.combo);
+  const duration = toNumber(
+    track && track.duration,
+    toNumber(
+      map && map.duration,
+      beats.length ? beats[beats.length - 1].time : 0,
+    ),
+  );
+  const hasExplicitMeter = beats.some(
+    (beat) => beat.downbeat || beat.phrase || !!beat.combo,
+  );
   const downbeats = beats.filter((beat, index) => {
-    if (beat.downbeat || beat.phrase || beat.combo === 'downbeat') return true;
+    if (beat.downbeat || beat.phrase || beat.combo === "downbeat") return true;
     return !hasExplicitMeter && gridStep > 0 && index % 4 === 0;
   });
   const quality = beatGridQuality(beats, gridStep, downbeats, map);
@@ -137,25 +173,28 @@ function normalizeMineradioBeatMap(track, map, extra = {}) {
 
   return {
     track: {
-      id: track && track.id || '',
-      title: track && (track.title || track.name) || '',
-      artist: track && track.artist || '',
+      id: (track && track.id) || "",
+      title: (track && (track.title || track.name)) || "",
+      artist: (track && track.artist) || "",
       duration,
     },
     analysis: {
-      source: 'mineradio',
+      source: "mineradio",
       beats,
       downbeats,
       phraseBoundaries,
-      energyCurve: beats.map((beat) => ({ time: beat.time, value: Math.max(0, Math.min(1, beat.impact || beat.strength || 0)) })),
+      energyCurve: beats.map((beat) => ({
+        time: beat.time,
+        value: Math.max(0, Math.min(1, beat.impact || beat.strength || 0)),
+      })),
       lowBand: beats.map((beat) => ({ time: beat.time, value: beat.low })),
       bodyBand: beats.map((beat) => ({ time: beat.time, value: beat.body })),
       snapBand: beats.map((beat) => ({ time: beat.time, value: beat.snap })),
       sections: [],
       gridStep: quality.step || gridStep,
       bpm: (quality.step || gridStep) > 0 ? 60 / (quality.step || gridStep) : 0,
-      camelot: extra.camelot || '',
-      key: extra.key || '',
+      camelot: extra.camelot || "",
+      key: extra.key || "",
       vocalWindows: normalizeWindows(extra.vocalWindows),
       hasKeyData,
       hasVocalData,

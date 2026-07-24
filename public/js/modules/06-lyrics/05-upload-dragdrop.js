@@ -3,60 +3,83 @@ var AUDIO_UPLOAD_EXT_RE = /\.(mp3|flac|wav|ogg|m4a|aac|opus)$/i;
 var IMAGE_UPLOAD_EXT_RE = /\.(jpg|jpeg|png|webp)$/i;
 function isAudioUploadFile(file) {
   if (!file) return false;
-  return /^audio\//i.test(file.type || '') || AUDIO_UPLOAD_EXT_RE.test(file.name || '');
+  return (
+    /^audio\//i.test(file.type || "") ||
+    AUDIO_UPLOAD_EXT_RE.test(file.name || "")
+  );
 }
 function isImageUploadFile(file) {
   if (!file) return false;
-  return /^image\//i.test(file.type || '') || IMAGE_UPLOAD_EXT_RE.test(file.name || '');
+  return (
+    /^image\//i.test(file.type || "") ||
+    IMAGE_UPLOAD_EXT_RE.test(file.name || "")
+  );
 }
 function uploadFileSortKey(file) {
-  return String((file && (file.webkitRelativePath || file.name)) || '').toLowerCase();
+  return String(
+    (file && (file.webkitRelativePath || file.name)) || "",
+  ).toLowerCase();
 }
 function sortedAudioUploadFiles(files) {
-  return Array.prototype.slice.call(files || [])
+  return Array.prototype.slice
+    .call(files || [])
     .filter(isAudioUploadFile)
     .sort(function (a, b) {
-      return uploadFileSortKey(a).localeCompare(uploadFileSortKey(b), 'zh-CN', { numeric: true, sensitivity: 'base' });
+      return uploadFileSortKey(a).localeCompare(uploadFileSortKey(b), "zh-CN", {
+        numeric: true,
+        sensitivity: "base",
+      });
     });
 }
 function firstImageUploadFile(files) {
   var list = Array.prototype.slice.call(files || []);
-  for (var i = 0; i < list.length; i++) if (isImageUploadFile(list[i])) return list[i];
+  for (var i = 0; i < list.length; i++)
+    if (isImageUploadFile(list[i])) return list[i];
   return null;
 }
 function localSongFromAudioFile(file) {
-  var rel = String(file.webkitRelativePath || file.name || '');
-  var filename = String(file.name || rel || '本地音乐');
-  var title = filename.replace(/\.[^.]+$/, '');
+  var rel = String(file.webkitRelativePath || file.name || "");
+  var filename = String(file.name || rel || "本地音乐");
+  var title = filename.replace(/\.[^.]+$/, "");
   return hydrateCustomCover({
-    type: 'local',
-    source: 'local',
-    provider: 'local',
-    name: title || '本地音乐',
-    artist: '本地文件',
-    album: rel && rel !== filename ? rel.split(/[\\/]/).slice(0, -1).join(' / ') : '',
-    localKey: [rel || filename, file.size || 0, file.lastModified || 0].join(':'),
+    type: "local",
+    source: "local",
+    provider: "local",
+    name: title || "本地音乐",
+    artist: "本地文件",
+    album:
+      rel && rel !== filename
+        ? rel.split(/[\\/]/).slice(0, -1).join(" / ")
+        : "",
+    localKey: [rel || filename, file.size || 0, file.lastModified || 0].join(
+      ":",
+    ),
     localUrl: URL.createObjectURL(file),
     localPath: rel,
-    duration: 0
+    duration: 0,
   });
 }
 var uploadFilePickerActiveUntil = 0;
 var uploadFilePickerFocusArmed = false;
 var uploadFilePickerFocusTimer = null;
 function uploadImportNow() {
-  return (window.performance && typeof performance.now === 'function') ? performance.now() : Date.now();
+  return window.performance && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
 }
 function isUploadPanelOpen() {
-  var panel = document.getElementById('upload-panel');
-  return !!(panel && panel.classList.contains('show'));
+  var panel = document.getElementById("upload-panel");
+  return !!(panel && panel.classList.contains("show"));
 }
 function pinUploadSearchArea() {
-  var area = document.getElementById('search-area');
-  if (area && typeof setPeek === 'function') setPeek(area, true, 'search');
+  var area = document.getElementById("search-area");
+  if (area && typeof setPeek === "function") setPeek(area, true, "search");
 }
 function keepUploadImportActive(ms) {
-  uploadFilePickerActiveUntil = Math.max(uploadFilePickerActiveUntil, uploadImportNow() + (ms || 12000));
+  uploadFilePickerActiveUntil = Math.max(
+    uploadFilePickerActiveUntil,
+    uploadImportNow() + (ms || 12000),
+  );
   pinUploadSearchArea();
 }
 function isUploadImportActive() {
@@ -71,7 +94,7 @@ function clearUploadFilePickerFocusTimer() {
 function disarmUploadFilePickerFocus() {
   if (!uploadFilePickerFocusArmed) return;
   uploadFilePickerFocusArmed = false;
-  window.removeEventListener('focus', handleUploadFilePickerFocus);
+  window.removeEventListener("focus", handleUploadFilePickerFocus);
 }
 function handleUploadFilePickerFocus() {
   disarmUploadFilePickerFocus();
@@ -86,7 +109,7 @@ function handleUploadFilePickerFocus() {
 function armUploadFilePickerFocus() {
   disarmUploadFilePickerFocus();
   uploadFilePickerFocusArmed = true;
-  window.addEventListener('focus', handleUploadFilePickerFocus);
+  window.addEventListener("focus", handleUploadFilePickerFocus);
 }
 function finishUploadFilePicker(closePanel) {
   uploadFilePickerActiveUntil = 0;
@@ -96,49 +119,57 @@ function finishUploadFilePicker(closePanel) {
 }
 function openUploadPanel() {
   closeUploadTip(false);
-  var actions = document.getElementById('upload-actions');
-  var panel = document.getElementById('upload-panel');
+  var actions = document.getElementById("upload-actions");
+  var panel = document.getElementById("upload-panel");
   if (!panel) return;
   var hidden = !actions;
   if (!hidden) {
     try {
       var style = getComputedStyle(actions);
-      hidden = style.display === 'none' || style.visibility === 'hidden' || actions.getClientRects().length === 0;
-    } catch (e) { }
+      hidden =
+        style.display === "none" ||
+        style.visibility === "hidden" ||
+        actions.getClientRects().length === 0;
+    } catch (e) {}
   }
   if (hidden) {
-    triggerUploadInput('audio');
+    triggerUploadInput("audio");
     return;
   }
-  panel.classList.add('show');
+  panel.classList.add("show");
   pinUploadSearchArea();
 }
 function closeUploadPanel(opts) {
   opts = opts || {};
   if (!opts.keepPicker) uploadFilePickerActiveUntil = 0;
-  var panel = document.getElementById('upload-panel');
-  if (panel) panel.classList.remove('show');
+  var panel = document.getElementById("upload-panel");
+  if (panel) panel.classList.remove("show");
 }
 function toggleUploadPanel(event) {
   if (event) event.stopPropagation();
-  var panel = document.getElementById('upload-panel');
+  var panel = document.getElementById("upload-panel");
   if (!panel) return;
-  if (panel.classList.contains('show')) closeUploadPanel();
+  if (panel.classList.contains("show")) closeUploadPanel();
   else openUploadPanel();
 }
 function triggerUploadInput(kind) {
-  var id = kind === 'cover' ? 'cover-input' : (kind === 'folder' ? 'folder-input' : 'file-input');
+  var id =
+    kind === "cover"
+      ? "cover-input"
+      : kind === "folder"
+        ? "folder-input"
+        : "file-input";
   var input = document.getElementById(id);
   if (!input) {
     closeUploadPanel();
     return;
   }
-  keepUploadImportActive(kind === 'folder' ? 120000 : 45000);
+  keepUploadImportActive(kind === "folder" ? 120000 : 45000);
   armUploadFilePickerFocus();
   try {
     input.click();
   } catch (e) {
-    console.warn('[LocalImport] failed to open file picker', e);
+    console.warn("[LocalImport] failed to open file picker", e);
     finishUploadFilePicker(false);
   }
 }
@@ -153,23 +184,36 @@ function importLocalAudioSongs(songs, opts) {
   currentIdx = 0;
   currentLocalSong = null;
   activeRadioContext = null;
-  safeRenderQueuePanel('local-import', { scrollCurrent: miniQueueOpen });
-  safeShelfRebuild('local-import', true);
+  safeRenderQueuePanel("local-import", { scrollCurrent: miniQueueOpen });
+  safeShelfRebuild("local-import", true);
   forcePlaybackControlsInteractive();
   updateEmptyHomeVisibility({ forceLoad: false });
-  showToast(songs.length > 1 ? ('已导入 ' + songs.length + ' 首本地音乐') : '正在播放本地音乐');
-  Promise.resolve(playQueueAt(0, { manual: true })).then(function () {
-    if (opts.coverFile && currentIdx === 0 && playQueue[0]) {
-      loadCoverFromFile(opts.coverFile, { trackToken: trackSwitchToken, deferHeavy: false, delay: 0, timeout: 260 });
-    }
-  }).catch(function (e) { console.warn('[LocalImport]', e); });
+  showToast(
+    songs.length > 1
+      ? "已导入 " + songs.length + " 首本地音乐"
+      : "正在播放本地音乐",
+  );
+  Promise.resolve(playQueueAt(0, { manual: true }))
+    .then(function () {
+      if (opts.coverFile && currentIdx === 0 && playQueue[0]) {
+        loadCoverFromFile(opts.coverFile, {
+          trackToken: trackSwitchToken,
+          deferHeavy: false,
+          delay: 0,
+          timeout: 260,
+        });
+      }
+    })
+    .catch(function (e) {
+      console.warn("[LocalImport]", e);
+    });
   return true;
 }
 function handleCoverFiles(files) {
   finishUploadFilePicker(true);
   var imgFile = firstImageUploadFile(files);
   if (!imgFile) {
-    showToast('没有找到可用的封面图片');
+    showToast("没有找到可用的封面图片");
     return;
   }
   loadCoverFromFile(imgFile, null);
@@ -182,38 +226,74 @@ function handleFiles(files, opts) {
   var imgFile = firstImageUploadFile(files);
   if (audioFiles.length) {
     var songs = audioFiles.map(localSongFromAudioFile);
-    importLocalAudioSongs(songs, { coverFile: songs.length === 1 ? imgFile : null, mode: opts.mode || '' });
+    importLocalAudioSongs(songs, {
+      coverFile: songs.length === 1 ? imgFile : null,
+      mode: opts.mode || "",
+    });
     return;
   }
   if (imgFile) {
     handleCoverFiles([imgFile]);
     return;
   }
-  showToast('没有找到可导入的音乐或封面文件');
+  showToast("没有找到可导入的音乐或封面文件");
 }
-var fileInput = document.getElementById('file-input');
-if (fileInput) fileInput.addEventListener('change', function (e) { handleFiles(e.target.files, { mode: 'audio' }); e.target.value = ''; });
-var coverInput = document.getElementById('cover-input');
-if (coverInput) coverInput.addEventListener('change', function (e) { handleCoverFiles(e.target.files); e.target.value = ''; });
-var folderInput = document.getElementById('folder-input');
-if (folderInput) folderInput.addEventListener('change', function (e) { handleFiles(e.target.files, { mode: 'folder' }); e.target.value = ''; });
-var lyricFontInput = document.getElementById('lyric-font-input');
-if (lyricFontInput) lyricFontInput.addEventListener('change', function (e) { handleLyricFontFiles(e.target.files); e.target.value = ''; });
-document.addEventListener('click', function (e) {
-  var panel = document.getElementById('upload-panel');
-  if (!panel || !panel.classList.contains('show')) return;
-  if (e.target && e.target.closest && e.target.closest('#upload-actions')) return;
+var fileInput = document.getElementById("file-input");
+if (fileInput)
+  fileInput.addEventListener("change", function (e) {
+    handleFiles(e.target.files, { mode: "audio" });
+    e.target.value = "";
+  });
+var coverInput = document.getElementById("cover-input");
+if (coverInput)
+  coverInput.addEventListener("change", function (e) {
+    handleCoverFiles(e.target.files);
+    e.target.value = "";
+  });
+var folderInput = document.getElementById("folder-input");
+if (folderInput)
+  folderInput.addEventListener("change", function (e) {
+    handleFiles(e.target.files, { mode: "folder" });
+    e.target.value = "";
+  });
+var lyricFontInput = document.getElementById("lyric-font-input");
+if (lyricFontInput)
+  lyricFontInput.addEventListener("change", function (e) {
+    handleLyricFontFiles(e.target.files);
+    e.target.value = "";
+  });
+document.addEventListener("click", function (e) {
+  var panel = document.getElementById("upload-panel");
+  if (!panel || !panel.classList.contains("show")) return;
+  if (e.target && e.target.closest && e.target.closest("#upload-actions"))
+    return;
   closeUploadPanel();
 });
-document.addEventListener('keydown', function (e) {
-  if (e.key === 'Escape') closeUploadPanel();
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape") closeUploadPanel();
 });
-var dropOv = document.getElementById('drop-overlay'), dragCount = 0;
-document.addEventListener('dragenter', function (e) { e.preventDefault(); dragCount++; dropOv.classList.add('show'); });
-document.addEventListener('dragleave', function (e) { e.preventDefault(); dragCount--; if (dragCount <= 0) { dragCount = 0; dropOv.classList.remove('show'); } });
-document.addEventListener('dragover', function (e) { e.preventDefault(); });
-document.addEventListener('drop', function (e) {
-  e.preventDefault(); dragCount = 0; dropOv.classList.remove('show');
+var dropOv = document.getElementById("drop-overlay"),
+  dragCount = 0;
+document.addEventListener("dragenter", function (e) {
+  e.preventDefault();
+  dragCount++;
+  dropOv.classList.add("show");
+});
+document.addEventListener("dragleave", function (e) {
+  e.preventDefault();
+  dragCount--;
+  if (dragCount <= 0) {
+    dragCount = 0;
+    dropOv.classList.remove("show");
+  }
+});
+document.addEventListener("dragover", function (e) {
+  e.preventDefault();
+});
+document.addEventListener("drop", function (e) {
+  e.preventDefault();
+  dragCount = 0;
+  dropOv.classList.remove("show");
   if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
 });
 

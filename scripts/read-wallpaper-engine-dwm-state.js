@@ -1,74 +1,97 @@
 #!/usr/bin/env node
-'use strict';
+"use strict";
 
-const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
+const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
 
 const port = Number(process.argv[2] || 9333);
-const shouldExit = process.argv.includes('--exit');
-const glassOff = process.argv.includes('--glass-off');
-const glassOn = process.argv.includes('--glass-on');
-const retryGlass = process.argv.includes('--retry-glass');
-const controlsHide = process.argv.includes('--controls-hide');
-const controlsShow = process.argv.includes('--controls-show');
-const iconsHide = process.argv.includes('--icons-hide');
-const iconsShow = process.argv.includes('--icons-show');
-const toggleMaximize = process.argv.includes('--toggle-maximize');
-const activateWorkshopArgument = process.argv.find((value) => /^--activate-workshop=\d+$/.test(value));
-const activateWorkshopId = activateWorkshopArgument ? activateWorkshopArgument.split('=')[1] : '';
-const activateCurrent = process.argv.includes('--activate-current');
-const deactivateCurrent = process.argv.includes('--deactivate');
-const screenshotArgument = process.argv.find((value) => value.startsWith('--screenshot='));
-const screenshotPath = screenshotArgument ? path.resolve(screenshotArgument.slice('--screenshot='.length)) : '';
+const shouldExit = process.argv.includes("--exit");
+const glassOff = process.argv.includes("--glass-off");
+const glassOn = process.argv.includes("--glass-on");
+const retryGlass = process.argv.includes("--retry-glass");
+const controlsHide = process.argv.includes("--controls-hide");
+const controlsShow = process.argv.includes("--controls-show");
+const iconsHide = process.argv.includes("--icons-hide");
+const iconsShow = process.argv.includes("--icons-show");
+const toggleMaximize = process.argv.includes("--toggle-maximize");
+const activateWorkshopArgument = process.argv.find((value) =>
+  /^--activate-workshop=\d+$/.test(value),
+);
+const activateWorkshopId = activateWorkshopArgument
+  ? activateWorkshopArgument.split("=")[1]
+  : "";
+const activateCurrent = process.argv.includes("--activate-current");
+const deactivateCurrent = process.argv.includes("--deactivate");
+const screenshotArgument = process.argv.find((value) =>
+  value.startsWith("--screenshot="),
+);
+const screenshotPath = screenshotArgument
+  ? path.resolve(screenshotArgument.slice("--screenshot=".length))
+  : "";
 
 async function main() {
-  const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((response) => response.json());
-  const target = targets.find((item) => item.type === 'page' && /127\.0\.0\.1/.test(item.url || ''));
-  assert(target && target.webSocketDebuggerUrl, 'Mineradio renderer target was not found');
+  const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then(
+    (response) => response.json(),
+  );
+  const target = targets.find(
+    (item) => item.type === "page" && /127\.0\.0\.1/.test(item.url || ""),
+  );
+  assert(
+    target && target.webSocketDebuggerUrl,
+    "Mineradio renderer target was not found",
+  );
 
   const socket = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {
-    socket.addEventListener('open', resolve, { once: true });
-    socket.addEventListener('error', reject, { once: true });
+    socket.addEventListener("open", resolve, { once: true });
+    socket.addEventListener("error", reject, { once: true });
   });
 
   let requestId = 0;
   const pending = new Map();
-  socket.addEventListener('message', (event) => {
-    const message = JSON.parse(String(event.data || '{}'));
+  socket.addEventListener("message", (event) => {
+    const message = JSON.parse(String(event.data || "{}"));
     if (!message.id || !pending.has(message.id)) return;
     const entry = pending.get(message.id);
     pending.delete(message.id);
-    if (message.error) entry.reject(new Error(message.error.message || 'CDP request failed'));
+    if (message.error)
+      entry.reject(new Error(message.error.message || "CDP request failed"));
     else entry.resolve(message.result || {});
   });
 
-  const call = (method, params = {}) => new Promise((resolve, reject) => {
-    const id = ++requestId;
-    pending.set(id, { resolve, reject });
-    socket.send(JSON.stringify({ id, method, params }));
-  });
+  const call = (method, params = {}) =>
+    new Promise((resolve, reject) => {
+      const id = ++requestId;
+      pending.set(id, { resolve, reject });
+      socket.send(JSON.stringify({ id, method, params }));
+    });
   const evaluate = async (expression) => {
-    const response = await call('Runtime.evaluate', {
+    const response = await call("Runtime.evaluate", {
       expression,
       awaitPromise: true,
       returnByValue: true,
     });
     if (response.exceptionDetails) {
-      throw new Error(response.exceptionDetails.exception?.description || response.exceptionDetails.text || 'Renderer evaluation failed');
+      throw new Error(
+        response.exceptionDetails.exception?.description ||
+          response.exceptionDetails.text ||
+          "Renderer evaluation failed",
+      );
     }
     return response.result?.value;
   };
 
-  await call('Runtime.enable');
+  await call("Runtime.enable");
   if (activateWorkshopId || activateCurrent) {
     await evaluate(`(async () => {
       if (window.desktopWindow && typeof desktopWindow.restore === 'function') await desktopWindow.restore();
       await loadWallpaperEngineLibrary(true, false);
-      const item = wallpaperEngineProjects.find((project) => project.enginePlayable && (${activateCurrent
-        ? 'String(project.id || \'\') === String(wallpaperEngineSelection && wallpaperEngineSelection.id || \'\')'
-        : `String(project.workshopId || '') === ${JSON.stringify(activateWorkshopId)}`}));
+      const item = wallpaperEngineProjects.find((project) => project.enginePlayable && (${
+        activateCurrent
+          ? "String(project.id || '') === String(wallpaperEngineSelection && wallpaperEngineSelection.id || '')"
+          : `String(project.workshopId || '') === ${JSON.stringify(activateWorkshopId)}`
+      }));
       if (!item) throw new Error('NO_NATIVE_SCENE_PROJECT');
       activateWallpaperEngineItem(item.id);
       const deadline = performance.now() + 70000;
@@ -106,7 +129,7 @@ async function main() {
   } else if (iconsHide || iconsShow) {
     await evaluate(`(async () => {
       if (typeof setDesktopIconsVisibility !== 'function') throw new Error('DESKTOP_ICON_CONTROL_UNAVAILABLE');
-      const result = await setDesktopIconsVisibility(${iconsShow ? 'true' : 'false'});
+      const result = await setDesktopIconsVisibility(${iconsShow ? "true" : "false"});
       await new Promise((resolve) => setTimeout(resolve, 600));
       return result;
     })()`);
@@ -116,8 +139,8 @@ async function main() {
         clearTimeout(controlsHideTimer);
         controlsHideTimer = null;
       }
-      controlsHovering = ${controlsShow ? 'true' : 'false'};
-      setControlsHidden(${controlsHide ? 'true' : 'false'});
+      controlsHovering = ${controlsShow ? "true" : "false"};
+      setControlsHidden(${controlsHide ? "true" : "false"});
       await new Promise((resolve) => setTimeout(resolve, 700));
       controlsHovering = false;
       return true;
@@ -287,10 +310,16 @@ async function main() {
     };
   })()`);
   if (screenshotPath) {
-    await call('Page.bringToFront');
-    const screenshot = await call('Page.captureScreenshot', { format: 'png', fromSurface: true });
+    await call("Page.bringToFront");
+    const screenshot = await call("Page.captureScreenshot", {
+      format: "png",
+      fromSurface: true,
+    });
     fs.mkdirSync(path.dirname(screenshotPath), { recursive: true });
-    fs.writeFileSync(screenshotPath, Buffer.from(String(screenshot.data || ''), 'base64'));
+    fs.writeFileSync(
+      screenshotPath,
+      Buffer.from(String(screenshot.data || ""), "base64"),
+    );
     state.screenshotPath = screenshotPath;
   }
   if (shouldExit) {
@@ -304,6 +333,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error && error.stack || error);
+  console.error((error && error.stack) || error);
   process.exit(1);
 });

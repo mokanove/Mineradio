@@ -1,17 +1,22 @@
 #!/usr/bin/env node
-'use strict';
+"use strict";
 
-const assert = require('assert');
-const path = require('path');
-const { spawnSync } = require('child_process');
+const assert = require("assert");
+const path = require("path");
+const { spawnSync } = require("child_process");
 
-const appRoot = path.resolve(__dirname, '..');
+const appRoot = path.resolve(__dirname, "..");
 const port = Number(process.argv[2] || 0);
-const ensureWallpaperEngine = process.argv.includes('--ensure-we');
-const desktopFirst = process.argv.includes('--desktop-first');
-assert(Number.isInteger(port) && port > 0,
-  'Usage: node scripts/check-wallpaper-mode-live.js <remote-debugging-port> [--ensure-we] [--desktop-first]');
-assert(!desktopFirst || ensureWallpaperEngine, '--desktop-first requires --ensure-we');
+const ensureWallpaperEngine = process.argv.includes("--ensure-we");
+const desktopFirst = process.argv.includes("--desktop-first");
+assert(
+  Number.isInteger(port) && port > 0,
+  "Usage: node scripts/check-wallpaper-mode-live.js <remote-debugging-port> [--ensure-we] [--desktop-first]",
+);
+assert(
+  !desktopFirst || ensureWallpaperEngine,
+  "--desktop-first requires --ensure-we",
+);
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -22,12 +27,13 @@ class CdpClient {
     this.socket = socket;
     this.sequence = 0;
     this.pending = new Map();
-    socket.addEventListener('message', (event) => {
+    socket.addEventListener("message", (event) => {
       const message = JSON.parse(event.data);
       if (!message.id || !this.pending.has(message.id)) return;
       const waiter = this.pending.get(message.id);
       this.pending.delete(message.id);
-      if (message.error) waiter.reject(new Error(message.error.message || 'CDP request failed'));
+      if (message.error)
+        waiter.reject(new Error(message.error.message || "CDP request failed"));
       else waiter.resolve(message.result);
     });
   }
@@ -35,8 +41,8 @@ class CdpClient {
   static async connect(url) {
     const socket = new WebSocket(url);
     await new Promise((resolve, reject) => {
-      socket.addEventListener('open', resolve, { once: true });
-      socket.addEventListener('error', reject, { once: true });
+      socket.addEventListener("open", resolve, { once: true });
+      socket.addEventListener("error", reject, { once: true });
     });
     return new CdpClient(socket);
   }
@@ -50,22 +56,27 @@ class CdpClient {
   }
 
   async evaluate(expression) {
-    const response = await this.call('Runtime.evaluate', {
+    const response = await this.call("Runtime.evaluate", {
       expression,
       awaitPromise: true,
       returnByValue: true,
       userGesture: true,
     });
     if (response.exceptionDetails) {
-      throw new Error(response.exceptionDetails.exception && response.exceptionDetails.exception.description
-        || response.exceptionDetails.text
-        || 'Renderer evaluation failed');
+      throw new Error(
+        (response.exceptionDetails.exception &&
+          response.exceptionDetails.exception.description) ||
+          response.exceptionDetails.text ||
+          "Renderer evaluation failed",
+      );
     }
     return response.result && response.result.value;
   }
 
   close() {
-    try { this.socket.close(); } catch (_) { }
+    try {
+      this.socket.close();
+    } catch (_) {}
   }
 }
 
@@ -74,42 +85,69 @@ async function waitForMainTarget(timeoutMs = 20000) {
   let lastError = null;
   while (Date.now() <= deadline) {
     try {
-      const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((response) => response.json());
-      const target = targets.find((item) => item.type === 'page'
-        && /127\.0\.0\.1/.test(String(item.url || ''))
-        && !/\/wallpaper\.html(?:[?#]|$)/.test(String(item.url || '')));
+      const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then(
+        (response) => response.json(),
+      );
+      const target = targets.find(
+        (item) =>
+          item.type === "page" &&
+          /127\.0\.0\.1/.test(String(item.url || "")) &&
+          !/\/wallpaper\.html(?:[?#]|$)/.test(String(item.url || "")),
+      );
       if (target && target.webSocketDebuggerUrl) return target;
     } catch (error) {
       lastError = error;
     }
     await sleep(100);
   }
-  throw new Error(`Mineradio CDP page was not ready: ${lastError && lastError.message || 'no target'}`);
+  throw new Error(
+    `Mineradio CDP page was not ready: ${(lastError && lastError.message) || "no target"}`,
+  );
 }
 
 function readWindowTree(title) {
-  const result = spawnSync('powershell.exe', [
-    '-NoProfile',
-    '-ExecutionPolicy',
-    'Bypass',
-    '-File',
-    path.join(appRoot, 'scripts', 'check-wallpaper-mode-window-tree.ps1'),
-    '-Title',
-    String(title || ''),
-  ], {
-    cwd: appRoot,
-    encoding: 'utf8',
-    windowsHide: true,
-  });
-  if (result.status !== 0) throw new Error(result.stderr || result.stdout || 'Wallpaper window-tree probe failed');
-  return JSON.parse(String(result.stdout || '[]').replace(/^\uFEFF/, '').trim() || '[]');
+  const result = spawnSync(
+    "powershell.exe",
+    [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      path.join(appRoot, "scripts", "check-wallpaper-mode-window-tree.ps1"),
+      "-Title",
+      String(title || ""),
+    ],
+    {
+      cwd: appRoot,
+      encoding: "utf8",
+      windowsHide: true,
+    },
+  );
+  if (result.status !== 0)
+    throw new Error(
+      result.stderr || result.stdout || "Wallpaper window-tree probe failed",
+    );
+  return JSON.parse(
+    String(result.stdout || "[]")
+      .replace(/^\uFEFF/, "")
+      .trim() || "[]",
+  );
 }
 
 function windowByHandle(title, handle) {
-  return readWindowTree(title).find((item) => String(item && item.handle || '') === String(handle || '')) || null;
+  return (
+    readWindowTree(title).find(
+      (item) => String((item && item.handle) || "") === String(handle || ""),
+    ) || null
+  );
 }
 
-async function waitForNativeWindow(title, handle, predicate, timeoutMs = 12000) {
+async function waitForNativeWindow(
+  title,
+  handle,
+  predicate,
+  timeoutMs = 12000,
+) {
   const deadline = Date.now() + timeoutMs;
   let current = null;
   while (Date.now() <= deadline) {
@@ -117,31 +155,43 @@ async function waitForNativeWindow(title, handle, predicate, timeoutMs = 12000) 
     if (current && predicate(current)) return current;
     await sleep(100);
   }
-  throw new Error(`HWND did not reach the expected native state: ${JSON.stringify(current)}`);
+  throw new Error(
+    `HWND did not reach the expected native state: ${JSON.stringify(current)}`,
+  );
 }
 
 function rectNear(actual, expected, tolerance = 18) {
   if (!actual || !expected) return false;
-  return Math.abs(Number(actual.left) - Number(expected.left)) <= tolerance
-    && Math.abs(Number(actual.top) - Number(expected.top)) <= tolerance
-    && Math.abs(Number(actual.width) - Number(expected.width)) <= tolerance
-    && Math.abs(Number(actual.height) - Number(expected.height)) <= tolerance;
+  return (
+    Math.abs(Number(actual.left) - Number(expected.left)) <= tolerance &&
+    Math.abs(Number(actual.top) - Number(expected.top)) <= tolerance &&
+    Math.abs(Number(actual.width) - Number(expected.width)) <= tolerance &&
+    Math.abs(Number(actual.height) - Number(expected.height)) <= tolerance
+  );
 }
 
 async function main() {
-  assert.strictEqual(process.platform, 'win32', 'Live full desktop mode QA is Windows-only');
+  assert.strictEqual(
+    process.platform,
+    "win32",
+    "Live full desktop mode QA is Windows-only",
+  );
   const target = await waitForMainTarget();
   const client = await CdpClient.connect(target.webSocketDebuggerUrl);
-  await client.call('Runtime.enable');
+  await client.call("Runtime.enable");
 
-  let nativeWindowId = '';
-  let title = 'Mineradio';
-  let closeBehaviorBefore = 'exit';
+  let nativeWindowId = "";
+  let title = "Mineradio";
+  let closeBehaviorBefore = "exit";
   let activatedWallpaperEngineForQa = false;
   let wallpaperEngineSelectionStoreBeforeQa;
   try {
-    const closeBehaviorState = await client.evaluate(`desktopWindow.getCloseBehavior()`);
-    closeBehaviorBefore = String(closeBehaviorState && closeBehaviorState.behavior || 'exit');
+    const closeBehaviorState = await client.evaluate(
+      `desktopWindow.getCloseBehavior()`,
+    );
+    closeBehaviorBefore = String(
+      (closeBehaviorState && closeBehaviorState.behavior) || "exit",
+    );
     await client.evaluate(`desktopWindow.setCloseBehavior('exit')`);
     const reset = await client.evaluate(`(async () => {
       const waitForStatus = async (predicate, timeoutMs = 15000) => {
@@ -163,7 +213,7 @@ async function main() {
       const hadSelectedEngine = !!(wallpaperEngineSelection && wallpaperEngineSelection.active
         && wallpaperEngineSelection.kind === 'engine');
       let activatedForQa = false;
-      if (!hadSelectedEngine && ${ensureWallpaperEngine && !desktopFirst ? 'true' : 'false'}) {
+      if (!hadSelectedEngine && ${ensureWallpaperEngine && !desktopFirst ? "true" : "false"}) {
         await loadWallpaperEngineLibrary(true, false);
         const item = wallpaperEngineProjects.find((project) => project && project.enginePlayable === true);
         if (!item) throw new Error('NO_NATIVE_SCENE_PROJECT');
@@ -214,14 +264,21 @@ async function main() {
       };
     })()`);
 
-    title = String(reset.title || 'Mineradio');
+    title = String(reset.title || "Mineradio");
     wallpaperEngineSelectionStoreBeforeQa = reset.selectionStoreBeforeQa;
     activatedWallpaperEngineForQa = reset.activatedForQa === true;
-    const originalCandidates = readWindowTree(title).filter((item) => item.parentHandle === '0'
-      && item.childStyle === false && item.visible === true);
-    assert(originalCandidates.length > 0, 'the top-level Mineradio HWND was not found before desktop mode');
+    const originalCandidates = readWindowTree(title).filter(
+      (item) =>
+        item.parentHandle === "0" &&
+        item.childStyle === false &&
+        item.visible === true,
+    );
+    assert(
+      originalCandidates.length > 0,
+      "the top-level Mineradio HWND was not found before desktop mode",
+    );
     const originalWindow = originalCandidates[0];
-    nativeWindowId = String(originalWindow.handle || '');
+    nativeWindowId = String(originalWindow.handle || "");
     assert.deepStrictEqual(reset.ui, {
       fxEnabled: false,
       toggleOn: false,
@@ -229,11 +286,17 @@ async function main() {
       bodyInteractive: false,
     });
     if (reset.selectedEngine) {
-      assert(reset.runtime && reset.runtime.active === true, 'initial WE selection was not running');
-      assert.strictEqual(reset.runtime.dwmSurfaceWindowId, reset.runtime.dwmGlassSurfaceWindowId,
-        'initial glass sampler did not alias the unique DWM surface');
+      assert(
+        reset.runtime && reset.runtime.active === true,
+        "initial WE selection was not running",
+      );
+      assert.strictEqual(
+        reset.runtime.dwmSurfaceWindowId,
+        reset.runtime.dwmGlassSurfaceWindowId,
+        "initial glass sampler did not alias the unique DWM surface",
+      );
       assert.strictEqual(reset.samplerReady, true);
-      assert.strictEqual(reset.samplerTrackState, 'live');
+      assert.strictEqual(reset.samplerTrackState, "live");
     }
 
     const enabled = await client.evaluate(`(async () => {
@@ -261,18 +324,31 @@ async function main() {
         }
       };
     })()`);
-    assert.strictEqual(String(enabled.status && enabled.status.nativeWindowId || ''), nativeWindowId);
-    assert(Number(enabled.status && enabled.status.iconCount) > 0, 'native Explorer icon geometry was not available to the layered guard');
+    assert.strictEqual(
+      String((enabled.status && enabled.status.nativeWindowId) || ""),
+      nativeWindowId,
+    );
+    assert(
+      Number(enabled.status && enabled.status.iconCount) > 0,
+      "native Explorer icon geometry was not available to the layered guard",
+    );
     assert.deepStrictEqual(enabled.ui, {
       fxEnabled: true,
       toggleOn: true,
       bodyEnabled: true,
       bodyInteractive: true,
     });
-    const interactiveCoexistWindow = await waitForNativeWindow(title, nativeWindowId, (item) =>
-      item.parentHandle === String(enabled.status && enabled.status.parentWindowId || '')
-      && item.parentClassName === 'SHELLDLL_DefView'
-      && item.childStyle === true && item.popupStyle === false && item.visible === true);
+    const interactiveCoexistWindow = await waitForNativeWindow(
+      title,
+      nativeWindowId,
+      (item) =>
+        item.parentHandle ===
+          String((enabled.status && enabled.status.parentWindowId) || "") &&
+        item.parentClassName === "SHELLDLL_DefView" &&
+        item.childStyle === true &&
+        item.popupStyle === false &&
+        item.visible === true,
+    );
 
     let desktopFirstWe = null;
     if (ensureWallpaperEngine && desktopFirst && !reset.selectedEngine) {
@@ -312,22 +388,42 @@ async function main() {
         };
       })()`);
       activatedWallpaperEngineForQa = true;
-      assert(desktopFirstWe.runtime && desktopFirstWe.runtime.active === true,
-        `WE did not start after full desktop mode: ${JSON.stringify(desktopFirstWe, null, 2)}`);
+      assert(
+        desktopFirstWe.runtime && desktopFirstWe.runtime.active === true,
+        `WE did not start after full desktop mode: ${JSON.stringify(desktopFirstWe, null, 2)}`,
+      );
       assert.strictEqual(desktopFirstWe.runtime.dwmDesktopIconLayering, true);
-      assert.strictEqual(desktopFirstWe.desktopStatus && desktopFirstWe.desktopStatus.enabled, true);
-      assert.strictEqual(desktopFirstWe.desktopStatus && desktopFirstWe.desktopStatus.interactive, true);
-      assert.strictEqual(desktopFirstWe.desktopStatus && desktopFirstWe.desktopStatus.ignoreMouseEvents, false);
+      assert.strictEqual(
+        desktopFirstWe.desktopStatus && desktopFirstWe.desktopStatus.enabled,
+        true,
+      );
+      assert.strictEqual(
+        desktopFirstWe.desktopStatus &&
+          desktopFirstWe.desktopStatus.interactive,
+        true,
+      );
+      assert.strictEqual(
+        desktopFirstWe.desktopStatus &&
+          desktopFirstWe.desktopStatus.ignoreMouseEvents,
+        false,
+      );
       assert.strictEqual(desktopFirstWe.samplerReady, true);
-      assert.strictEqual(desktopFirstWe.trackState, 'live');
-      await waitForNativeWindow(title, nativeWindowId, (item) =>
-        item.parentHandle === String(enabled.status && enabled.status.parentWindowId || '')
-        && item.parentClassName === 'SHELLDLL_DefView'
-        && item.childStyle === true && item.popupStyle === false && item.visible === true);
+      assert.strictEqual(desktopFirstWe.trackState, "live");
+      await waitForNativeWindow(
+        title,
+        nativeWindowId,
+        (item) =>
+          item.parentHandle ===
+            String((enabled.status && enabled.status.parentWindowId) || "") &&
+          item.parentClassName === "SHELLDLL_DefView" &&
+          item.childStyle === true &&
+          item.popupStyle === false &&
+          item.visible === true,
+      );
     }
     const expectedWeSelection = reset.selectedEngine
       ? reset.selection
-      : (desktopFirstWe && desktopFirstWe.selection || null);
+      : (desktopFirstWe && desktopFirstWe.selection) || null;
 
     const stable = await client.evaluate(`(async () => {
       const deadline = performance.now() + 15000;
@@ -364,34 +460,56 @@ async function main() {
           ? wallpaperEngineGlassCaptureStream.getAudioTracks().length : 0,
       };
     })()`);
-    assert(stable.status && stable.status.enabled === true
-      && stable.status.interactive === true
-      && stable.status.coexisting === true
-      && stable.status.softwareInteractionLocked !== true
-      && stable.status.ignoreMouseEvents !== true,
-    `full desktop input did not remain interactive: ${JSON.stringify(stable, null, 2)}`);
-    assert.strictEqual(stable.softwareLockApiAvailable, true, 'recoverable software-lock preload API is unavailable');
-    assert(stable.softwareLockControl
-      && stable.softwareLockControl.role === 'switch'
-      && stable.softwareLockControl.checked === 'false'
-      && stable.softwareLockControl.disabled === false,
-    `software-lock control is not available in its initial unlocked state: ${JSON.stringify(stable.softwareLockControl)}`);
-    const stableWindow = await waitForNativeWindow(title, nativeWindowId, (item) =>
-      item.parentHandle === String(stable.status && stable.status.parentWindowId || '')
-      && item.parentClassName === 'SHELLDLL_DefView'
-      && item.childStyle === true && item.popupStyle === false && item.visible === true);
+    assert(
+      stable.status &&
+        stable.status.enabled === true &&
+        stable.status.interactive === true &&
+        stable.status.coexisting === true &&
+        stable.status.softwareInteractionLocked !== true &&
+        stable.status.ignoreMouseEvents !== true,
+      `full desktop input did not remain interactive: ${JSON.stringify(stable, null, 2)}`,
+    );
+    assert.strictEqual(
+      stable.softwareLockApiAvailable,
+      true,
+      "recoverable software-lock preload API is unavailable",
+    );
+    assert(
+      stable.softwareLockControl &&
+        stable.softwareLockControl.role === "switch" &&
+        stable.softwareLockControl.checked === "false" &&
+        stable.softwareLockControl.disabled === false,
+      `software-lock control is not available in its initial unlocked state: ${JSON.stringify(stable.softwareLockControl)}`,
+    );
+    const stableWindow = await waitForNativeWindow(
+      title,
+      nativeWindowId,
+      (item) =>
+        item.parentHandle ===
+          String((stable.status && stable.status.parentWindowId) || "") &&
+        item.parentClassName === "SHELLDLL_DefView" &&
+        item.childStyle === true &&
+        item.popupStyle === false &&
+        item.visible === true,
+    );
 
     if (expectedWeSelection) {
       assert.deepStrictEqual(stable.selection, {
         active: true,
-        kind: 'engine',
+        kind: "engine",
         id: expectedWeSelection.id,
       });
-      assert(stable.runtime && stable.runtime.active === true, 'WE stopped while full desktop mode was interactive');
-      assert.strictEqual(stable.runtime.dwmSurfaceWindowId, stable.runtime.dwmGlassSurfaceWindowId);
+      assert(
+        stable.runtime && stable.runtime.active === true,
+        "WE stopped while full desktop mode was interactive",
+      );
+      assert.strictEqual(
+        stable.runtime.dwmSurfaceWindowId,
+        stable.runtime.dwmGlassSurfaceWindowId,
+      );
       assert.strictEqual(stable.runtime.dwmDesktopIconLayering, true);
       assert.strictEqual(stable.samplerReady, true);
-      assert.strictEqual(stable.trackState, 'live');
+      assert.strictEqual(stable.trackState, "live");
       assert.strictEqual(stable.audioTrackCount, 0);
     }
 
@@ -423,41 +541,69 @@ async function main() {
       bodyEnabled: false,
       bodyInteractive: false,
     });
-    assert.strictEqual(disabled.status && disabled.status.recoveryTrayAvailable, false,
-      'temporary recovery tray remained after disabling desktop mode with exit behavior');
-    const restoredWindow = await waitForNativeWindow(title, nativeWindowId, (item) => item.parentHandle === '0'
-      && item.childStyle === false && item.visible === true);
-    assert(rectNear(restoredWindow.rect, originalWindow.rect), 'main window bounds were not restored after desktop mode');
-    assert.strictEqual(readWindowTree('Mineradio Desktop Wallpaper').length, 0, 'legacy overlay wallpaper window was created');
-    assert.strictEqual(readWindowTree('Mineradio WE Glass Refraction').length, 0, 'forbidden second WE glass window was created');
-
-    console.log(JSON.stringify({
-      ok: true,
+    assert.strictEqual(
+      disabled.status && disabled.status.recoveryTrayAvailable,
+      false,
+      "temporary recovery tray remained after disabling desktop mode with exit behavior",
+    );
+    const restoredWindow = await waitForNativeWindow(
+      title,
       nativeWindowId,
-      originalWindow,
-      interactiveCoexistWindow,
-      interactionSafety: {
-        status: stable.status,
-        nativeWindow: stableWindow,
-        softwareLockApiAvailable: stable.softwareLockApiAvailable,
-        softwareLockControl: stable.softwareLockControl,
-      },
-      wallpaperEnginePreserved: expectedWeSelection ? {
-        sessionId: stable.runtime.sessionId,
-        surfaceWindowId: stable.runtime.dwmSurfaceWindowId,
-        glassWindowId: stable.runtime.dwmGlassSurfaceWindowId,
-        samplerReady: stable.samplerReady,
-        trackState: stable.trackState,
-      } : { verified: false },
-      desktopFirstWallpaperEngine: desktopFirstWe,
-      restoredWindow,
-      legacyOverlayWindowCount: 0,
-      forbiddenWeGlassWindowCount: 0,
-      rendererUiAuthority: {
-        started: enabled.ui,
-        stopped: disabled.ui,
-      },
-    }, null, 2));
+      (item) =>
+        item.parentHandle === "0" &&
+        item.childStyle === false &&
+        item.visible === true,
+    );
+    assert(
+      rectNear(restoredWindow.rect, originalWindow.rect),
+      "main window bounds were not restored after desktop mode",
+    );
+    assert.strictEqual(
+      readWindowTree("Mineradio Desktop Wallpaper").length,
+      0,
+      "legacy overlay wallpaper window was created",
+    );
+    assert.strictEqual(
+      readWindowTree("Mineradio WE Glass Refraction").length,
+      0,
+      "forbidden second WE glass window was created",
+    );
+
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          nativeWindowId,
+          originalWindow,
+          interactiveCoexistWindow,
+          interactionSafety: {
+            status: stable.status,
+            nativeWindow: stableWindow,
+            softwareLockApiAvailable: stable.softwareLockApiAvailable,
+            softwareLockControl: stable.softwareLockControl,
+          },
+          wallpaperEnginePreserved: expectedWeSelection
+            ? {
+                sessionId: stable.runtime.sessionId,
+                surfaceWindowId: stable.runtime.dwmSurfaceWindowId,
+                glassWindowId: stable.runtime.dwmGlassSurfaceWindowId,
+                samplerReady: stable.samplerReady,
+                trackState: stable.trackState,
+              }
+            : { verified: false },
+          desktopFirstWallpaperEngine: desktopFirstWe,
+          restoredWindow,
+          legacyOverlayWindowCount: 0,
+          forbiddenWeGlassWindowCount: 0,
+          rendererUiAuthority: {
+            started: enabled.ui,
+            stopped: disabled.ui,
+          },
+        },
+        null,
+        2,
+      ),
+    );
   } finally {
     try {
       await client.evaluate(`(async () => {
@@ -467,10 +613,12 @@ async function main() {
           return await applyWallpaperModeState(true);
         } catch (_) { return null; }
       })()`);
-    } catch (_) { }
+    } catch (_) {}
     try {
-      await client.evaluate(`desktopWindow.setCloseBehavior(${JSON.stringify(closeBehaviorBefore)})`);
-    } catch (_) { }
+      await client.evaluate(
+        `desktopWindow.setCloseBehavior(${JSON.stringify(closeBehaviorBefore)})`,
+      );
+    } catch (_) {}
     if (activatedWallpaperEngineForQa) {
       try {
         await client.evaluate(`(async () => {
@@ -490,13 +638,13 @@ async function main() {
             renderWallpaperEngineLibrary();
           } catch (_) { }
         })()`);
-      } catch (_) { }
+      } catch (_) {}
     }
     client.close();
   }
 }
 
 main().catch((error) => {
-  console.error(error && error.stack || error);
+  console.error((error && error.stack) || error);
   process.exitCode = 1;
 });

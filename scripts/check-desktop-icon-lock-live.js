@@ -1,20 +1,22 @@
 #!/usr/bin/env node
-'use strict';
+"use strict";
 
-const assert = require('node:assert/strict');
-const { spawnSync } = require('node:child_process');
+const assert = require("node:assert/strict");
+const { spawnSync } = require("node:child_process");
 
 const port = Number(process.argv[2] || 0);
-const leaveEnabled = process.argv.includes('--leave-enabled');
-assert(Number.isInteger(port) && port > 0,
-  'Usage: node scripts/check-desktop-icon-lock-live.js <remote-debugging-port> [--leave-enabled]');
+const leaveEnabled = process.argv.includes("--leave-enabled");
+assert(
+  Number.isInteger(port) && port > 0,
+  "Usage: node scripts/check-desktop-icon-lock-live.js <remote-debugging-port> [--leave-enabled]",
+);
 
 const RENDERER_BACKGROUND_LAYER_IDS = [
-  'custom-bg',
-  'wallpaper-engine-layer',
-  'album-bg',
-  'album-bg-next',
-  'sonic-workshop-layer',
+  "custom-bg",
+  "wallpaper-engine-layer",
+  "album-bg",
+  "album-bg-next",
+  "sonic-workshop-layer",
 ];
 
 function sleep(ms) {
@@ -26,12 +28,15 @@ class CdpClient {
     this.socket = socket;
     this.sequence = 0;
     this.pending = new Map();
-    socket.addEventListener('message', (event) => {
+    socket.addEventListener("message", (event) => {
       const message = JSON.parse(event.data);
       if (!message.id || !this.pending.has(message.id)) return;
       const pending = this.pending.get(message.id);
       this.pending.delete(message.id);
-      if (message.error) pending.reject(new Error(message.error.message || 'CDP request failed'));
+      if (message.error)
+        pending.reject(
+          new Error(message.error.message || "CDP request failed"),
+        );
       else pending.resolve(message.result);
     });
   }
@@ -39,8 +44,8 @@ class CdpClient {
   static async connect(url) {
     const socket = new WebSocket(url);
     await new Promise((resolve, reject) => {
-      socket.addEventListener('open', resolve, { once: true });
-      socket.addEventListener('error', reject, { once: true });
+      socket.addEventListener("open", resolve, { once: true });
+      socket.addEventListener("error", reject, { once: true });
     });
     return new CdpClient(socket);
   }
@@ -54,26 +59,34 @@ class CdpClient {
   }
 
   async evaluate(expression) {
-    const response = await this.call('Runtime.evaluate', {
+    const response = await this.call("Runtime.evaluate", {
       expression,
       awaitPromise: true,
       returnByValue: true,
       userGesture: true,
     });
     if (response.exceptionDetails) {
-      throw new Error(response.exceptionDetails.exception && response.exceptionDetails.exception.description
-        || response.exceptionDetails.text || 'Renderer evaluation failed');
+      throw new Error(
+        (response.exceptionDetails.exception &&
+          response.exceptionDetails.exception.description) ||
+          response.exceptionDetails.text ||
+          "Renderer evaluation failed",
+      );
     }
     return response.result && response.result.value;
   }
 
   close() {
-    try { this.socket.close(); } catch (_) { }
+    try {
+      this.socket.close();
+    } catch (_) {}
   }
 }
 
 async function listCdpTargets() {
-  return fetch(`http://127.0.0.1:${port}/json/list`).then((response) => response.json());
+  return fetch(`http://127.0.0.1:${port}/json/list`).then((response) =>
+    response.json(),
+  );
 }
 
 async function mainTarget(timeoutMs = 15000) {
@@ -81,31 +94,38 @@ async function mainTarget(timeoutMs = 15000) {
   while (Date.now() <= deadline) {
     try {
       const targets = await listCdpTargets();
-      const target = targets.find((item) => item.type === 'page'
-        && /127\.0\.0\.1/.test(String(item.url || ''))
-        && !/\/wallpaper\.html(?:[?#]|$)/.test(String(item.url || '')));
+      const target = targets.find(
+        (item) =>
+          item.type === "page" &&
+          /127\.0\.0\.1/.test(String(item.url || "")) &&
+          !/\/wallpaper\.html(?:[?#]|$)/.test(String(item.url || "")),
+      );
       if (target && target.webSocketDebuggerUrl) return target;
-    } catch (_) { }
+    } catch (_) {}
     await sleep(100);
   }
-  throw new Error('Mineradio CDP target was not ready');
+  throw new Error("Mineradio CDP target was not ready");
 }
 
 function runPowerShell(script, failureLabel) {
-  const result = spawnSync('powershell.exe', [
-    '-NoProfile',
-    '-ExecutionPolicy', 'Bypass',
-    '-Command', script,
-  ], {
-    encoding: 'utf8',
-    windowsHide: true,
-    maxBuffer: 8 * 1024 * 1024,
-  });
+  const result = spawnSync(
+    "powershell.exe",
+    ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+    {
+      encoding: "utf8",
+      windowsHide: true,
+      maxBuffer: 8 * 1024 * 1024,
+    },
+  );
   if (result.status !== 0) {
-    throw new Error(String(result.stderr || result.stdout || failureLabel).trim());
+    throw new Error(
+      String(result.stderr || result.stdout || failureLabel).trim(),
+    );
   }
-  const output = String(result.stdout || '').replace(/^\uFEFF/, '').trim();
-  return JSON.parse(output || '{}');
+  const output = String(result.stdout || "")
+    .replace(/^\uFEFF/, "")
+    .trim();
+  return JSON.parse(output || "{}");
 }
 
 function terminalHostSnapshot() {
@@ -122,17 +142,23 @@ $items = @(Get-CimInstance Win32_Process | Where-Object {
   }
 })
 ConvertTo-Json -InputObject $items -Compress`;
-  const parsed = runPowerShell(script, 'Terminal-host process probe failed');
-  return Array.isArray(parsed) ? parsed : (parsed ? [parsed] : []);
+  const parsed = runPowerShell(script, "Terminal-host process probe failed");
+  return Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
 }
 
 function newTerminalHosts(before, after) {
-  const beforeIds = new Set((before || []).map((item) => String(item && item.processId || '')));
-  return (after || []).filter((item) => !beforeIds.has(String(item && item.processId || '')));
+  const beforeIds = new Set(
+    (before || []).map((item) => String((item && item.processId) || "")),
+  );
+  return (after || []).filter(
+    (item) => !beforeIds.has(String((item && item.processId) || "")),
+  );
 }
 
-function nativeExplorerSnapshot(expectedHandle = '') {
-  const expected = /^\d+$/.test(String(expectedHandle || '')) ? String(expectedHandle) : '0';
+function nativeExplorerSnapshot(expectedHandle = "") {
+  const expected = /^\d+$/.test(String(expectedHandle || ""))
+    ? String(expectedHandle)
+    : "0";
   const script = String.raw`
 $ErrorActionPreference = 'Stop'
 Add-Type @"
@@ -248,7 +274,7 @@ try {
   if ($region -ne [IntPtr]::Zero) { [MineradioExplorerUntouchedProbe]::DeleteObject($region) | Out-Null }
   if ($previousDpi -ne [IntPtr]::Zero) { try { [MineradioExplorerUntouchedProbe]::SetThreadDpiAwarenessContext($previousDpi) | Out-Null } catch { } }
 }`;
-  return runPowerShell(script, 'Explorer native-state probe failed');
+  return runPowerShell(script, "Explorer native-state probe failed");
 }
 
 function windowChainAt(x, y, rootHandle) {
@@ -270,7 +296,7 @@ public static class MineradioDesktopRouteHitTest {
 $previousDpi = [IntPtr]::Zero
 try {
   try { $previousDpi = [MineradioDesktopRouteHitTest]::SetThreadDpiAwarenessContext([IntPtr]::new([Int64]-4)) } catch { }
-  $current = [IntPtr]::new([Int64]${String(rootHandle || '0')})
+  $current = [IntPtr]::new([Int64]${String(rootHandle || "0")})
   $chain = @()
   for ($depth = 0; $current -ne [IntPtr]::Zero -and $depth -lt 12; $depth++) {
     $className = New-Object System.Text.StringBuilder 160
@@ -292,19 +318,21 @@ try {
 } finally {
   if ($previousDpi -ne [IntPtr]::Zero) { try { [MineradioDesktopRouteHitTest]::SetThreadDpiAwarenessContext($previousDpi) | Out-Null } catch { } }
 }`;
-  const parsed = runPowerShell(script, 'Desktop route hit-test failed');
+  const parsed = runPowerShell(script, "Desktop route hit-test failed");
   return Array.isArray(parsed) ? parsed : [parsed];
 }
 
 function nativeFingerprint(snapshot, options = {}) {
-  const style = BigInt(String(snapshot.style || '0'));
-  const exStyle = BigInt(String(snapshot.exStyle || '0'));
-  const styleValue = options.ignoreVisibleStyleBit === true
-    ? (style & ~0x10000000n).toString()
-    : style.toString();
-  const exStyleValue = options.ignoreLayeredState === true
-    ? (exStyle & ~0x00080000n).toString()
-    : exStyle.toString();
+  const style = BigInt(String(snapshot.style || "0"));
+  const exStyle = BigInt(String(snapshot.exStyle || "0"));
+  const styleValue =
+    options.ignoreVisibleStyleBit === true
+      ? (style & ~0x10000000n).toString()
+      : style.toString();
+  const exStyleValue =
+    options.ignoreLayeredState === true
+      ? (exStyle & ~0x00080000n).toString()
+      : exStyle.toString();
   return {
     handle: snapshot.handle,
     className: snapshot.className,
@@ -320,43 +348,87 @@ function nativeFingerprint(snapshot, options = {}) {
     regionBoxType: snapshot.regionBoxType,
     regionBox: snapshot.regionBox,
     enabled: snapshot.enabled,
-    layeredAttributesAvailable: options.ignoreLayeredState === true ? undefined : snapshot.layeredAttributesAvailable,
-    layeredColorKey: options.ignoreLayeredState === true ? undefined : snapshot.layeredColorKey,
-    layeredAlpha: options.ignoreLayeredState === true ? undefined : snapshot.layeredAlpha,
-    layeredFlags: options.ignoreLayeredState === true ? undefined : snapshot.layeredFlags,
-    backgroundColor: options.ignoreBackgroundColor === true ? undefined : snapshot.backgroundColor,
+    layeredAttributesAvailable:
+      options.ignoreLayeredState === true
+        ? undefined
+        : snapshot.layeredAttributesAvailable,
+    layeredColorKey:
+      options.ignoreLayeredState === true
+        ? undefined
+        : snapshot.layeredColorKey,
+    layeredAlpha:
+      options.ignoreLayeredState === true ? undefined : snapshot.layeredAlpha,
+    layeredFlags:
+      options.ignoreLayeredState === true ? undefined : snapshot.layeredFlags,
+    backgroundColor:
+      options.ignoreBackgroundColor === true
+        ? undefined
+        : snapshot.backgroundColor,
     visible: options.ignoreVisibility === true ? undefined : snapshot.visible,
   };
 }
 
 function assertExplorerUntouched(baseline, current, label, options = {}) {
-  assert.deepEqual(nativeFingerprint(current, options), nativeFingerprint(baseline, options),
-    `${label}: Explorer SysListView32 native visual state changed`);
+  assert.deepEqual(
+    nativeFingerprint(current, options),
+    nativeFingerprint(baseline, options),
+    `${label}: Explorer SysListView32 native visual state changed`,
+  );
 }
 
 function assertExplorerLayeredColorKey(baseline, current, label, options = {}) {
-  const stableOptions = { ...options, ignoreLayeredState: true, ignoreBackgroundColor: true };
-  assert.deepEqual(nativeFingerprint(current, stableOptions), nativeFingerprint(baseline, stableOptions),
-    `${label}: Explorer identity, layout, region, or non-layered state changed`);
-  assert.notEqual(BigInt(String(current.exStyle || '0')) & 0x00080000n, 0n,
-    `${label}: Explorer SysListView32 is missing WS_EX_LAYERED`);
-  assert.equal(current.layeredAttributesAvailable, true,
-    `${label}: Explorer layered attributes are unavailable`);
-  assert.equal(BigInt(String(current.layeredColorKey || '0')), 0n,
-    `${label}: Explorer color key is not pure black`);
-  assert.notEqual(BigInt(String(current.layeredFlags || '0')) & 0x1n, 0n,
-    `${label}: Explorer layered attributes do not include LWA_COLORKEY`);
-  assert.equal(BigInt(String(current.backgroundColor || '0')), 0n,
-    `${label}: Explorer background is not the verified color-key surface`);
+  const stableOptions = {
+    ...options,
+    ignoreLayeredState: true,
+    ignoreBackgroundColor: true,
+  };
+  assert.deepEqual(
+    nativeFingerprint(current, stableOptions),
+    nativeFingerprint(baseline, stableOptions),
+    `${label}: Explorer identity, layout, region, or non-layered state changed`,
+  );
+  assert.notEqual(
+    BigInt(String(current.exStyle || "0")) & 0x00080000n,
+    0n,
+    `${label}: Explorer SysListView32 is missing WS_EX_LAYERED`,
+  );
+  assert.equal(
+    current.layeredAttributesAvailable,
+    true,
+    `${label}: Explorer layered attributes are unavailable`,
+  );
+  assert.equal(
+    BigInt(String(current.layeredColorKey || "0")),
+    0n,
+    `${label}: Explorer color key is not pure black`,
+  );
+  assert.notEqual(
+    BigInt(String(current.layeredFlags || "0")) & 0x1n,
+    0n,
+    `${label}: Explorer layered attributes do not include LWA_COLORKEY`,
+  );
+  assert.equal(
+    BigInt(String(current.backgroundColor || "0")),
+    0n,
+    `${label}: Explorer background is not the verified color-key surface`,
+  );
 }
 
 function localPointToPhysical(point, status, viewport) {
   const physical = status.physicalBounds || status.bounds;
-  assert(physical && Number(physical.width) > 0 && Number(physical.height) > 0,
-    `physical desktop bounds unavailable: ${JSON.stringify(status)}`);
+  assert(
+    physical && Number(physical.width) > 0 && Number(physical.height) > 0,
+    `physical desktop bounds unavailable: ${JSON.stringify(status)}`,
+  );
   return {
-    x: Number(physical.x) + Number(point.x) * Number(physical.width) / Math.max(1, Number(viewport.width)),
-    y: Number(physical.y) + Number(point.y) * Number(physical.height) / Math.max(1, Number(viewport.height)),
+    x:
+      Number(physical.x) +
+      (Number(point.x) * Number(physical.width)) /
+        Math.max(1, Number(viewport.width)),
+    y:
+      Number(physical.y) +
+      (Number(point.y) * Number(physical.height)) /
+        Math.max(1, Number(viewport.height)),
   };
 }
 
@@ -431,10 +503,14 @@ async function setPointerRoute(client, route) {
 }
 
 async function main() {
-  assert.equal(process.platform, 'win32', 'full desktop live QA is Windows-only');
+  assert.equal(
+    process.platform,
+    "win32",
+    "full desktop live QA is Windows-only",
+  );
   const target = await mainTarget();
   const client = await CdpClient.connect(target.webSocketDebuggerUrl);
-  await client.call('Runtime.enable');
+  await client.call("Runtime.enable");
 
   let baseline = null;
   let enabledSuccessfully = false;
@@ -458,13 +534,25 @@ async function main() {
       }
       return status;
     })()`);
-    assert.equal(normalized && normalized.enabled, false, 'could not establish disabled preflight state');
-    assert.equal(normalized && normalized.active, false, 'full desktop remained active during preflight');
-    assert.notEqual(normalized && normalized.attaching, true, 'full desktop was still attaching during preflight');
+    assert.equal(
+      normalized && normalized.enabled,
+      false,
+      "could not establish disabled preflight state",
+    );
+    assert.equal(
+      normalized && normalized.active,
+      false,
+      "full desktop remained active during preflight",
+    );
+    assert.notEqual(
+      normalized && normalized.attaching,
+      true,
+      "full desktop was still attaching during preflight",
+    );
 
     baseline = nativeExplorerSnapshot();
-    assert.equal(baseline.className, 'SysListView32');
-    assert.equal(baseline.parentClassName, 'SHELLDLL_DefView');
+    assert.equal(baseline.className, "SysListView32");
+    assert.equal(baseline.parentClassName, "SHELLDLL_DefView");
     terminalHostsBeforeEnable = terminalHostSnapshot();
 
     const uiPreflight = await client.evaluate(`(async () => {
@@ -483,10 +571,16 @@ async function main() {
         bottomVisible: bottomBar.classList.contains('visible'),
       };
     })()`);
-    assert.equal(uiPreflight.immersive, true,
-      'could not establish the inherited immersive-mode regression precondition');
-    assert.equal(uiPreflight.bottomVisible, false,
-      'could not establish the hidden bottom-bar regression precondition');
+    assert.equal(
+      uiPreflight.immersive,
+      true,
+      "could not establish the inherited immersive-mode regression precondition",
+    );
+    assert.equal(
+      uiPreflight.bottomVisible,
+      false,
+      "could not establish the hidden bottom-bar regression precondition",
+    );
 
     const enabled = await client.evaluate(`(async () => {
       fx.wallpaperMode = true;
@@ -624,92 +718,170 @@ async function main() {
       };
     })()`);
 
-    assert.equal(enabled.result && enabled.result.ok, true, JSON.stringify(enabled, null, 2));
+    assert.equal(
+      enabled.result && enabled.result.ok,
+      true,
+      JSON.stringify(enabled, null, 2),
+    );
     assert.equal(enabled.status && enabled.status.enabled, true);
     assert.equal(enabled.status && enabled.status.active, true);
     assert.equal(enabled.status && enabled.status.interactive, true);
     assert.equal(enabled.status && enabled.status.coexisting, true);
-    assert.equal(enabled.status && enabled.status.iconLayerMode, 'explorer-layered-colorkey');
-    assert.equal(String(enabled.status && enabled.status.desktopListWindowId), baseline.handle,
-      'runtime attached above a different Explorer SysListView32');
-    assert.equal(enabled.status && enabled.status.escapeShortcutRegistered, true,
-      'direct Escape shortcut is not registered');
-    assert.equal(enabled.status && enabled.status.softwareInteractionLocked, false);
-    assert.equal(enabled.status && enabled.status.ignoreMouseEvents, false,
-      'unlocked complete Mineradio surface is still globally click-through');
-    assert.equal(enabled.status && enabled.status.desktopIconsVisible, baseline.visible,
-      'entering desktop mode did not adopt the original Explorer icon visibility');
-    assert.equal(enabled.naturalHud.immersive, false,
-      `full desktop inherited immersive chrome suppression: ${JSON.stringify(enabled.naturalHud)}`);
-    assert.equal(enabled.naturalHud.splash, false,
-      `full desktop remained behind the startup splash: ${JSON.stringify(enabled.naturalHud)}`);
-    assert.equal(enabled.naturalHud.preload, false,
-      `full desktop remained behind the preload mask: ${JSON.stringify(enabled.naturalHud)}`);
-    assert(enabled.naturalHud.bottomVisible || enabled.naturalHud.homeVisible,
-      `full desktop started without a natural Mineradio HUD: ${JSON.stringify(enabled.naturalHud)}`);
+    assert.equal(
+      enabled.status && enabled.status.iconLayerMode,
+      "explorer-layered-colorkey",
+    );
+    assert.equal(
+      String(enabled.status && enabled.status.desktopListWindowId),
+      baseline.handle,
+      "runtime attached above a different Explorer SysListView32",
+    );
+    assert.equal(
+      enabled.status && enabled.status.escapeShortcutRegistered,
+      true,
+      "direct Escape shortcut is not registered",
+    );
+    assert.equal(
+      enabled.status && enabled.status.softwareInteractionLocked,
+      false,
+    );
+    assert.equal(
+      enabled.status && enabled.status.ignoreMouseEvents,
+      false,
+      "unlocked complete Mineradio surface is still globally click-through",
+    );
+    assert.equal(
+      enabled.status && enabled.status.desktopIconsVisible,
+      baseline.visible,
+      "entering desktop mode did not adopt the original Explorer icon visibility",
+    );
+    assert.equal(
+      enabled.naturalHud.immersive,
+      false,
+      `full desktop inherited immersive chrome suppression: ${JSON.stringify(enabled.naturalHud)}`,
+    );
+    assert.equal(
+      enabled.naturalHud.splash,
+      false,
+      `full desktop remained behind the startup splash: ${JSON.stringify(enabled.naturalHud)}`,
+    );
+    assert.equal(
+      enabled.naturalHud.preload,
+      false,
+      `full desktop remained behind the preload mask: ${JSON.stringify(enabled.naturalHud)}`,
+    );
+    assert(
+      enabled.naturalHud.bottomVisible || enabled.naturalHud.homeVisible,
+      `full desktop started without a natural Mineradio HUD: ${JSON.stringify(enabled.naturalHud)}`,
+    );
     enabledSuccessfully = true;
 
     const postEnableTargets = await listCdpTargets();
     legacyCanvasTargetCount = postEnableTargets.filter((item) =>
-      /\/wallpaper\.html(?:[?#]|$)/.test(String(item && item.url || ''))).length;
-    assert.equal(legacyCanvasTargetCount, 0,
-      'legacy Canvas wallpaper target was created after full desktop mode enabled');
+      /\/wallpaper\.html(?:[?#]|$)/.test(String((item && item.url) || "")),
+    ).length;
+    assert.equal(
+      legacyCanvasTargetCount,
+      0,
+      "legacy Canvas wallpaper target was created after full desktop mode enabled",
+    );
 
-    assert.match(enabled.root.htmlClass, /(?:^|\s)desktop-explorer-layered-colorkey-root(?:\s|$)/);
-    assert.match(enabled.root.bodyClass, /(?:^|\s)desktop-explorer-layered-colorkey(?:\s|$)/);
-    assert.doesNotMatch(enabled.root.htmlClass, /(?:^|\s)desktop-explorer-overlay-root(?:\s|$)/);
-    assert.doesNotMatch(enabled.root.bodyClass, /(?:^|\s)desktop-explorer-overlay(?:\s|$)/);
-    assert.equal(enabled.root.maskImage, 'none');
-    assert.equal(enabled.root.titlebarDisplay, 'none');
-    const customBackground = enabled.backgroundLayers.find((layer) => layer.id === 'custom-bg');
-    assert(customBackground && customBackground.missing !== true, 'renderer-owned particle/album background is missing');
-    assert.notEqual(customBackground.visibility, 'hidden',
-      'renderer-owned particle/album background was hidden by desktop mode');
+    assert.match(
+      enabled.root.htmlClass,
+      /(?:^|\s)desktop-explorer-layered-colorkey-root(?:\s|$)/,
+    );
+    assert.match(
+      enabled.root.bodyClass,
+      /(?:^|\s)desktop-explorer-layered-colorkey(?:\s|$)/,
+    );
+    assert.doesNotMatch(
+      enabled.root.htmlClass,
+      /(?:^|\s)desktop-explorer-overlay-root(?:\s|$)/,
+    );
+    assert.doesNotMatch(
+      enabled.root.bodyClass,
+      /(?:^|\s)desktop-explorer-overlay(?:\s|$)/,
+    );
+    assert.equal(enabled.root.maskImage, "none");
+    assert.equal(enabled.root.titlebarDisplay, "none");
+    const customBackground = enabled.backgroundLayers.find(
+      (layer) => layer.id === "custom-bg",
+    );
+    assert(
+      customBackground && customBackground.missing !== true,
+      "renderer-owned particle/album background is missing",
+    );
+    assert.notEqual(
+      customBackground.visibility,
+      "hidden",
+      "renderer-owned particle/album background was hidden by desktop mode",
+    );
 
-    assert.equal(enabled.dock.display, 'block');
-    assert.equal(enabled.handle.display, 'flex');
-    assert.equal(enabled.handle.ariaHasPopup, 'true');
-    if (enabled.handle.ariaExpanded === 'false') {
-      assert.equal(enabled.panel.ariaHidden, 'true');
+    assert.equal(enabled.dock.display, "block");
+    assert.equal(enabled.handle.display, "flex");
+    assert.equal(enabled.handle.ariaHasPopup, "true");
+    if (enabled.handle.ariaExpanded === "false") {
+      assert.equal(enabled.panel.ariaHidden, "true");
       assert.equal(enabled.panel.inert, true);
-      assert.equal(enabled.panel.visibility, 'hidden');
+      assert.equal(enabled.panel.visibility, "hidden");
     } else {
-      assert.equal(enabled.handle.ariaExpanded, 'true');
-      assert.equal(enabled.panel.ariaHidden, 'false');
+      assert.equal(enabled.handle.ariaExpanded, "true");
+      assert.equal(enabled.panel.ariaHidden, "false");
       assert.equal(enabled.panel.inert, false);
-      assert.equal(enabled.panel.visibility, 'visible');
+      assert.equal(enabled.panel.visibility, "visible");
     }
-    assert.equal(enabled.softwareLock.role, 'switch');
-    assert.equal(enabled.softwareLock.ariaChecked, 'false');
+    assert.equal(enabled.softwareLock.role, "switch");
+    assert.equal(enabled.softwareLock.ariaChecked, "false");
     assert.equal(enabled.softwareLock.disabled, false);
-    assert(String(enabled.softwareLock.label).trim().length > 0 && String(enabled.softwareLock.state).trim().length > 0);
-    assert.equal(enabled.icons.role, 'switch');
-    assert.equal(enabled.icons.ariaChecked, baseline.visible ? 'true' : 'false');
+    assert(
+      String(enabled.softwareLock.label).trim().length > 0 &&
+        String(enabled.softwareLock.state).trim().length > 0,
+    );
+    assert.equal(enabled.icons.role, "switch");
+    assert.equal(
+      enabled.icons.ariaChecked,
+      baseline.visible ? "true" : "false",
+    );
     assert.equal(enabled.icons.disabled, false);
-    assert(String(enabled.icons.label).trim().length > 0 && String(enabled.icons.state).trim().length > 0);
+    assert(
+      String(enabled.icons.label).trim().length > 0 &&
+        String(enabled.icons.state).trim().length > 0,
+    );
 
-    assert(enabled.handle.rect.left >= enabled.localWorkArea.left - 1
-      && enabled.handle.rect.right <= enabled.localWorkArea.right + 1
-      && enabled.handle.rect.top >= enabled.localWorkArea.top - 1,
-    `desktop controller escaped workArea: ${JSON.stringify(enabled.handle.rect)}`);
-    assert(enabled.bottomRect.left >= enabled.localWorkArea.left - 1
-      && enabled.bottomRect.right <= enabled.localWorkArea.right + 1
-      && enabled.bottomRect.bottom <= enabled.localWorkArea.bottom + 1,
-    `bottom bar is behind/outside the taskbar workArea: ${JSON.stringify(enabled.bottomRect)}`);
-    assert(enabled.bottomHandleRect.left >= enabled.localWorkArea.left - 1
-      && enabled.bottomHandleRect.right <= enabled.localWorkArea.right + 1
-      && enabled.bottomHandleRect.bottom <= enabled.localWorkArea.bottom + 1,
-    `bottom-bar wake handle is behind/outside the taskbar workArea: ${JSON.stringify(enabled.bottomHandleRect)}`);
-    for (const edge of ['top', 'right', 'bottom', 'left']) {
-      assert.match(enabled.safeCss[edge], /^\d+(?:\.\d+)?px$/,
-        `missing renderer work-area inset --desktop-safe-${edge}`);
+    assert(
+      enabled.handle.rect.left >= enabled.localWorkArea.left - 1 &&
+        enabled.handle.rect.right <= enabled.localWorkArea.right + 1 &&
+        enabled.handle.rect.top >= enabled.localWorkArea.top - 1,
+      `desktop controller escaped workArea: ${JSON.stringify(enabled.handle.rect)}`,
+    );
+    assert(
+      enabled.bottomRect.left >= enabled.localWorkArea.left - 1 &&
+        enabled.bottomRect.right <= enabled.localWorkArea.right + 1 &&
+        enabled.bottomRect.bottom <= enabled.localWorkArea.bottom + 1,
+      `bottom bar is behind/outside the taskbar workArea: ${JSON.stringify(enabled.bottomRect)}`,
+    );
+    assert(
+      enabled.bottomHandleRect.left >= enabled.localWorkArea.left - 1 &&
+        enabled.bottomHandleRect.right <= enabled.localWorkArea.right + 1 &&
+        enabled.bottomHandleRect.bottom <= enabled.localWorkArea.bottom + 1,
+      `bottom-bar wake handle is behind/outside the taskbar workArea: ${JSON.stringify(enabled.bottomHandleRect)}`,
+    );
+    for (const edge of ["top", "right", "bottom", "left"]) {
+      assert.match(
+        enabled.safeCss[edge],
+        /^\d+(?:\.\d+)?px$/,
+        `missing renderer work-area inset --desktop-safe-${edge}`,
+      );
     }
 
     const afterEnable = nativeExplorerSnapshot(baseline.handle);
-    assertExplorerLayeredColorKey(baseline, afterEnable, 'desktop-mode enable');
+    assertExplorerLayeredColorKey(baseline, afterEnable, "desktop-mode enable");
     terminalHostsAfterEnable = terminalHostSnapshot();
-    assert.deepEqual(newTerminalHosts(terminalHostsBeforeEnable, terminalHostsAfterEnable), [],
-      'desktop-mode guardian opened a new Windows Terminal/OpenConsole host');
+    assert.deepEqual(
+      newTerminalHosts(terminalHostsBeforeEnable, terminalHostsAfterEnable),
+      [],
+      "desktop-mode guardian opened a new Windows Terminal/OpenConsole host",
+    );
 
     const popup = await client.evaluate(`(async () => {
       const dock = document.getElementById('desktop-mode-control-dock');
@@ -779,62 +951,143 @@ async function main() {
       cancelDesktopModeControlHide();
       return { closed, opened, outsideClick, routeDidNotReopen, autoHide };
     })()`);
-    assert.equal(popup.closed.expanded, 'false');
-    assert.equal(popup.closed.hidden, 'true');
+    assert.equal(popup.closed.expanded, "false");
+    assert.equal(popup.closed.hidden, "true");
     assert.equal(popup.closed.inert, true);
-    assert.equal(popup.closed.visibility, 'hidden');
+    assert.equal(popup.closed.visibility, "hidden");
     assert.equal(popup.opened.dockOpen, true);
     assert.equal(popup.opened.bodyOpen, true);
-    assert.equal(popup.opened.expanded, 'true');
-    assert.equal(popup.opened.hidden, 'false');
+    assert.equal(popup.opened.expanded, "true");
+    assert.equal(popup.opened.hidden, "false");
     assert.equal(popup.opened.inert, false);
-    assert.equal(popup.opened.visibility, 'visible');
-    assert(popup.opened.opacity > 0.98, `control popup did not become visible: ${JSON.stringify(popup)}`);
+    assert.equal(popup.opened.visibility, "visible");
+    assert(
+      popup.opened.opacity > 0.98,
+      `control popup did not become visible: ${JSON.stringify(popup)}`,
+    );
     if (!popup.opened.reducedMotion) {
       assert.match(popup.opened.transitionProperty, /opacity/);
       assert.match(popup.opened.transitionProperty, /transform/);
-      assert(/[1-9]/.test(popup.opened.transitionDuration), 'control popup has no transition duration');
-      assert.notEqual(popup.closed.transform, popup.opened.transform, 'control popup has no transform animation state');
+      assert(
+        /[1-9]/.test(popup.opened.transitionDuration),
+        "control popup has no transition duration",
+      );
+      assert.notEqual(
+        popup.closed.transform,
+        popup.opened.transform,
+        "control popup has no transform animation state",
+      );
     }
-    assert.equal(popup.outsideClick.closed, true, 'clicking outside the desktop controller did not close it');
-    assert.equal(popup.outsideClick.expanded, 'false');
-    assert.equal(popup.outsideClick.hidden, 'true');
-    assert.equal(popup.outsideClick.focusReleased, true, 'outside close left focus trapped inside the inert panel');
-    assert.equal(popup.routeDidNotReopen, true, 'pointer routing reopened a controller that the user closed');
-    assert(popup.autoHide.closed || popup.autoHide.hoverGuard || popup.autoHide.focusGuard,
-      `control popup did not auto-hide: ${JSON.stringify(popup.autoHide)}`);
+    assert.equal(
+      popup.outsideClick.closed,
+      true,
+      "clicking outside the desktop controller did not close it",
+    );
+    assert.equal(popup.outsideClick.expanded, "false");
+    assert.equal(popup.outsideClick.hidden, "true");
+    assert.equal(
+      popup.outsideClick.focusReleased,
+      true,
+      "outside close left focus trapped inside the inert panel",
+    );
+    assert.equal(
+      popup.routeDidNotReopen,
+      true,
+      "pointer routing reopened a controller that the user closed",
+    );
+    assert(
+      popup.autoHide.closed ||
+        popup.autoHide.hoverGuard ||
+        popup.autoHide.focusGuard,
+      `control popup did not auto-hide: ${JSON.stringify(popup.autoHide)}`,
+    );
 
     const blankLocal = {
-      x: Math.max(48, Math.min(enabled.viewport.width - 48, enabled.viewport.width * 0.52)),
-      y: Math.max(48, Math.min(enabled.viewport.height - 48, enabled.viewport.height * 0.44)),
+      x: Math.max(
+        48,
+        Math.min(enabled.viewport.width - 48, enabled.viewport.width * 0.52),
+      ),
+      y: Math.max(
+        48,
+        Math.min(enabled.viewport.height - 48, enabled.viewport.height * 0.44),
+      ),
     };
-    const blankPhysical = localPointToPhysical(blankLocal, enabled.status, enabled.viewport);
-    const handlePhysical = localPointToPhysical({
-      x: enabled.handle.rect.left + enabled.handle.rect.width / 2,
-      y: enabled.handle.rect.top + enabled.handle.rect.height / 2,
-    }, enabled.status, enabled.viewport);
+    const blankPhysical = localPointToPhysical(
+      blankLocal,
+      enabled.status,
+      enabled.viewport,
+    );
+    const handlePhysical = localPointToPhysical(
+      {
+        x: enabled.handle.rect.left + enabled.handle.rect.width / 2,
+        y: enabled.handle.rect.top + enabled.handle.rect.height / 2,
+      },
+      enabled.status,
+      enabled.viewport,
+    );
     const firstIconRect = Array.isArray(enabled.status.iconRevealRects)
-      ? enabled.status.iconRevealRects.find((rect) => rect && rect.width > 8 && rect.height > 8)
+      ? enabled.status.iconRevealRects.find(
+          (rect) => rect && rect.width > 8 && rect.height > 8,
+        )
       : null;
-    assert(firstIconRect, 'native Explorer icon geometry was not exposed by the layered guard');
-    const iconPhysical = localPointToPhysical({
-      x: Number(firstIconRect.x) + Number(firstIconRect.width) / 2,
-      y: Number(firstIconRect.y) + Number(firstIconRect.height) / 2,
-    }, enabled.status, enabled.viewport);
-    const iconHit = windowChainAt(iconPhysical.x, iconPhysical.y, enabled.status.parentWindowId);
-    assert(iconHit.some((item) => item.className === 'SysListView32'),
-      `real Explorer icon did not remain above Mineradio: ${JSON.stringify(iconHit)}`);
+    assert(
+      firstIconRect,
+      "native Explorer icon geometry was not exposed by the layered guard",
+    );
+    const iconPhysical = localPointToPhysical(
+      {
+        x: Number(firstIconRect.x) + Number(firstIconRect.width) / 2,
+        y: Number(firstIconRect.y) + Number(firstIconRect.height) / 2,
+      },
+      enabled.status,
+      enabled.viewport,
+    );
+    const iconHit = windowChainAt(
+      iconPhysical.x,
+      iconPhysical.y,
+      enabled.status.parentWindowId,
+    );
+    assert(
+      iconHit.some((item) => item.className === "SysListView32"),
+      `real Explorer icon did not remain above Mineradio: ${JSON.stringify(iconHit)}`,
+    );
 
-    const naturalInputStatus = await setPointerRoute(client, { overSoftwareUi: false, overDesktopControls: false });
-    assert.deepEqual(naturalInputStatus.pointerRoute, { overSoftwareUi: false, overDesktopControls: false });
-    assert.equal(naturalInputStatus.ignoreMouseEvents, false,
-      'unlocked blank area incorrectly disabled the complete Mineradio input surface');
-    const naturalInputHit = windowChainAt(blankPhysical.x, blankPhysical.y, enabled.status.parentWindowId);
-    const controllerStatus = await setPointerRoute(client, { overSoftwareUi: false, overDesktopControls: true });
-    assert.deepEqual(controllerStatus.pointerRoute, { overSoftwareUi: false, overDesktopControls: true });
+    const naturalInputStatus = await setPointerRoute(client, {
+      overSoftwareUi: false,
+      overDesktopControls: false,
+    });
+    assert.deepEqual(naturalInputStatus.pointerRoute, {
+      overSoftwareUi: false,
+      overDesktopControls: false,
+    });
+    assert.equal(
+      naturalInputStatus.ignoreMouseEvents,
+      false,
+      "unlocked blank area incorrectly disabled the complete Mineradio input surface",
+    );
+    const naturalInputHit = windowChainAt(
+      blankPhysical.x,
+      blankPhysical.y,
+      enabled.status.parentWindowId,
+    );
+    const controllerStatus = await setPointerRoute(client, {
+      overSoftwareUi: false,
+      overDesktopControls: true,
+    });
+    assert.deepEqual(controllerStatus.pointerRoute, {
+      overSoftwareUi: false,
+      overDesktopControls: true,
+    });
     assert.equal(controllerStatus.ignoreMouseEvents, false);
-    const controllerHit = windowChainAt(handlePhysical.x, handlePhysical.y, enabled.status.parentWindowId);
-    await setPointerRoute(client, { overSoftwareUi: false, overDesktopControls: false });
+    const controllerHit = windowChainAt(
+      handlePhysical.x,
+      handlePhysical.y,
+      enabled.status.parentWindowId,
+    );
+    await setPointerRoute(client, {
+      overSoftwareUi: false,
+      overDesktopControls: false,
+    });
 
     const routeMatrix = [];
     for (const route of [
@@ -846,11 +1099,17 @@ async function main() {
       const status = await setPointerRoute(client, route);
       assert.deepEqual(status.pointerRoute, route);
       assert.equal(status.softwareInteractionLocked, false);
-      assert.equal(status.ignoreMouseEvents, false,
-        `desktop pointer route unexpectedly disabled Mineradio input: ${JSON.stringify(route)}`);
+      assert.equal(
+        status.ignoreMouseEvents,
+        false,
+        `desktop pointer route unexpectedly disabled Mineradio input: ${JSON.stringify(route)}`,
+      );
       routeMatrix.push({ route, ignoreMouseEvents: status.ignoreMouseEvents });
     }
-    await setPointerRoute(client, { overSoftwareUi: false, overDesktopControls: false });
+    await setPointerRoute(client, {
+      overSoftwareUi: false,
+      overDesktopControls: false,
+    });
 
     const lockedSoftware = await client.evaluate(`(async () => {
       const result = await setDesktopSoftwareInteractionLocked(true);
@@ -865,12 +1124,23 @@ async function main() {
         bodyLocked: document.body.classList.contains('desktop-software-locked'),
       };
     })()`);
-    assert.equal(lockedSoftware.result && lockedSoftware.result.ok, true, JSON.stringify(lockedSoftware, null, 2));
+    assert.equal(
+      lockedSoftware.result && lockedSoftware.result.ok,
+      true,
+      JSON.stringify(lockedSoftware, null, 2),
+    );
     assert.equal(lockedSoftware.status.softwareInteractionLocked, true);
-    assert.equal(lockedSoftware.status.ignoreMouseEvents, true,
-      'software lock did not pass normal desktop areas through to Explorer');
-    assert.equal(lockedSoftware.ariaChecked, 'true');
-    assert.equal(lockedSoftware.disabled, false, 'software lock disabled its own recovery switch');
+    assert.equal(
+      lockedSoftware.status.ignoreMouseEvents,
+      true,
+      "software lock did not pass normal desktop areas through to Explorer",
+    );
+    assert.equal(lockedSoftware.ariaChecked, "true");
+    assert.equal(
+      lockedSoftware.disabled,
+      false,
+      "software lock disabled its own recovery switch",
+    );
     assert.equal(lockedSoftware.bodyLocked, true);
 
     const lockedController = await setPointerRoute(client, {
@@ -878,8 +1148,11 @@ async function main() {
       overDesktopControls: true,
     });
     assert.equal(lockedController.softwareInteractionLocked, true);
-    assert.equal(lockedController.ignoreMouseEvents, false,
-      'right-top recovery corridor did not restore input to the unlock switch');
+    assert.equal(
+      lockedController.ignoreMouseEvents,
+      false,
+      "right-top recovery corridor did not restore input to the unlock switch",
+    );
 
     const unlockedSoftware = await client.evaluate(`(async () => {
       const result = await setDesktopSoftwareInteractionLocked(false);
@@ -894,16 +1167,31 @@ async function main() {
         bodyLocked: document.body.classList.contains('desktop-software-locked'),
       };
     })()`);
-    assert.equal(unlockedSoftware.result && unlockedSoftware.result.ok, true, JSON.stringify(unlockedSoftware, null, 2));
+    assert.equal(
+      unlockedSoftware.result && unlockedSoftware.result.ok,
+      true,
+      JSON.stringify(unlockedSoftware, null, 2),
+    );
     assert.equal(unlockedSoftware.status.softwareInteractionLocked, false);
     assert.equal(unlockedSoftware.status.ignoreMouseEvents, false);
-    assert.equal(unlockedSoftware.ariaChecked, 'false');
+    assert.equal(unlockedSoftware.ariaChecked, "false");
     assert.equal(unlockedSoftware.disabled, false);
     assert.equal(unlockedSoftware.bodyLocked, false);
-    const unlockedBlank = await setPointerRoute(client, { overSoftwareUi: false, overDesktopControls: false });
-    assert.equal(unlockedBlank.ignoreMouseEvents, false,
-      'unlock did not restore natural Mineradio input outside the controller');
-    const softwareLockCycle = { lockedSoftware, lockedController, unlockedSoftware, unlockedBlank };
+    const unlockedBlank = await setPointerRoute(client, {
+      overSoftwareUi: false,
+      overDesktopControls: false,
+    });
+    assert.equal(
+      unlockedBlank.ignoreMouseEvents,
+      false,
+      "unlock did not restore natural Mineradio input outside the controller",
+    );
+    const softwareLockCycle = {
+      lockedSoftware,
+      lockedController,
+      unlockedSoftware,
+      unlockedBlank,
+    };
 
     const hidden = await client.evaluate(`(async () => {
       const result = await setDesktopIconsVisibility(false);
@@ -913,13 +1201,21 @@ async function main() {
       return { result, status, ariaChecked: button.getAttribute('aria-checked'),
         bodyHidden: document.body.classList.contains('desktop-icons-hidden') };
     })()`);
-    assert.equal(hidden.result && hidden.result.ok, true, JSON.stringify(hidden, null, 2));
+    assert.equal(
+      hidden.result && hidden.result.ok,
+      true,
+      JSON.stringify(hidden, null, 2),
+    );
     assert.equal(hidden.status.desktopIconsVisible, false);
-    assert.equal(hidden.ariaChecked, 'false');
+    assert.equal(hidden.ariaChecked, "false");
     assert.equal(hidden.bodyHidden, true);
     const nativeHidden = nativeExplorerSnapshot(baseline.handle);
-    assert.equal(nativeHidden.visible, false, 'desktop icon switch did not hide the real Explorer list');
-    assertExplorerLayeredColorKey(baseline, nativeHidden, 'desktop icon hide', {
+    assert.equal(
+      nativeHidden.visible,
+      false,
+      "desktop icon switch did not hide the real Explorer list",
+    );
+    assertExplorerLayeredColorKey(baseline, nativeHidden, "desktop icon hide", {
       ignoreVisibility: true,
       ignoreVisibleStyleBit: true,
     });
@@ -932,28 +1228,52 @@ async function main() {
       return { result, status, ariaChecked: button.getAttribute('aria-checked'),
         bodyHidden: document.body.classList.contains('desktop-icons-hidden') };
     })()`);
-    assert.equal(shown.result && shown.result.ok, true, JSON.stringify(shown, null, 2));
+    assert.equal(
+      shown.result && shown.result.ok,
+      true,
+      JSON.stringify(shown, null, 2),
+    );
     assert.equal(shown.status.desktopIconsVisible, true);
-    assert.equal(shown.ariaChecked, 'true');
+    assert.equal(shown.ariaChecked, "true");
     assert.equal(shown.bodyHidden, false);
     const nativeShown = nativeExplorerSnapshot(baseline.handle);
-    assert.equal(nativeShown.visible, true, 'desktop icon switch did not show the real Explorer list');
-    assertExplorerLayeredColorKey(baseline, nativeShown, 'desktop icon show', {
+    assert.equal(
+      nativeShown.visible,
+      true,
+      "desktop icon switch did not show the real Explorer list",
+    );
+    assertExplorerLayeredColorKey(baseline, nativeShown, "desktop icon show", {
       ignoreVisibility: baseline.visible !== true,
       ignoreVisibleStyleBit: baseline.visible !== true,
     });
 
     if (!baseline.visible) {
-      const restoreHidden = await client.evaluate(`setDesktopIconsVisibility(false)`);
-      assert.equal(restoreHidden && restoreHidden.ok, true, JSON.stringify(restoreHidden, null, 2));
+      const restoreHidden = await client.evaluate(
+        `setDesktopIconsVisibility(false)`,
+      );
+      assert.equal(
+        restoreHidden && restoreHidden.ok,
+        true,
+        JSON.stringify(restoreHidden, null, 2),
+      );
       await sleep(160);
     }
     const restored = nativeExplorerSnapshot(baseline.handle);
-    assertExplorerLayeredColorKey(baseline, restored, 'desktop icon visibility restore');
+    assertExplorerLayeredColorKey(
+      baseline,
+      restored,
+      "desktop icon visibility restore",
+    );
     iconsRestored = true;
 
-    const finalRoute = await setPointerRoute(client, { overSoftwareUi: false, overDesktopControls: false });
-    assert.deepEqual(finalRoute.pointerRoute, { overSoftwareUi: false, overDesktopControls: false });
+    const finalRoute = await setPointerRoute(client, {
+      overSoftwareUi: false,
+      overDesktopControls: false,
+    });
+    assert.deepEqual(finalRoute.pointerRoute, {
+      overSoftwareUi: false,
+      overDesktopControls: false,
+    });
     assert.equal(finalRoute.ignoreMouseEvents, false);
 
     const persistentHud = await client.evaluate(`(async () => {
@@ -978,58 +1298,75 @@ async function main() {
         homeVisible: document.body.classList.contains('empty-home-active') && visibleSurface(home),
       };
     })()`);
-    assert(persistentHud.bottomVisible || persistentHud.homeVisible,
-      `full desktop lost its complete Mineradio HUD after the ordinary auto-hide path: ${JSON.stringify(persistentHud)}`);
+    assert(
+      persistentHud.bottomVisible || persistentHud.homeVisible,
+      `full desktop lost its complete Mineradio HUD after the ordinary auto-hide path: ${JSON.stringify(persistentHud)}`,
+    );
 
-    console.log(JSON.stringify({
-      ok: true,
-      architecture: 'explorer-layered-colorkey',
-      explorer: {
-        handle: baseline.handle,
-        layeredColorKeyAppliedOnEnable: true,
-        originalVisibility: baseline.visible,
-        visibilityRestored: true,
-        fieldsChecked: [
-          'style', 'layered exStyle/color-key', 'region', 'enabled',
-          'backgroundColor', 'visibility', 'parent', 'process/thread identity',
-        ],
-      },
-      controls: {
-        iconSwitchAriaVerified: true,
-        softwareLockControlRecoverable: true,
-        clickOutsideCloseVerified: true,
-        completeRendererBackgroundPreserved: true,
-        persistentHudVerified: true,
-        workAreaLayoutVerified: true,
-        popupAnimationVerified: true,
-        autoHideVerifiedOrNativeHoverGuarded: true,
-      },
-      inputPlumbing: {
-        realExplorerIconHit: iconHit,
-        unlockedNaturalInputHit: naturalInputHit,
-        controllerHit,
-        routeMatrix,
-        softwareLockCycle,
-        syntheticInputUsed: false,
-      },
-      helperWindowSafety: {
-        terminalHostsBeforeEnable,
-        terminalHostsAfterEnable,
-        newTerminalHosts: newTerminalHosts(terminalHostsBeforeEnable, terminalHostsAfterEnable),
-      },
-      escapeShortcutRegistered: true,
-      legacyCanvasTargetCount,
-      manualHardwareChecksStillRequired: [
-        'Use the real mouse to open, collapse, and reopen the top-right desktop controller.',
-        'Lock Mineradio, move back into the top-right reveal corridor, and use the same switch to unlock it.',
-        'Open the controller and click another desktop area to verify the panel closes immediately.',
-        'Use the real mouse to toggle desktop icon visibility and verify the player stays operable.',
-        'Use the real mouse to verify wallpaper parallax and the unchanged Windows cursor.',
-        'Press the physical Esc key to causally verify immediate full-desktop exit.',
-        'CDP/DOM evaluation and native hit-testing are plumbing checks, not causal proof of those hardware-input behaviors.',
-      ],
-      leftEnabled: leaveEnabled,
-    }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          architecture: "explorer-layered-colorkey",
+          explorer: {
+            handle: baseline.handle,
+            layeredColorKeyAppliedOnEnable: true,
+            originalVisibility: baseline.visible,
+            visibilityRestored: true,
+            fieldsChecked: [
+              "style",
+              "layered exStyle/color-key",
+              "region",
+              "enabled",
+              "backgroundColor",
+              "visibility",
+              "parent",
+              "process/thread identity",
+            ],
+          },
+          controls: {
+            iconSwitchAriaVerified: true,
+            softwareLockControlRecoverable: true,
+            clickOutsideCloseVerified: true,
+            completeRendererBackgroundPreserved: true,
+            persistentHudVerified: true,
+            workAreaLayoutVerified: true,
+            popupAnimationVerified: true,
+            autoHideVerifiedOrNativeHoverGuarded: true,
+          },
+          inputPlumbing: {
+            realExplorerIconHit: iconHit,
+            unlockedNaturalInputHit: naturalInputHit,
+            controllerHit,
+            routeMatrix,
+            softwareLockCycle,
+            syntheticInputUsed: false,
+          },
+          helperWindowSafety: {
+            terminalHostsBeforeEnable,
+            terminalHostsAfterEnable,
+            newTerminalHosts: newTerminalHosts(
+              terminalHostsBeforeEnable,
+              terminalHostsAfterEnable,
+            ),
+          },
+          escapeShortcutRegistered: true,
+          legacyCanvasTargetCount,
+          manualHardwareChecksStillRequired: [
+            "Use the real mouse to open, collapse, and reopen the top-right desktop controller.",
+            "Lock Mineradio, move back into the top-right reveal corridor, and use the same switch to unlock it.",
+            "Open the controller and click another desktop area to verify the panel closes immediately.",
+            "Use the real mouse to toggle desktop icon visibility and verify the player stays operable.",
+            "Use the real mouse to verify wallpaper parallax and the unchanged Windows cursor.",
+            "Press the physical Esc key to causally verify immediate full-desktop exit.",
+            "CDP/DOM evaluation and native hit-testing are plumbing checks, not causal proof of those hardware-input behaviors.",
+          ],
+          leftEnabled: leaveEnabled,
+        },
+        null,
+        2,
+      ),
+    );
   } finally {
     try {
       const baselineVisible = baseline ? baseline.visible === true : true;
@@ -1050,15 +1387,35 @@ async function main() {
         return (await desktopWindow.getWallpaperModeStatus()).status || {};
       })()`);
       if (leaveEnabled && enabledSuccessfully) {
-        assert.equal(cleanupStatus.enabled, true, '--leave-enabled did not preserve full desktop mode');
-        assert.equal(cleanupStatus.active, true, '--leave-enabled left an inactive desktop runtime');
+        assert.equal(
+          cleanupStatus.enabled,
+          true,
+          "--leave-enabled did not preserve full desktop mode",
+        );
+        assert.equal(
+          cleanupStatus.active,
+          true,
+          "--leave-enabled left an inactive desktop runtime",
+        );
       } else if (!leaveEnabled) {
-        assert.notEqual(cleanupStatus.enabled, true, 'cleanup did not disable full desktop mode');
-        assert.notEqual(cleanupStatus.active, true, 'cleanup left full desktop mode active');
-        assert.notEqual(cleanupStatus.attaching, true, 'cleanup left full desktop mode attaching');
+        assert.notEqual(
+          cleanupStatus.enabled,
+          true,
+          "cleanup did not disable full desktop mode",
+        );
+        assert.notEqual(
+          cleanupStatus.active,
+          true,
+          "cleanup left full desktop mode active",
+        );
+        assert.notEqual(
+          cleanupStatus.attaching,
+          true,
+          "cleanup left full desktop mode attaching",
+        );
       }
       iconsRestored = !!baseline;
-    } catch (_) { }
+    } catch (_) {}
 
     try {
       if (baseline) {
@@ -1071,9 +1428,17 @@ async function main() {
             finalNative = nativeExplorerSnapshot(baseline.handle);
             try {
               if (leaveEnabled && enabledSuccessfully) {
-                assertExplorerLayeredColorKey(baseline, finalNative, 'leave-enabled cleanup');
+                assertExplorerLayeredColorKey(
+                  baseline,
+                  finalNative,
+                  "leave-enabled cleanup",
+                );
               } else {
-                assertExplorerUntouched(baseline, finalNative, 'desktop-mode cleanup');
+                assertExplorerUntouched(
+                  baseline,
+                  finalNative,
+                  "desktop-mode cleanup",
+                );
               }
               finalNativeError = null;
               break;
@@ -1097,6 +1462,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error && error.stack || error);
+  console.error((error && error.stack) || error);
   process.exitCode = 1;
 });

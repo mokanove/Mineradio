@@ -1,4 +1,4 @@
-var CUEFIELD_AUTOMIX_STORE_KEY = 'mineradio-cuefield-automix-v1';
+var CUEFIELD_AUTOMIX_STORE_KEY = "mineradio-cuefield-automix-v1";
 var cuefieldAutoMixEnabled = false;
 var cuefieldAutoMix = null;
 var cuefieldAutoMixPrepareTimer = 0;
@@ -17,60 +17,98 @@ var CUEFIELD_AUTOMIX_NORMAL_START_SETTLE_MS = 4200;
 var CUEFIELD_AUTOMIX_HANDOFF_SETTLE_MS = 5200;
 
 function readCuefieldAutoMixPreference() {
-  try { return localStorage.getItem(CUEFIELD_AUTOMIX_STORE_KEY) === '1'; } catch (_) { return false; }
+  try {
+    return localStorage.getItem(CUEFIELD_AUTOMIX_STORE_KEY) === "1";
+  } catch (_) {
+    return false;
+  }
 }
 
 function saveCuefieldAutoMixPreference() {
-  try { localStorage.setItem(CUEFIELD_AUTOMIX_STORE_KEY, cuefieldAutoMixEnabled ? '1' : '0'); } catch (_) { }
+  try {
+    localStorage.setItem(
+      CUEFIELD_AUTOMIX_STORE_KEY,
+      cuefieldAutoMixEnabled ? "1" : "0",
+    );
+  } catch (_) {}
 }
 
 function cuefieldSongKey(song) {
-  return typeof beatMapSongKey === 'function' ? String(beatMapSongKey(song) || '') : '';
+  return typeof beatMapSongKey === "function"
+    ? String(beatMapSongKey(song) || "")
+    : "";
 }
 
 function cuefieldAutoMixNextIndex(index) {
-  if (!Array.isArray(playQueue) || playQueue.length < 2 || playMode === 'single') return -1;
+  if (
+    !Array.isArray(playQueue) ||
+    playQueue.length < 2 ||
+    playMode === "single"
+  )
+    return -1;
   index = isFinite(Number(index)) ? Math.round(Number(index)) : currentIdx;
   return (index + 1 + playQueue.length) % playQueue.length;
 }
 
 function cuefieldAutoMixStatusText(status) {
-  return {
-    disabled: '已关闭',
-    waiting: '等待播放',
-    preparing: '正在分析下一首',
-    'waiting-beatmap': '正在准备节拍图',
-    'missing-audio': '下一首暂不可用',
-    fallback: '本组歌曲暂不适合混音',
-    ready: '过渡已准备',
-    handoff: '正在自动过渡',
-    error: '准备失败'
-  }[status] || status || '待命';
+  return (
+    {
+      disabled: "已关闭",
+      waiting: "等待播放",
+      preparing: "正在分析下一首",
+      "waiting-beatmap": "正在准备节拍图",
+      "missing-audio": "下一首暂不可用",
+      fallback: "本组歌曲暂不适合混音",
+      ready: "过渡已准备",
+      handoff: "正在自动过渡",
+      error: "准备失败",
+    }[status] ||
+    status ||
+    "待命"
+  );
 }
 
 function updateCuefieldAutoMixUi(status) {
-  var button = document.getElementById('cuefield-automix-btn');
+  var button = document.getElementById("cuefield-automix-btn");
   if (!button) return;
-  var snapshot = cuefieldAutoMix && cuefieldAutoMix.snapshot ? cuefieldAutoMix.snapshot() : null;
+  var snapshot =
+    cuefieldAutoMix && cuefieldAutoMix.snapshot
+      ? cuefieldAutoMix.snapshot()
+      : null;
   var ready = !!(snapshot && snapshot.pending);
-  button.classList.toggle('cuefield-automix-on', !!cuefieldAutoMixEnabled);
-  button.classList.toggle('cuefield-automix-ready', !!cuefieldAutoMixEnabled && ready);
-  button.setAttribute('aria-pressed', cuefieldAutoMixEnabled ? 'true' : 'false');
+  button.classList.toggle("cuefield-automix-on", !!cuefieldAutoMixEnabled);
+  button.classList.toggle(
+    "cuefield-automix-ready",
+    !!cuefieldAutoMixEnabled && ready,
+  );
+  button.setAttribute(
+    "aria-pressed",
+    cuefieldAutoMixEnabled ? "true" : "false",
+  );
   button.title = cuefieldAutoMixEnabled
-    ? ('Cuefield AutoMix · ' + (ready ? '过渡已准备' : cuefieldAutoMixStatusText(status || (snapshot && snapshot.lastStatus))))
-    : 'Cuefield AutoMix（实验功能，默认关闭）';
+    ? "Cuefield AutoMix · " +
+      (ready
+        ? "过渡已准备"
+        : cuefieldAutoMixStatusText(
+            status || (snapshot && snapshot.lastStatus),
+          ))
+    : "Cuefield AutoMix（实验功能，默认关闭）";
 }
 
 function cuefieldAutoMixAudioDescriptor(song) {
   var key = cuefieldSongKey(song);
   var cached = key && cuefieldAudioDescriptorCache[key];
   if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached);
-  return Promise.resolve(typeof fetchBeatPrefetchAudioUrl === 'function' ? fetchBeatPrefetchAudioUrl(song) : null).then(function (proxyUrl) {
+  return Promise.resolve(
+    typeof fetchBeatPrefetchAudioUrl === "function"
+      ? fetchBeatPrefetchAudioUrl(song)
+      : null,
+  ).then(function (proxyUrl) {
     if (!proxyUrl) return null;
     var descriptor = {
       proxyUrl: proxyUrl,
-      playbackData: { url: proxyUrl, source: songProviderKey(song), level: '' },
-      expiresAt: Date.now() + 4 * 60 * 1000
+      playbackData: { url: proxyUrl, source: songProviderKey(song), level: "" },
+      expiresAt: Date.now() + 4 * 60 * 1000,
     };
     if (key) cuefieldAudioDescriptorCache[key] = descriptor;
     return descriptor;
@@ -78,77 +116,133 @@ function cuefieldAutoMixAudioDescriptor(song) {
 }
 
 function cuefieldLinesToLrc(lines) {
-  return (Array.isArray(lines) ? lines : []).slice(0, 800).map(function (line) {
-    if (!line || line.fallback || !isFinite(Number(line.t != null ? line.t : line.time))) return '';
-    var seconds = Math.max(0, Number(line.t != null ? line.t : line.time) || 0);
-    var minutes = Math.floor(seconds / 60);
-    var remain = seconds - minutes * 60;
-    var stamp = String(minutes).padStart(2, '0') + ':' + remain.toFixed(3).padStart(6, '0');
-    var text = String(line.text || '').replace(/[\r\n]+/g, ' ').trim();
-    return text ? ('[' + stamp + ']' + text) : '';
-  }).filter(Boolean).join('\n');
+  return (Array.isArray(lines) ? lines : [])
+    .slice(0, 800)
+    .map(function (line) {
+      if (
+        !line ||
+        line.fallback ||
+        !isFinite(Number(line.t != null ? line.t : line.time))
+      )
+        return "";
+      var seconds = Math.max(
+        0,
+        Number(line.t != null ? line.t : line.time) || 0,
+      );
+      var minutes = Math.floor(seconds / 60);
+      var remain = seconds - minutes * 60;
+      var stamp =
+        String(minutes).padStart(2, "0") +
+        ":" +
+        remain.toFixed(3).padStart(6, "0");
+      var text = String(line.text || "")
+        .replace(/[\r\n]+/g, " ")
+        .trim();
+      return text ? "[" + stamp + "]" + text : "";
+    })
+    .filter(Boolean)
+    .join("\n");
 }
 
 async function cuefieldLyricTextForSong(song, current) {
-  if (!song) return '';
+  if (!song) return "";
   if (current) {
-    var liveLines = originalLyricsState && originalLyricsState.lines && originalLyricsState.lines.length
-      ? originalLyricsState.lines
-      : lyricsLines;
+    var liveLines =
+      originalLyricsState &&
+      originalLyricsState.lines &&
+      originalLyricsState.lines.length
+        ? originalLyricsState.lines
+        : lyricsLines;
     var liveLrc = cuefieldLinesToLrc(liveLines);
     if (liveLrc) return liveLrc;
   }
-  if (typeof readPersistentLyricCache !== 'function') return '';
+  if (typeof readPersistentLyricCache !== "function") return "";
   try {
     var payload = await readPersistentLyricCache(song);
-    if (!payload && typeof lyricEndpointForSong === 'function') {
+    if (!payload && typeof lyricEndpointForSong === "function") {
       payload = await apiJson(lyricEndpointForSong(song), { timeoutMs: 4200 });
-      if (payload && typeof writePersistentLyricCache === 'function') writePersistentLyricCache(song, payload);
+      if (payload && typeof writePersistentLyricCache === "function")
+        writePersistentLyricCache(song, payload);
     }
-    if (!payload) return '';
-    if (String(payload.lyric || '').trim()) return String(payload.lyric).trim();
-    if (typeof parseLyricResponseToOriginalState === 'function') {
+    if (!payload) return "";
+    if (String(payload.lyric || "").trim()) return String(payload.lyric).trim();
+    if (typeof parseLyricResponseToOriginalState === "function") {
       var state = parseLyricResponseToOriginalState(song, payload);
       return cuefieldLinesToLrc(state && state.lines);
     }
-  } catch (_) { }
-  return '';
+  } catch (_) {}
+  return "";
 }
 
 async function ensureCuefieldAutoMixBeatMap(song, key, context) {
   if (!song || !key) return false;
   if (beatMapCache[key]) return true;
-  if (context && context.currentIndex === currentIdx && currentBeatMap && key === cuefieldSongKey(playQueue[currentIdx])) {
+  if (
+    context &&
+    context.currentIndex === currentIdx &&
+    currentBeatMap &&
+    key === cuefieldSongKey(playQueue[currentIdx])
+  ) {
     beatMapCache[key] = currentBeatMap;
-    if (typeof writeBeatDiskCache === 'function') {
-      try { await writeBeatDiskCache(key, currentBeatMap, song, 'cuefield'); } catch (_) { }
+    if (typeof writeBeatDiskCache === "function") {
+      try {
+        await writeBeatDiskCache(key, currentBeatMap, song, "cuefield");
+      } catch (_) {}
     }
     return true;
   }
-  var diskMap = typeof readBeatDiskCache === 'function' ? await readBeatDiskCache(key) : null;
+  var diskMap =
+    typeof readBeatDiskCache === "function"
+      ? await readBeatDiskCache(key)
+      : null;
   if (diskMap) return true;
   function contextStillCurrent() {
-    return !context || (context.token === trackSwitchToken && context.currentIndex === currentIdx);
+    return (
+      !context ||
+      (context.token === trackSwitchToken &&
+        context.currentIndex === currentIdx)
+    );
   }
-  if (!contextStillCurrent() || !cuefieldAutoMixEnabled || !isBeatPrefetchCandidate(song) || beatMapBusy || cuefieldAutoMixVisualTransitionBusy()) return false;
+  if (
+    !contextStillCurrent() ||
+    !cuefieldAutoMixEnabled ||
+    !isBeatPrefetchCandidate(song) ||
+    beatMapBusy ||
+    cuefieldAutoMixVisualTransitionBusy()
+  )
+    return false;
   var analysisToken = beatMapToken;
   var descriptor = await cuefieldAutoMixAudioDescriptor(song);
-  if (!contextStillCurrent() || analysisToken !== beatMapToken || beatMapBusy || cuefieldAutoMixVisualTransitionBusy()) return !!beatMapCache[key];
-  if (!descriptor || !descriptor.proxyUrl || beatMapCache[key]) return !!beatMapCache[key];
+  if (
+    !contextStillCurrent() ||
+    analysisToken !== beatMapToken ||
+    beatMapBusy ||
+    cuefieldAutoMixVisualTransitionBusy()
+  )
+    return !!beatMapCache[key];
+  if (!descriptor || !descriptor.proxyUrl || beatMapCache[key])
+    return !!beatMapCache[key];
   var map = await analyzeAudioBeats(descriptor.proxyUrl, null, analysisToken, {
     background: true,
     prefetch: true,
     cuefieldAutoMix: true,
-    song: song
+    song: song,
   });
-  if (!map || !contextStillCurrent() || analysisToken !== beatMapToken) return false;
+  if (!map || !contextStillCurrent() || analysisToken !== beatMapToken)
+    return false;
   beatMapCache[key] = map;
-  if (typeof writeBeatDiskCache === 'function') await writeBeatDiskCache(key, map, song, 'cuefield');
+  if (typeof writeBeatDiskCache === "function")
+    await writeBeatDiskCache(key, map, song, "cuefield");
   return true;
 }
 
 function initCuefieldAutoMix() {
-  if (cuefieldAutoMix || !window.CuefieldAutoMix || typeof window.CuefieldAutoMix.createCuefieldAutoMix !== 'function') return cuefieldAutoMix;
+  if (
+    cuefieldAutoMix ||
+    !window.CuefieldAutoMix ||
+    typeof window.CuefieldAutoMix.createCuefieldAutoMix !== "function"
+  )
+    return cuefieldAutoMix;
   cuefieldAutoMix = window.CuefieldAutoMix.createCuefieldAutoMix({
     allowWeak: false,
     allowSafetyFallback: false,
@@ -160,22 +254,22 @@ function initCuefieldAutoMix() {
       var toSong = context && context.nextSong;
       var lyricPair = await Promise.all([
         cuefieldLyricTextForSong(fromSong, true),
-        cuefieldLyricTextForSong(toSong, false)
+        cuefieldLyricTextForSong(toSong, false),
       ]);
-      return apiJson('/api/cuefield/transition', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      return apiJson("/api/cuefield/transition", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fromKey: fromKey,
           toKey: toKey,
-          fromLrc: lyricPair[0] || '',
-          toLrc: lyricPair[1] || '',
-          exitBias: 'late',
-          maxEntryTime: 32
-        })
+          fromLrc: lyricPair[0] || "",
+          toLrc: lyricPair[1] || "",
+          exitBias: "late",
+          maxEntryTime: 32,
+        }),
       });
     },
-    prepareAudioUrl: cuefieldAutoMixAudioDescriptor
+    prepareAudioUrl: cuefieldAutoMixAudioDescriptor,
   });
   cuefieldAutoMix.setEnabled(cuefieldAutoMixEnabled);
   return cuefieldAutoMix;
@@ -211,18 +305,26 @@ function cancelCuefieldMediaFade() {
 function claimCuefieldPreparedAudioForPlayback(media) {
   if (!media) return false;
   cancelCuefieldMediaFade();
-  if (media.__mineradioPreparedAudioGraph) media.__mineradioPreparedAudioGraph.adopted = true;
-  if (media === cuefieldAutoMixPreparedAudio) cuefieldAutoMixPreparedAudio = null;
+  if (media.__mineradioPreparedAudioGraph)
+    media.__mineradioPreparedAudioGraph.adopted = true;
+  if (media === cuefieldAutoMixPreparedAudio)
+    cuefieldAutoMixPreparedAudio = null;
   return true;
 }
 
 function disposeCuefieldPreparedAudioGraph(media) {
   var graph = media && media.__mineradioPreparedAudioGraph;
   if (!graph || graph.adopted) return;
-  [graph.source, graph.analyser, graph.beatAnalyser, graph.gainNode].forEach(function (node) {
-    try { if (node) node.disconnect(); } catch (_) { }
-  });
-  try { delete media.__mineradioPreparedAudioGraph; } catch (_) { }
+  [graph.source, graph.analyser, graph.beatAnalyser, graph.gainNode].forEach(
+    function (node) {
+      try {
+        if (node) node.disconnect();
+      } catch (_) {}
+    },
+  );
+  try {
+    delete media.__mineradioPreparedAudioGraph;
+  } catch (_) {}
 }
 
 function stopCuefieldPreparedAudio(media) {
@@ -230,57 +332,73 @@ function stopCuefieldPreparedAudio(media) {
   if (!media) return;
   // Once the preloaded B deck has become Mineradio's active deck it no longer
   // belongs to Cuefield. A later C-deck preparation must never pause or unload it.
-  if (typeof audio !== 'undefined' && media === audio) {
+  if (typeof audio !== "undefined" && media === audio) {
     claimCuefieldPreparedAudioForPlayback(media);
     return;
   }
   disposeCuefieldPreparedAudioGraph(media);
-  try { media.pause(); } catch (_) { }
-  try { media.removeAttribute('src'); media.load(); } catch (_) { }
-  if (media === cuefieldAutoMixPreparedAudio) cuefieldAutoMixPreparedAudio = null;
+  try {
+    media.pause();
+  } catch (_) {}
+  try {
+    media.removeAttribute("src");
+    media.load();
+  } catch (_) {}
+  if (media === cuefieldAutoMixPreparedAudio)
+    cuefieldAutoMixPreparedAudio = null;
 }
 
 function resetCuefieldAutoMix(reason, options) {
   options = options || {};
   var activeContext = cuefieldActiveTransitionContext;
   var shouldRestoreOutgoing = !!(
-    activeContext
-    && reason !== 'manual-pause'
-    && reason !== 'manual-seek'
-    && reason !== 'track-switch'
-    && reason !== 'cuefield-handoff'
-    && activeContext.outgoingToken === trackSwitchToken
-    && activeContext.outgoingIndex === currentIdx
-    && activeContext.outgoingMedia === audio
-    && audio
-    && !audio.paused
-    && !audio.ended
+    activeContext &&
+    reason !== "manual-pause" &&
+    reason !== "manual-seek" &&
+    reason !== "track-switch" &&
+    reason !== "cuefield-handoff" &&
+    activeContext.outgoingToken === trackSwitchToken &&
+    activeContext.outgoingIndex === currentIdx &&
+    activeContext.outgoingMedia === audio &&
+    audio &&
+    !audio.paused &&
+    !audio.ended
   );
   cuefieldTransitionGeneration++;
   clearCuefieldAutoMixTimer();
   clearCuefieldTimelineTimers();
   if (!options.preserveExecution) cuefieldAutoMixExecuting = false;
   if (!options.preservePreparedAudio) stopCuefieldPreparedAudio();
-  if (shouldRestoreOutgoing && typeof rampAudioOutputGain === 'function') rampAudioOutputGain(targetVolume, 120);
+  if (shouldRestoreOutgoing && typeof rampAudioOutputGain === "function")
+    rampAudioOutputGain(targetVolume, 120);
   if (!options.preserveExecution) cuefieldActiveTransitionContext = null;
-  if (cuefieldAutoMix) cuefieldAutoMix.reset(reason || 'reset');
-  updateCuefieldAutoMixUi(reason || 'idle');
+  if (cuefieldAutoMix) cuefieldAutoMix.reset(reason || "reset");
+  updateCuefieldAutoMixUi(reason || "idle");
 }
 
 function cuefieldAutoMixPostSwitchDelay(isCuefieldHandoff) {
-  return isCuefieldHandoff ? CUEFIELD_AUTOMIX_HANDOFF_SETTLE_MS : CUEFIELD_AUTOMIX_NORMAL_START_SETTLE_MS;
+  return isCuefieldHandoff
+    ? CUEFIELD_AUTOMIX_HANDOFF_SETTLE_MS
+    : CUEFIELD_AUTOMIX_NORMAL_START_SETTLE_MS;
 }
 
 function cuefieldAutoMixVisualTransitionBusy() {
-  if (typeof isRenderInteractionActive === 'function' && isRenderInteractionActive()) return true;
-  if (typeof colorMixTween !== 'undefined' && colorMixTween) return true;
-  if (typeof coverDepthTween !== 'undefined' && coverDepthTween) return true;
-  if (typeof loadingTween !== 'undefined' && loadingTween) return true;
+  if (
+    typeof isRenderInteractionActive === "function" &&
+    isRenderInteractionActive()
+  )
+    return true;
+  if (typeof colorMixTween !== "undefined" && colorMixTween) return true;
+  if (typeof coverDepthTween !== "undefined" && coverDepthTween) return true;
+  if (typeof loadingTween !== "undefined" && loadingTween) return true;
   return false;
 }
 
 function cuefieldAutoMixBlockedByAlbumGapless(index) {
-  return typeof albumGaplessQueueCanAdvance === 'function' && albumGaplessQueueCanAdvance(index);
+  return (
+    typeof albumGaplessQueueCanAdvance === "function" &&
+    albumGaplessQueueCanAdvance(index)
+  );
 }
 
 function toggleCuefieldAutoMix() {
@@ -288,31 +406,59 @@ function toggleCuefieldAutoMix() {
   saveCuefieldAutoMixPreference();
   var runtime = initCuefieldAutoMix();
   if (runtime) runtime.setEnabled(cuefieldAutoMixEnabled);
-  if (!cuefieldAutoMixEnabled) resetCuefieldAutoMix('disabled');
-  updateCuefieldAutoMixUi(cuefieldAutoMixEnabled ? 'waiting' : 'disabled');
-  showToast(cuefieldAutoMixEnabled ? 'Cuefield AutoMix 已开启：只在当前队列自动过渡' : 'Cuefield AutoMix 已关闭');
-  if (cuefieldAutoMixEnabled) scheduleCuefieldAutoMixPrepare(trackSwitchToken, currentIdx, 720);
+  if (!cuefieldAutoMixEnabled) resetCuefieldAutoMix("disabled");
+  updateCuefieldAutoMixUi(cuefieldAutoMixEnabled ? "waiting" : "disabled");
+  showToast(
+    cuefieldAutoMixEnabled
+      ? "Cuefield AutoMix 已开启：只在当前队列自动过渡"
+      : "Cuefield AutoMix 已关闭",
+  );
+  if (cuefieldAutoMixEnabled)
+    scheduleCuefieldAutoMixPrepare(trackSwitchToken, currentIdx, 720);
 }
 
 function scheduleCuefieldAutoMixPrepare(token, index, delay, attempt) {
   clearCuefieldAutoMixTimer();
-  if (!cuefieldAutoMixEnabled || !audio || audio.paused || !playQueue || playQueue.length < 2) return false;
+  if (
+    !cuefieldAutoMixEnabled ||
+    !audio ||
+    audio.paused ||
+    !playQueue ||
+    playQueue.length < 2
+  )
+    return false;
   var runtime = initCuefieldAutoMix();
   if (!runtime) return false;
-  var currentIndex = isFinite(Number(index)) ? Math.round(Number(index)) : currentIdx;
+  var currentIndex = isFinite(Number(index))
+    ? Math.round(Number(index))
+    : currentIdx;
   if (cuefieldAutoMixBlockedByAlbumGapless(currentIndex)) return false;
   var nextIndex = cuefieldAutoMixNextIndex(currentIndex);
   if (nextIndex < 0 || nextIndex === currentIndex) return false;
-  updateCuefieldAutoMixUi('preparing');
-  cuefieldAutoMixPrepareTimer = setTimeout(function () {
-    cuefieldAutoMixPrepareTimer = 0;
-    runCuefieldAutoMixPrepare(token, currentIndex, nextIndex, attempt || 0);
-  }, Math.max(260, Number(delay) || 1200));
+  updateCuefieldAutoMixUi("preparing");
+  cuefieldAutoMixPrepareTimer = setTimeout(
+    function () {
+      cuefieldAutoMixPrepareTimer = 0;
+      runCuefieldAutoMixPrepare(token, currentIndex, nextIndex, attempt || 0);
+    },
+    Math.max(260, Number(delay) || 1200),
+  );
   return true;
 }
 
-async function runCuefieldAutoMixPrepare(token, currentIndex, nextIndex, attempt) {
-  if (!cuefieldAutoMixEnabled || !cuefieldAutoMix || token !== trackSwitchToken || currentIndex !== currentIdx) return;
+async function runCuefieldAutoMixPrepare(
+  token,
+  currentIndex,
+  nextIndex,
+  attempt,
+) {
+  if (
+    !cuefieldAutoMixEnabled ||
+    !cuefieldAutoMix ||
+    token !== trackSwitchToken ||
+    currentIndex !== currentIdx
+  )
+    return;
   if (cuefieldAutoMixBlockedByAlbumGapless(currentIndex)) return;
   if (cuefieldAutoMixVisualTransitionBusy()) {
     scheduleCuefieldAutoMixPrepare(token, currentIndex, 900, attempt || 0);
@@ -321,7 +467,7 @@ async function runCuefieldAutoMixPrepare(token, currentIndex, nextIndex, attempt
   var currentSong = playQueue[currentIndex];
   var nextSong = playQueue[nextIndex];
   if (!currentSong || !nextSong) return;
-  updateCuefieldAutoMixUi('preparing');
+  updateCuefieldAutoMixUi("preparing");
   var result = await cuefieldAutoMix.prepare({
     token: token,
     currentIndex: currentIndex,
@@ -329,23 +475,30 @@ async function runCuefieldAutoMixPrepare(token, currentIndex, nextIndex, attempt
     currentSong: currentSong,
     nextSong: nextSong,
     leadSec: 4,
-    introBedLeadSec: 12
+    introBedLeadSec: 12,
   });
   if (
-    token !== trackSwitchToken
-    || currentIndex !== currentIdx
-    || !audio
-    || audio.paused
-    || cuefieldSongKey(playQueue[currentIndex]) !== cuefieldSongKey(currentSong)
-    || cuefieldSongKey(playQueue[nextIndex]) !== cuefieldSongKey(nextSong)
-  ) return;
+    token !== trackSwitchToken ||
+    currentIndex !== currentIdx ||
+    !audio ||
+    audio.paused ||
+    cuefieldSongKey(playQueue[currentIndex]) !== cuefieldSongKey(currentSong) ||
+    cuefieldSongKey(playQueue[nextIndex]) !== cuefieldSongKey(nextSong)
+  )
+    return;
   updateCuefieldAutoMixUi(result && result.status);
-  if (result && result.status === 'ready' && result.pending) {
+  if (result && result.status === "ready" && result.pending) {
     prepareCuefieldPendingAudio(result.pending);
-    showToast('Cuefield 已准备下一首过渡');
+    showToast("Cuefield 已准备下一首过渡");
     return;
   }
-  if (result && (result.status === 'waiting-beatmap' || result.status === 'missing-audio' || result.status === 'busy') && attempt < 3) {
+  if (
+    result &&
+    (result.status === "waiting-beatmap" ||
+      result.status === "missing-audio" ||
+      result.status === "busy") &&
+    attempt < 3
+  ) {
     scheduleCuefieldAutoMixPrepare(token, currentIndex, 2600, attempt + 1);
   }
 }
@@ -353,39 +506,69 @@ async function runCuefieldAutoMixPrepare(token, currentIndex, nextIndex, attempt
 function cuefieldPendingDescriptor(pending) {
   var source = pending && pending.audioUrl;
   if (!source) return null;
-  return typeof source === 'string' ? { proxyUrl: source, playbackData: { url: source } } : source;
+  return typeof source === "string"
+    ? { proxyUrl: source, playbackData: { url: source } }
+    : source;
 }
 
 function cuefieldTimelineExecution(pending) {
   var descriptor = cuefieldPendingDescriptor(pending);
   if (!pending || !descriptor) return null;
-  if (window.CuefieldTimelineExecutor && typeof window.CuefieldTimelineExecutor.buildCuefieldTimelineExecution === 'function') {
+  if (
+    window.CuefieldTimelineExecutor &&
+    typeof window.CuefieldTimelineExecutor.buildCuefieldTimelineExecution ===
+      "function"
+  ) {
     return window.CuefieldTimelineExecutor.buildCuefieldTimelineExecution({
       timeline: pending.timeline,
       entryTime: pending.entryTime,
       executionMode: pending.executionMode,
-      targetVolume: targetVolume
+      targetVolume: targetVolume,
     });
   }
-  return { leadSec: 4, bStart: Math.max(0, Number(pending.entryTime) || 0), handoffDelayMs: 2600, actions: [] };
+  return {
+    leadSec: 4,
+    bStart: Math.max(0, Number(pending.entryTime) || 0),
+    handoffDelayMs: 2600,
+    actions: [],
+  };
 }
 
 function cuefieldSetMediaTime(media, seconds) {
   if (!media) return;
   function setTime() {
-    try { media.currentTime = Math.max(0, Number(seconds) || 0); } catch (_) { }
+    try {
+      media.currentTime = Math.max(0, Number(seconds) || 0);
+    } catch (_) {}
   }
   if (media.readyState >= 1) setTime();
-  else media.addEventListener('loadedmetadata', setTime, { once: true });
+  else media.addEventListener("loadedmetadata", setTime, { once: true });
 }
 
 function cuefieldCreatePreparedAudioGraph(media) {
-  if (!media || media.__mineradioPreparedAudioGraph) return media && media.__mineradioPreparedAudioGraph || null;
+  if (!media || media.__mineradioPreparedAudioGraph)
+    return (media && media.__mineradioPreparedAudioGraph) || null;
   var graph = null;
   try {
-    if ((!audioCtx || audioCtx.state === 'closed') && typeof initAudio === 'function') initAudio();
-    if (!audioCtx || audioCtx.state === 'closed' || !audioCtx.createMediaElementSource) return null;
-    graph = { context: audioCtx, source: null, analyser: null, beatAnalyser: null, gainNode: null, adopted: false };
+    if (
+      (!audioCtx || audioCtx.state === "closed") &&
+      typeof initAudio === "function"
+    )
+      initAudio();
+    if (
+      !audioCtx ||
+      audioCtx.state === "closed" ||
+      !audioCtx.createMediaElementSource
+    )
+      return null;
+    graph = {
+      context: audioCtx,
+      source: null,
+      analyser: null,
+      beatAnalyser: null,
+      gainNode: null,
+      adopted: false,
+    };
     graph.source = audioCtx.createMediaElementSource(media);
     // A media element cannot be safely returned to direct-output mode after a
     // MediaElementSource has been created for it. Mark it immediately so a
@@ -394,10 +577,11 @@ function cuefieldCreatePreparedAudioGraph(media) {
     graph.analyser = audioCtx.createAnalyser();
     graph.beatAnalyser = audioCtx.createAnalyser();
     graph.gainNode = audioCtx.createGain();
-    graph.analyser.fftSize = typeof FFT_SIZE !== 'undefined' ? FFT_SIZE : 2048;
+    graph.analyser.fftSize = typeof FFT_SIZE !== "undefined" ? FFT_SIZE : 2048;
     graph.analyser.smoothingTimeConstant = 0.58;
-    graph.beatAnalyser.fftSize = typeof BEAT_FFT_SIZE !== 'undefined' ? BEAT_FFT_SIZE : 1024;
-    graph.beatAnalyser.smoothingTimeConstant = 0.10;
+    graph.beatAnalyser.fftSize =
+      typeof BEAT_FFT_SIZE !== "undefined" ? BEAT_FFT_SIZE : 1024;
+    graph.beatAnalyser.smoothingTimeConstant = 0.1;
     graph.gainNode.gain.value = 0;
     graph.source.connect(graph.analyser);
     graph.source.connect(graph.beatAnalyser);
@@ -407,13 +591,26 @@ function cuefieldCreatePreparedAudioGraph(media) {
     return graph;
   } catch (error) {
     if (graph) {
-      [graph.source, graph.analyser, graph.beatAnalyser, graph.gainNode].forEach(function (node) {
-        try { if (node) node.disconnect(); } catch (_) { }
+      [
+        graph.source,
+        graph.analyser,
+        graph.beatAnalyser,
+        graph.gainNode,
+      ].forEach(function (node) {
+        try {
+          if (node) node.disconnect();
+        } catch (_) {}
       });
     }
-    if (media && media.__mineradioMediaSourceBound) media.__mineradioPreparedGraphFailed = true;
-    try { delete media.__mineradioPreparedAudioGraph; } catch (_) { }
-    console.warn('[CuefieldAutoMix] prepared audio graph fallback:', error && error.message || error);
+    if (media && media.__mineradioMediaSourceBound)
+      media.__mineradioPreparedGraphFailed = true;
+    try {
+      delete media.__mineradioPreparedAudioGraph;
+    } catch (_) {}
+    console.warn(
+      "[CuefieldAutoMix] prepared audio graph fallback:",
+      (error && error.message) || error,
+    );
     return null;
   }
 }
@@ -422,41 +619,56 @@ function cuefieldWriteIncomingGain(media, value) {
   value = Math.max(0, Math.min(1, Number(value) || 0));
   var graph = media && media.__mineradioPreparedAudioGraph;
   if (graph && graph.gainNode) {
-    try { graph.gainNode.gain.value = value; } catch (_) { }
-    try { media.volume = 1; media.muted = false; } catch (_) { }
+    try {
+      graph.gainNode.gain.value = value;
+    } catch (_) {}
+    try {
+      media.volume = 1;
+      media.muted = false;
+    } catch (_) {}
     return value;
   }
-  try { media.volume = value; media.muted = false; } catch (_) { }
+  try {
+    media.volume = value;
+    media.muted = false;
+  } catch (_) {}
   return value;
 }
 
 function prepareCuefieldPendingAudio(pending) {
   var descriptor = cuefieldPendingDescriptor(pending);
   if (!descriptor || !descriptor.proxyUrl) return null;
-  if (pending.preparedAudio && pending.preparedAudio.src) return pending.preparedAudio;
+  if (pending.preparedAudio && pending.preparedAudio.src)
+    return pending.preparedAudio;
   stopCuefieldPreparedAudio();
   var execution = cuefieldTimelineExecution(pending);
   var media = new Audio();
-  media.crossOrigin = 'anonymous';
-  media.preload = 'auto';
+  media.crossOrigin = "anonymous";
+  media.preload = "auto";
   media.volume = 1;
   media.muted = false;
   cuefieldCreatePreparedAudioGraph(media);
   if (media.__mineradioPreparedGraphFailed) {
-    try { media.pause(); media.removeAttribute('src'); media.load(); } catch (_) { }
+    try {
+      media.pause();
+      media.removeAttribute("src");
+      media.load();
+    } catch (_) {}
     // The first element is permanently tied to a failed WebAudio source.
     // Recreate a clean element for the direct-volume fallback instead of
     // risking a silent B deck.
     media = new Audio();
-    media.crossOrigin = 'anonymous';
-    media.preload = 'auto';
+    media.crossOrigin = "anonymous";
+    media.preload = "auto";
     media.volume = 1;
     media.muted = false;
   }
   cuefieldWriteIncomingGain(media, 0);
   media.src = descriptor.proxyUrl;
   cuefieldSetMediaTime(media, execution && execution.bStart);
-  try { media.load(); } catch (_) { }
+  try {
+    media.load();
+  } catch (_) {}
   pending.preparedAudio = media;
   pending.timelineExecution = execution;
   cuefieldAutoMixPreparedAudio = media;
@@ -471,11 +683,14 @@ function cuefieldDelay(delayMs, generation) {
         var index = cuefieldDelayWaiters.indexOf(waiter);
         if (index >= 0) cuefieldDelayWaiters.splice(index, 1);
         resolve(!!ok);
-      }
+      },
     };
-    waiter.timer = setTimeout(function () {
-      waiter.resolve(generation === cuefieldTransitionGeneration);
-    }, Math.max(0, Number(delayMs) || 0));
+    waiter.timer = setTimeout(
+      function () {
+        waiter.resolve(generation === cuefieldTransitionGeneration);
+      },
+      Math.max(0, Number(delayMs) || 0),
+    );
     cuefieldDelayWaiters.push(waiter);
   });
 }
@@ -483,23 +698,46 @@ function cuefieldDelay(delayMs, generation) {
 function cuefieldTransitionStillCurrent(pending, context) {
   if (!pending || !context || !cuefieldAutoMixEnabled) return false;
   if (context.generation !== cuefieldTransitionGeneration) return false;
-  if (pending.token !== trackSwitchToken || pending.currentIndex !== currentIdx) return false;
+  if (pending.token !== trackSwitchToken || pending.currentIndex !== currentIdx)
+    return false;
   if (!context.outgoingMedia || audio !== context.outgoingMedia) return false;
-  if (context.outgoingMedia.paused && !context.outgoingMedia.ended) return false;
-  if (pending.fromKey && cuefieldSongKey(playQueue[pending.currentIndex]) !== pending.fromKey) return false;
-  if (pending.toKey && cuefieldSongKey(playQueue[pending.nextIndex]) !== pending.toKey) return false;
+  if (context.outgoingMedia.paused && !context.outgoingMedia.ended)
+    return false;
+  if (
+    pending.fromKey &&
+    cuefieldSongKey(playQueue[pending.currentIndex]) !== pending.fromKey
+  )
+    return false;
+  if (
+    pending.toKey &&
+    cuefieldSongKey(playQueue[pending.nextIndex]) !== pending.toKey
+  )
+    return false;
   return true;
 }
 
-function cuefieldRunEqualPowerCrossfade(pending, nextMedia, durationMs, context) {
+function cuefieldRunEqualPowerCrossfade(
+  pending,
+  nextMedia,
+  durationMs,
+  context,
+) {
   cancelCuefieldMediaFade();
   var serial = cuefieldMediaFadeSerial;
   var initialTarget = Math.max(0.0001, Number(targetVolume) || 0);
-  var outgoingRatio = Math.max(0, Math.min(1, (typeof currentAudioOutputGain === 'function' ? currentAudioOutputGain() : initialTarget) / initialTarget));
+  var outgoingRatio = Math.max(
+    0,
+    Math.min(
+      1,
+      (typeof currentAudioOutputGain === "function"
+        ? currentAudioOutputGain()
+        : initialTarget) / initialTarget,
+    ),
+  );
   var fadeStartA = isFinite(Number(pending && pending.fadeStartA))
     ? Number(pending.fadeStartA)
     : Number(context.outgoingMedia && context.outgoingMedia.currentTime) || 0;
-  var headroomDepth = pending && pending.mixType === 'beatmix' ? 0.16 : 0.10;
+  var headroomDepth = pending && pending.mixType === "beatmix" ? 0.16 : 0.1;
   var fadeWatchdogAt = Date.now() + durationMs + 1800;
   durationMs = Math.max(1, Number(durationMs) || 1);
   return new Promise(function (resolve) {
@@ -517,7 +755,10 @@ function cuefieldRunEqualPowerCrossfade(pending, nextMedia, durationMs, context)
     }
     function applyStep() {
       if (settled) return;
-      if (serial !== cuefieldMediaFadeSerial || !cuefieldTransitionStillCurrent(pending, context)) {
+      if (
+        serial !== cuefieldMediaFadeSerial ||
+        !cuefieldTransitionStillCurrent(pending, context)
+      ) {
         finish(false);
         return;
       }
@@ -525,19 +766,36 @@ function cuefieldRunEqualPowerCrossfade(pending, nextMedia, durationMs, context)
         finish(false);
         return;
       }
-      var mediaNow = Number(context.outgoingMedia && context.outgoingMedia.currentTime);
-      var t = Math.max(0, Math.min(1, ((isFinite(mediaNow) ? mediaNow : fadeStartA) - fadeStartA) / (durationMs / 1000)));
-      if (context.outgoingMedia && (context.outgoingMedia.ended || (isFinite(context.outgoingMedia.duration) && context.outgoingMedia.duration - mediaNow <= 0.025))) t = 1;
+      var mediaNow = Number(
+        context.outgoingMedia && context.outgoingMedia.currentTime,
+      );
+      var t = Math.max(
+        0,
+        Math.min(
+          1,
+          ((isFinite(mediaNow) ? mediaNow : fadeStartA) - fadeStartA) /
+            (durationMs / 1000),
+        ),
+      );
+      if (
+        context.outgoingMedia &&
+        (context.outgoingMedia.ended ||
+          (isFinite(context.outgoingMedia.duration) &&
+            context.outgoingMedia.duration - mediaNow <= 0.025))
+      )
+        t = 1;
       var eased = t * t * (3 - 2 * t);
       var theta = eased * Math.PI * 0.5;
       var liveTarget = Math.max(0, Math.min(1, Number(targetVolume) || 0));
       var overlapHeadroom = 1 - Math.sin(Math.PI * eased) * headroomDepth;
-      var outgoing = liveTarget * outgoingRatio * Math.cos(theta) * overlapHeadroom;
+      var outgoing =
+        liveTarget * outgoingRatio * Math.cos(theta) * overlapHeadroom;
       var incoming = liveTarget * Math.sin(theta) * overlapHeadroom;
-      if (typeof writeAudioOutputGain === 'function') writeAudioOutputGain(outgoing);
+      if (typeof writeAudioOutputGain === "function")
+        writeAudioOutputGain(outgoing);
       cuefieldWriteIncomingGain(nextMedia, incoming);
       if (t >= 1) {
-        if (typeof writeAudioOutputGain === 'function') writeAudioOutputGain(0);
+        if (typeof writeAudioOutputGain === "function") writeAudioOutputGain(0);
         cuefieldWriteIncomingGain(nextMedia, liveTarget);
         finish(true);
       }
@@ -557,58 +815,89 @@ async function cuefieldWaitForMediaTime(media, targetTime, pending, context) {
   targetTime = Math.max(0, Number(targetTime) || 0);
   var watchdogAt = Date.now() + 7000;
   while (media && Number(media.currentTime) + 0.012 < targetTime) {
-    if (!cuefieldTransitionStillCurrent(pending, context) || Date.now() >= watchdogAt) return false;
-    if (!await cuefieldDelay(24, context.generation)) return false;
+    if (
+      !cuefieldTransitionStillCurrent(pending, context) ||
+      Date.now() >= watchdogAt
+    )
+      return false;
+    if (!(await cuefieldDelay(24, context.generation))) return false;
   }
   return cuefieldTransitionStillCurrent(pending, context);
 }
 
 async function runCuefieldTimeline(pending, nextMedia, context) {
-  var execution = pending.timelineExecution || cuefieldTimelineExecution(pending);
+  var execution =
+    pending.timelineExecution || cuefieldTimelineExecution(pending);
   if (!execution) return false;
   pending.timelineExecution = execution;
   clearCuefieldTimelineTimers();
-  var fadeMs = Math.max(360, Number(execution.fadeDurationMs) || Number(pending.fadeSec) * 1000 || 1400);
+  var fadeMs = Math.max(
+    360,
+    Number(execution.fadeDurationMs) || Number(pending.fadeSec) * 1000 || 1400,
+  );
   var fadeStartA = isFinite(Number(pending.fadeStartA))
     ? Number(pending.fadeStartA)
-    : Math.max(0, Number(pending.triggerAt) + Math.max(0, Number(execution.fadeStartDelayMs) || 0) / 1000);
+    : Math.max(
+        0,
+        Number(pending.triggerAt) +
+          Math.max(0, Number(execution.fadeStartDelayMs) || 0) / 1000,
+      );
   pending.fadeStartA = fadeStartA;
-  pending.executionFallback = nextMedia.__mineradioPreparedAudioGraph ? 'shared-context-gain' : 'direct-volume-fallback';
-  if (!await cuefieldWaitForMediaTime(context.outgoingMedia, fadeStartA, pending, context)) return false;
+  pending.executionFallback = nextMedia.__mineradioPreparedAudioGraph
+    ? "shared-context-gain"
+    : "direct-volume-fallback";
+  if (
+    !(await cuefieldWaitForMediaTime(
+      context.outgoingMedia,
+      fadeStartA,
+      pending,
+      context,
+    ))
+  )
+    return false;
   if (!cuefieldTransitionStillCurrent(pending, context)) return false;
   if (nextMedia.readyState < 2) return false;
-  var bFadeStart = isFinite(Number(pending.bFadeStart)) ? Math.max(0, Number(pending.bFadeStart)) : Math.max(0, Number(execution.bStart) || 0);
-  if (Math.abs((Number(nextMedia.currentTime) || 0) - bFadeStart) > 0.04) cuefieldSetMediaTime(nextMedia, bFadeStart);
-  var completed = await cuefieldRunEqualPowerCrossfade(pending, nextMedia, fadeMs, context);
-  if (!completed || !cuefieldTransitionStillCurrent(pending, context)) return false;
+  var bFadeStart = isFinite(Number(pending.bFadeStart))
+    ? Math.max(0, Number(pending.bFadeStart))
+    : Math.max(0, Number(execution.bStart) || 0);
+  if (Math.abs((Number(nextMedia.currentTime) || 0) - bFadeStart) > 0.04)
+    cuefieldSetMediaTime(nextMedia, bFadeStart);
+  var completed = await cuefieldRunEqualPowerCrossfade(
+    pending,
+    nextMedia,
+    fadeMs,
+    context,
+  );
+  if (!completed || !cuefieldTransitionStillCurrent(pending, context))
+    return false;
   return cuefieldTransitionStillCurrent(pending, context);
 }
 
 function cuefieldFeedbackContext(pending) {
   var from = playQueue[pending.currentIndex] || {};
   var to = playQueue[pending.nextIndex] || {};
-  var chosen = pending.plan && pending.plan.chosen || {};
+  var chosen = (pending.plan && pending.plan.chosen) || {};
   var evaluation = chosen.evaluation || {};
   return {
     pair: {
       fromKey: pending.fromKey,
       toKey: pending.toKey,
-      fromTitle: from.name || from.title || '',
-      fromArtist: from.artist || '',
-      toTitle: to.name || to.title || '',
-      toArtist: to.artist || ''
+      fromTitle: from.name || from.title || "",
+      fromArtist: from.artist || "",
+      toTitle: to.name || to.title || "",
+      toArtist: to.artist || "",
     },
     transition: {
-      recipe: chosen.recipe || '',
-      transitionRecipe: chosen.transitionRecipe || pending.executionMode || '',
-      executionMode: pending.executionMode || '',
-      tier: evaluation.tier || '',
+      recipe: chosen.recipe || "",
+      transitionRecipe: chosen.transitionRecipe || pending.executionMode || "",
+      executionMode: pending.executionMode || "",
+      tier: evaluation.tier || "",
       score: chosen.score,
       evalScore: evaluation.score,
       risks: evaluation.risks || [],
       exitTime: pending.exitTime,
-      entryTime: pending.entryTime
-    }
+      entryTime: pending.entryTime,
+    },
   };
 }
 
@@ -616,35 +905,64 @@ function showCuefieldFeedback(context) {
   if (!context) return;
   cuefieldFeedbackState.context = context;
   cuefieldFeedbackState.submitted = false;
-  var root = document.getElementById('cuefield-feedback');
-  var meta = document.getElementById('cuefield-feedback-meta');
-  if (meta) meta.textContent = (context.pair.fromTitle || '当前歌曲') + ' → ' + (context.pair.toTitle || '下一首');
-  if (root) root.classList.add('show');
+  var root = document.getElementById("cuefield-feedback");
+  var meta = document.getElementById("cuefield-feedback-meta");
+  if (meta)
+    meta.textContent =
+      (context.pair.fromTitle || "当前歌曲") +
+      " → " +
+      (context.pair.toTitle || "下一首");
+  if (root) root.classList.add("show");
   if (cuefieldFeedbackState.timer) clearTimeout(cuefieldFeedbackState.timer);
-  cuefieldFeedbackState.timer = setTimeout(function () { if (root) root.classList.remove('show'); }, 30000);
+  cuefieldFeedbackState.timer = setTimeout(function () {
+    if (root) root.classList.remove("show");
+  }, 30000);
 }
 
 function submitCuefieldFeedback(rating) {
   rating = Number(rating);
-  if (rating < 1 || rating > 3 || !cuefieldFeedbackState.context || cuefieldFeedbackState.submitted) return;
+  if (
+    rating < 1 ||
+    rating > 3 ||
+    !cuefieldFeedbackState.context ||
+    cuefieldFeedbackState.submitted
+  )
+    return;
   cuefieldFeedbackState.submitted = true;
-  apiJson('/api/cuefield/feedback', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(Object.assign({ rating: rating }, cuefieldFeedbackState.context))
-  }).then(function () {
-    var root = document.getElementById('cuefield-feedback');
-    if (root) root.classList.remove('show');
-    showToast('Cuefield 评分已保存');
-  }).catch(function () {
-    cuefieldFeedbackState.submitted = false;
-    showToast('Cuefield 评分保存失败');
-  });
+  apiJson("/api/cuefield/feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(
+      Object.assign({ rating: rating }, cuefieldFeedbackState.context),
+    ),
+  })
+    .then(function () {
+      var root = document.getElementById("cuefield-feedback");
+      if (root) root.classList.remove("show");
+      showToast("Cuefield 评分已保存");
+    })
+    .catch(function () {
+      cuefieldFeedbackState.submitted = false;
+      showToast("Cuefield 评分保存失败");
+    });
 }
 
 function tickCuefieldAutoMix() {
-  if (!cuefieldAutoMixEnabled || !cuefieldAutoMix || cuefieldAutoMixExecuting || !audio) return;
-  if (!cuefieldAutoMix.shouldTrigger({ token: trackSwitchToken, currentIndex: currentIdx, currentTime: audio.currentTime || 0 })) return;
+  if (
+    !cuefieldAutoMixEnabled ||
+    !cuefieldAutoMix ||
+    cuefieldAutoMixExecuting ||
+    !audio
+  )
+    return;
+  if (
+    !cuefieldAutoMix.shouldTrigger({
+      token: trackSwitchToken,
+      currentIndex: currentIdx,
+      currentTime: audio.currentTime || 0,
+    })
+  )
+    return;
   var pending = cuefieldAutoMix.consumePending();
   if (pending) executeCuefieldAutoMix(pending);
 }
@@ -661,97 +979,145 @@ function recoverCuefieldAutoMixEndedOutgoing(pending, context, reason) {
   var token = Number(context && context.outgoingToken);
   var index = Number(context && context.outgoingIndex);
   if (
-    !outgoing
-    || !outgoing.ended
-    || !isFinite(token)
-    || !isFinite(index)
-    || trackSwitchToken !== token
-    || currentIdx !== index
-    || audio !== outgoing
-  ) return false;
+    !outgoing ||
+    !outgoing.ended ||
+    !isFinite(token) ||
+    !isFinite(index) ||
+    trackSwitchToken !== token ||
+    currentIdx !== index ||
+    audio !== outgoing
+  )
+    return false;
   if (outgoing.__mineradioCuefieldEndedRecoveryToken === token) return true;
   outgoing.__mineradioCuefieldEndedRecoveryToken = token;
   cuefieldAutoMixExecuting = false;
-  if (cuefieldActiveTransitionContext === context) cuefieldActiveTransitionContext = null;
-  if (typeof finalizeListenSession === 'function') finalizeListenSession(true);
-  updateCuefieldAutoMixUi(reason || 'fallback');
+  if (cuefieldActiveTransitionContext === context)
+    cuefieldActiveTransitionContext = null;
+  if (typeof finalizeListenSession === "function") finalizeListenSession(true);
+  updateCuefieldAutoMixUi(reason || "fallback");
   setTimeout(function () {
-    if (trackSwitchToken !== token || currentIdx !== index || audio !== outgoing) return;
-    if (playMode === 'single') {
+    if (
+      trackSwitchToken !== token ||
+      currentIdx !== index ||
+      audio !== outgoing
+    )
+      return;
+    if (playMode === "single") {
       playQueueAt(index, { autoRepeat: true, suppressPlayFailureNotice: true });
-    } else if (typeof nextTrack === 'function') {
+    } else if (typeof nextTrack === "function") {
       nextTrack(false);
     } else if (pending && isFinite(Number(pending.nextIndex))) {
-      playQueueAt(Number(pending.nextIndex), { skipShuffleOrder: true, suppressPlayFailureNotice: true, preserveHomeState: true });
+      playQueueAt(Number(pending.nextIndex), {
+        skipShuffleOrder: true,
+        suppressPlayFailureNotice: true,
+        preserveHomeState: true,
+      });
     }
   }, 0);
   return true;
 }
 
 async function executeCuefieldAutoMix(pending) {
-  if (!pending || cuefieldAutoMixExecuting || pending.token !== trackSwitchToken || pending.currentIndex !== currentIdx) return;
+  if (
+    !pending ||
+    cuefieldAutoMixExecuting ||
+    pending.token !== trackSwitchToken ||
+    pending.currentIndex !== currentIdx
+  )
+    return;
   if (cuefieldAutoMixBlockedByAlbumGapless(pending.currentIndex)) {
     stopCuefieldPreparedAudio(pending.preparedAudio);
-    if (cuefieldAutoMix) cuefieldAutoMix.reset('album-gapless-priority');
-    updateCuefieldAutoMixUi('waiting');
+    if (cuefieldAutoMix) cuefieldAutoMix.reset("album-gapless-priority");
+    updateCuefieldAutoMixUi("waiting");
     return;
   }
-  if (pending.fromKey && cuefieldSongKey(playQueue[pending.currentIndex]) !== pending.fromKey) return;
-  if (pending.toKey && cuefieldSongKey(playQueue[pending.nextIndex]) !== pending.toKey) return;
+  if (
+    pending.fromKey &&
+    cuefieldSongKey(playQueue[pending.currentIndex]) !== pending.fromKey
+  )
+    return;
+  if (
+    pending.toKey &&
+    cuefieldSongKey(playQueue[pending.nextIndex]) !== pending.toKey
+  )
+    return;
   var transitionContext = {
     generation: ++cuefieldTransitionGeneration,
     outgoingMedia: audio,
     outgoingToken: trackSwitchToken,
-    outgoingIndex: currentIdx
+    outgoingIndex: currentIdx,
   };
   cuefieldAutoMixExecuting = true;
-  updateCuefieldAutoMixUi('handoff');
+  updateCuefieldAutoMixUi("handoff");
   var nextMedia = prepareCuefieldPendingAudio(pending);
   if (!nextMedia) {
     cuefieldAutoMixExecuting = false;
-    updateCuefieldAutoMixUi('missing-audio');
-    recoverCuefieldAutoMixEndedOutgoing(pending, transitionContext, 'missing-audio');
+    updateCuefieldAutoMixUi("missing-audio");
+    recoverCuefieldAutoMixEndedOutgoing(
+      pending,
+      transitionContext,
+      "missing-audio",
+    );
     return;
   }
   cuefieldActiveTransitionContext = transitionContext;
   try {
-    cuefieldSetMediaTime(nextMedia, pending.timelineExecution && pending.timelineExecution.bStart);
+    cuefieldSetMediaTime(
+      nextMedia,
+      pending.timelineExecution && pending.timelineExecution.bStart,
+    );
     cuefieldWriteIncomingGain(nextMedia, 0);
-    if (typeof applyAudioOutputDevice === 'function') await applyAudioOutputDevice(nextMedia);
+    if (typeof applyAudioOutputDevice === "function")
+      await applyAudioOutputDevice(nextMedia);
     if (!cuefieldTransitionStillCurrent(pending, transitionContext)) {
       cuefieldAutoMixExecuting = false;
       stopCuefieldPreparedAudio(nextMedia);
-      if (cuefieldActiveTransitionContext === transitionContext) cuefieldActiveTransitionContext = null;
-      recoverCuefieldAutoMixEndedOutgoing(pending, transitionContext, 'fallback');
+      if (cuefieldActiveTransitionContext === transitionContext)
+        cuefieldActiveTransitionContext = null;
+      recoverCuefieldAutoMixEndedOutgoing(
+        pending,
+        transitionContext,
+        "fallback",
+      );
       return;
     }
     await nextMedia.play();
   } catch (_) {
     cuefieldAutoMixExecuting = false;
     stopCuefieldPreparedAudio(nextMedia);
-    if (cuefieldActiveTransitionContext === transitionContext) cuefieldActiveTransitionContext = null;
-    updateCuefieldAutoMixUi('error');
-    recoverCuefieldAutoMixEndedOutgoing(pending, transitionContext, 'error');
-    showToast('Cuefield AutoMix：下一首预载失败');
+    if (cuefieldActiveTransitionContext === transitionContext)
+      cuefieldActiveTransitionContext = null;
+    updateCuefieldAutoMixUi("error");
+    recoverCuefieldAutoMixEndedOutgoing(pending, transitionContext, "error");
+    showToast("Cuefield AutoMix：下一首预载失败");
     return;
   }
   var feedback = cuefieldFeedbackContext(pending);
-  var handoffReady = await runCuefieldTimeline(pending, nextMedia, transitionContext);
-  if (!handoffReady || !cuefieldTransitionStillCurrent(pending, transitionContext)) {
+  var handoffReady = await runCuefieldTimeline(
+    pending,
+    nextMedia,
+    transitionContext,
+  );
+  if (
+    !handoffReady ||
+    !cuefieldTransitionStillCurrent(pending, transitionContext)
+  ) {
     cuefieldAutoMixExecuting = false;
     stopCuefieldPreparedAudio(nextMedia);
     if (
-      transitionContext.generation === cuefieldTransitionGeneration
-      && transitionContext.outgoingToken === trackSwitchToken
-      && transitionContext.outgoingIndex === currentIdx
-      && transitionContext.outgoingMedia === audio
-      && audio
-      && !audio.paused
-      && !audio.ended
-      && typeof rampAudioOutputGain === 'function'
-    ) rampAudioOutputGain(targetVolume, 120);
-    if (cuefieldActiveTransitionContext === transitionContext) cuefieldActiveTransitionContext = null;
-    recoverCuefieldAutoMixEndedOutgoing(pending, transitionContext, 'fallback');
+      transitionContext.generation === cuefieldTransitionGeneration &&
+      transitionContext.outgoingToken === trackSwitchToken &&
+      transitionContext.outgoingIndex === currentIdx &&
+      transitionContext.outgoingMedia === audio &&
+      audio &&
+      !audio.paused &&
+      !audio.ended &&
+      typeof rampAudioOutputGain === "function"
+    )
+      rampAudioOutputGain(targetVolume, 120);
+    if (cuefieldActiveTransitionContext === transitionContext)
+      cuefieldActiveTransitionContext = null;
+    recoverCuefieldAutoMixEndedOutgoing(pending, transitionContext, "fallback");
     return;
   }
   var descriptor = cuefieldPendingDescriptor(pending);
@@ -759,23 +1125,27 @@ async function executeCuefieldAutoMix(pending) {
   async function runCuefieldNormalFallback() {
     var expectedFailedToken = transitionContext.outgoingToken + 1;
     if (
-      trackSwitchToken !== expectedFailedToken
-      || currentIdx !== pending.nextIndex
-      || (audio !== nextMedia && audio !== transitionContext.outgoingMedia)
-    ) return false;
+      trackSwitchToken !== expectedFailedToken ||
+      currentIdx !== pending.nextIndex ||
+      (audio !== nextMedia && audio !== transitionContext.outgoingMedia)
+    )
+      return false;
     var fallbackOwnerMedia = audio;
     if (fallbackOwnerMedia === nextMedia) {
       try {
         nextMedia.pause();
-        nextMedia.removeAttribute('src');
+        nextMedia.removeAttribute("src");
         nextMedia.load();
-      } catch (_) { }
-      if (transitionContext.outgoingMedia && transitionContext.outgoingMedia !== fallbackOwnerMedia) {
+      } catch (_) {}
+      if (
+        transitionContext.outgoingMedia &&
+        transitionContext.outgoingMedia !== fallbackOwnerMedia
+      ) {
         try {
           transitionContext.outgoingMedia.pause();
-          transitionContext.outgoingMedia.removeAttribute('src');
+          transitionContext.outgoingMedia.removeAttribute("src");
           transitionContext.outgoingMedia.load();
-        } catch (_) { }
+        } catch (_) {}
       }
     } else {
       stopCuefieldPreparedAudio(nextMedia);
@@ -783,15 +1153,15 @@ async function executeCuefieldAutoMix(pending) {
     var fallbackResult = await playQueueAt(pending.nextIndex, {
       preserveHomeState: true,
       skipShuffleOrder: true,
-      suppressPlayFailureNotice: true
+      suppressPlayFailureNotice: true,
     });
     return !!(
-      fallbackResult === true
-      && currentIdx === pending.nextIndex
-      && audio
-      && audio.src
-      && !audio.paused
-      && !audio.ended
+      fallbackResult === true &&
+      currentIdx === pending.nextIndex &&
+      audio &&
+      audio.src &&
+      !audio.paused &&
+      !audio.ended
     );
   }
   try {
@@ -800,26 +1170,40 @@ async function executeCuefieldAutoMix(pending) {
       albumGaplessHandoff: true,
       albumGaplessMixed: true,
       preloadedAudio: nextMedia,
-      preloadedData: descriptor && descriptor.playbackData || { url: descriptor && descriptor.proxyUrl || '' },
-      preloadedProxyAudioUrl: descriptor && descriptor.proxyUrl || '',
+      preloadedData: (descriptor && descriptor.playbackData) || {
+        url: (descriptor && descriptor.proxyUrl) || "",
+      },
+      preloadedProxyAudioUrl: (descriptor && descriptor.proxyUrl) || "",
       cuefieldAutoMix: true,
-      fade: false
+      fade: false,
     });
-    handoffSucceeded = !!(handoffResult === true && audio === nextMedia && currentIdx === pending.nextIndex && nextMedia.src && !nextMedia.paused && !nextMedia.ended);
+    handoffSucceeded = !!(
+      handoffResult === true &&
+      audio === nextMedia &&
+      currentIdx === pending.nextIndex &&
+      nextMedia.src &&
+      !nextMedia.paused &&
+      !nextMedia.ended
+    );
     if (!handoffSucceeded) handoffSucceeded = await runCuefieldNormalFallback();
     if (handoffSucceeded) showCuefieldFeedback(feedback);
   } catch (err) {
-    console.warn('[CuefieldAutoMix] handoff failed:', err);
-    try { handoffSucceeded = await runCuefieldNormalFallback(); } catch (_) { }
+    console.warn("[CuefieldAutoMix] handoff failed:", err);
+    try {
+      handoffSucceeded = await runCuefieldNormalFallback();
+    } catch (_) {}
   } finally {
-    if (!handoffSucceeded && audio !== nextMedia) stopCuefieldPreparedAudio(nextMedia);
+    if (!handoffSucceeded && audio !== nextMedia)
+      stopCuefieldPreparedAudio(nextMedia);
     cuefieldAutoMixExecuting = false;
-    if (cuefieldActiveTransitionContext === transitionContext) cuefieldActiveTransitionContext = null;
-    updateCuefieldAutoMixUi(handoffSucceeded ? 'ready' : 'error');
-    if (!handoffSucceeded) recoverCuefieldAutoMixEndedOutgoing(pending, transitionContext, 'error');
+    if (cuefieldActiveTransitionContext === transitionContext)
+      cuefieldActiveTransitionContext = null;
+    updateCuefieldAutoMixUi(handoffSucceeded ? "ready" : "error");
+    if (!handoffSucceeded)
+      recoverCuefieldAutoMixEndedOutgoing(pending, transitionContext, "error");
   }
 }
 
 cuefieldAutoMixEnabled = readCuefieldAutoMixPreference();
 initCuefieldAutoMix();
-updateCuefieldAutoMixUi(cuefieldAutoMixEnabled ? 'waiting' : 'disabled');
+updateCuefieldAutoMixUi(cuefieldAutoMixEnabled ? "waiting" : "disabled");
