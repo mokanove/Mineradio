@@ -1,6 +1,6 @@
-'use strict';
+"use strict";
 
-const { execFile, spawn } = require('child_process');
+const { execFile, spawn } = require("child_process");
 
 const DEFAULT_PROBE_TIMEOUT_MS = 5000;
 const DEFAULT_MAX_SHAPE_RECTS = 1024;
@@ -12,12 +12,17 @@ function finiteNumber(value, fallback = 0) {
 }
 
 function normalizeRect(value) {
-  if (!value || typeof value !== 'object') return null;
+  if (!value || typeof value !== "object") return null;
   const x = finiteNumber(value.x, NaN);
   const y = finiteNumber(value.y, NaN);
   const width = finiteNumber(value.width, NaN);
   const height = finiteNumber(value.height, NaN);
-  if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return null;
+  if (
+    ![x, y, width, height].every(Number.isFinite) ||
+    width <= 0 ||
+    height <= 0
+  )
+    return null;
   return { x, y, width, height };
 }
 
@@ -56,10 +61,11 @@ function clipRect(value, bounds) {
 }
 
 function desktopIconProbeScript(options = {}) {
-  const extraCSharp = String(options.extraCSharp || '');
-  const invocation = options.invoke === false
-    ? ''
-    : '[MineradioDesktopIconShapeNative]::Probe() | ConvertTo-Json -Compress -Depth 5';
+  const extraCSharp = String(options.extraCSharp || "");
+  const invocation =
+    options.invoke === false
+      ? ""
+      : "[MineradioDesktopIconShapeNative]::Probe() | ConvertTo-Json -Compress -Depth 5";
   return `
 $ErrorActionPreference = "Stop"
 if (-not ("MineradioDesktopIconShapeNative" -as [type])) {
@@ -539,49 +545,69 @@ public static class MineradioDesktopIconShapeWatcherNative {
 }
 
 function desktopIconWatcherScript(options = {}) {
-  const debounceMs = Math.max(100, Math.min(180, Math.round(finiteNumber(options.debounceMs, 140))));
-  const rebindMs = Math.max(1000, Math.min(10000, Math.round(finiteNumber(options.rebindMs, 2000))));
+  const debounceMs = Math.max(
+    100,
+    Math.min(180, Math.round(finiteNumber(options.debounceMs, 140))),
+  );
+  const rebindMs = Math.max(
+    1000,
+    Math.min(10000, Math.round(finiteNumber(options.rebindMs, 2000))),
+  );
   return `${desktopIconProbeScript({ invoke: false, extraCSharp: desktopIconWatcherCSharpSource() })}
 [MineradioDesktopIconShapeWatcherNative]::Run(${debounceMs}, ${rebindMs})
 `;
 }
 
 function parseDesktopIconProbeOutput(stdout) {
-  const lines = String(stdout || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const lines = String(stdout || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
   for (let index = lines.length - 1; index >= 0; index -= 1) {
     try {
       const value = JSON.parse(lines[index]);
-      if (!value || value.ok !== true || !/^\d+$/.test(String(value.iconHostWindowId || ''))
-        || !/^\d+$/.test(String(value.listViewWindowId || ''))
-        || !/^\d+$/.test(String(value.topLevelHostWindowId || ''))
-        || String(value.topLevelHostWindowId) === '0' || value.physicalPixels !== true) continue;
+      if (
+        !value ||
+        value.ok !== true ||
+        !/^\d+$/.test(String(value.iconHostWindowId || "")) ||
+        !/^\d+$/.test(String(value.listViewWindowId || "")) ||
+        !/^\d+$/.test(String(value.topLevelHostWindowId || "")) ||
+        String(value.topLevelHostWindowId) === "0" ||
+        value.physicalPixels !== true
+      )
+        continue;
       const icons = Array.isArray(value.icons) ? value.icons : [];
       return {
         ok: true,
         iconHostWindowId: String(value.iconHostWindowId),
         listViewWindowId: String(value.listViewWindowId),
-        topLevelHostWindowId: String(value.topLevelHostWindowId || ''),
+        topLevelHostWindowId: String(value.topLevelHostWindowId || ""),
         processId: Math.max(0, Math.round(finiteNumber(value.processId, 0))),
         physicalPixels: true,
         icons: icons.map(outwardIntegerRect).filter(Boolean),
       };
-    } catch (_) { }
+    } catch (_) {}
   }
-  throw new Error('DESKTOP_ICON_PROBE_ACK_INVALID');
+  throw new Error("DESKTOP_ICON_PROBE_ACK_INVALID");
 }
 
 function probeFailureCode(error, stderr) {
-  const diagnostic = String(stderr || error && error.message || 'DESKTOP_ICON_PROBE_FAILED');
+  const diagnostic = String(
+    stderr || (error && error.message) || "DESKTOP_ICON_PROBE_FAILED",
+  );
   const match = diagnostic.match(/DESKTOP_ICON_[A-Z0-9_]+/);
-  return match ? match[0] : String(error && error.code || 'DESKTOP_ICON_PROBE_FAILED');
+  return match
+    ? match[0]
+    : String((error && error.code) || "DESKTOP_ICON_PROBE_FAILED");
 }
 
 function probeDesktopIcons(options = {}) {
   const execFileImpl = options.execFileImpl || execFile;
-  if (typeof execFileImpl !== 'function') return Promise.reject(new Error('DESKTOP_ICON_EXEC_UNAVAILABLE'));
+  if (typeof execFileImpl !== "function")
+    return Promise.reject(new Error("DESKTOP_ICON_EXEC_UNAVAILABLE"));
   const script = desktopIconProbeScript();
   const env = { ...process.env };
-  const nativeTempPath = String(options.nativeTempPath || '').trim();
+  const nativeTempPath = String(options.nativeTempPath || "").trim();
   if (nativeTempPath) {
     env.TEMP = nativeTempPath;
     env.TMP = nativeTempPath;
@@ -591,7 +617,8 @@ function probeDesktopIcons(options = {}) {
     let child = null;
     let settled = false;
     const cleanup = () => {
-      if (signal && typeof signal.removeEventListener === 'function') signal.removeEventListener('abort', handleAbort);
+      if (signal && typeof signal.removeEventListener === "function")
+        signal.removeEventListener("abort", handleAbort);
     };
     const finish = (callback, value) => {
       if (settled) return;
@@ -600,20 +627,29 @@ function probeDesktopIcons(options = {}) {
       callback(value);
     };
     const handleAbort = () => {
-      try { if (child && typeof child.kill === 'function') child.kill(); } catch (_) { }
-      const failure = new Error('DESKTOP_ICON_PROBE_ABORTED');
+      try {
+        if (child && typeof child.kill === "function") child.kill();
+      } catch (_) {}
+      const failure = new Error("DESKTOP_ICON_PROBE_ABORTED");
       failure.code = failure.message;
       finish(reject, failure);
     };
     if (signal && signal.aborted) return handleAbort();
-    if (signal && typeof signal.addEventListener === 'function') signal.addEventListener('abort', handleAbort, { once: true });
+    if (signal && typeof signal.addEventListener === "function")
+      signal.addEventListener("abort", handleAbort, { once: true });
     try {
       child = execFileImpl(
-        String(options.powershellPath || 'powershell.exe'),
-        ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script],
+        String(options.powershellPath || "powershell.exe"),
+        ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
         {
           windowsHide: true,
-          timeout: Math.max(1000, Math.min(15000, finiteNumber(options.timeoutMs, DEFAULT_PROBE_TIMEOUT_MS))),
+          timeout: Math.max(
+            1000,
+            Math.min(
+              15000,
+              finiteNumber(options.timeoutMs, DEFAULT_PROBE_TIMEOUT_MS),
+            ),
+          ),
           maxBuffer: 1024 * 1024,
           env,
         },
@@ -630,10 +666,10 @@ function probeDesktopIcons(options = {}) {
           } catch (parseError) {
             finish(reject, parseError);
           }
-        }
+        },
       );
     } catch (error) {
-      const failure = new Error(probeFailureCode(error, ''));
+      const failure = new Error(probeFailureCode(error, ""));
       failure.code = failure.message;
       finish(reject, failure);
     }
@@ -642,20 +678,27 @@ function probeDesktopIcons(options = {}) {
 
 function startDesktopIconWatcher(options = {}) {
   const spawnImpl = options.spawnImpl || spawn;
-  if (typeof spawnImpl !== 'function') throw new Error('DESKTOP_ICON_WATCHER_SPAWN_UNAVAILABLE');
+  if (typeof spawnImpl !== "function")
+    throw new Error("DESKTOP_ICON_WATCHER_SPAWN_UNAVAILABLE");
   const env = { ...process.env };
-  const nativeTempPath = String(options.nativeTempPath || '').trim();
+  const nativeTempPath = String(options.nativeTempPath || "").trim();
   if (nativeTempPath) {
     env.TEMP = nativeTempPath;
     env.TMP = nativeTempPath;
   }
   const child = spawnImpl(
-    String(options.powershellPath || 'powershell.exe'),
-    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', desktopIconWatcherScript(options)],
-    { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'], env }
+    String(options.powershellPath || "powershell.exe"),
+    [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-Command",
+      desktopIconWatcherScript(options),
+    ],
+    { windowsHide: true, stdio: ["pipe", "pipe", "pipe"], env },
   );
-  let stdoutBuffer = '';
-  let stderrBuffer = '';
+  let stdoutBuffer = "";
+  let stderrBuffer = "";
   let exited = false;
   let exitCode = null;
   let exitNotified = false;
@@ -663,66 +706,81 @@ function startDesktopIconWatcher(options = {}) {
   let lastLayout = null;
   const signal = options.signal;
   const reportError = (value) => {
-    if (typeof options.onError === 'function') {
-      try { options.onError(value); } catch (_) { }
+    if (typeof options.onError === "function") {
+      try {
+        options.onError(value);
+      } catch (_) {}
     }
   };
   const notifyExit = (details) => {
     if (exitNotified) return;
     exitNotified = true;
-    if (typeof options.onExit === 'function') {
-      try { options.onExit(details); } catch (_) { }
+    if (typeof options.onExit === "function") {
+      try {
+        options.onExit(details);
+      } catch (_) {}
     }
   };
   const consumeLine = (line) => {
-    const trimmed = String(line || '').trim();
+    const trimmed = String(line || "").trim();
     if (!trimmed) return;
     try {
       const raw = JSON.parse(trimmed);
       if (raw && raw.ok === false) {
-        reportError(String(raw.error || 'DESKTOP_ICON_WATCHER_FAILED'));
+        reportError(String(raw.error || "DESKTOP_ICON_WATCHER_FAILED"));
         return;
       }
       const layout = parseDesktopIconProbeOutput(trimmed);
       lastLayout = layout;
-      if (typeof options.onLayout === 'function') {
-        try { options.onLayout(layout); } catch (error) { reportError(error); }
+      if (typeof options.onLayout === "function") {
+        try {
+          options.onLayout(layout);
+        } catch (error) {
+          reportError(error);
+        }
       }
     } catch (_) {
-      if (typeof options.onDiagnostic === 'function') {
-        try { options.onDiagnostic(trimmed); } catch (_) { }
+      if (typeof options.onDiagnostic === "function") {
+        try {
+          options.onDiagnostic(trimmed);
+        } catch (_) {}
       }
     }
   };
   const consumeStdout = (chunk) => {
-    stdoutBuffer += String(chunk || '');
+    stdoutBuffer += String(chunk || "");
     const lines = stdoutBuffer.split(/\r?\n/);
-    stdoutBuffer = lines.pop() || '';
+    stdoutBuffer = lines.pop() || "";
     for (const line of lines) consumeLine(line);
   };
   const consumeStderr = (chunk) => {
-    stderrBuffer = (stderrBuffer + String(chunk || '')).slice(-32768);
+    stderrBuffer = (stderrBuffer + String(chunk || "")).slice(-32768);
   };
-  if (child.stdout && typeof child.stdout.on === 'function') child.stdout.on('data', consumeStdout);
-  if (child.stderr && typeof child.stderr.on === 'function') child.stderr.on('data', consumeStderr);
-  if (typeof child.on === 'function') {
-    child.on('error', (error) => {
+  if (child.stdout && typeof child.stdout.on === "function")
+    child.stdout.on("data", consumeStdout);
+  if (child.stderr && typeof child.stderr.on === "function")
+    child.stderr.on("data", consumeStderr);
+  if (typeof child.on === "function") {
+    child.on("error", (error) => {
       reportError(error);
       if (exited) return;
       exited = true;
       exitCode = null;
-      notifyExit({ code: null, signal: '', stderr: stderrBuffer, error });
+      notifyExit({ code: null, signal: "", stderr: stderrBuffer, error });
     });
-    child.on('exit', (code, signalName) => {
+    child.on("exit", (code, signalName) => {
       if (exited && exitNotified) return;
       exited = true;
       exitCode = code;
       if (stdoutBuffer.trim()) consumeLine(stdoutBuffer);
-      stdoutBuffer = '';
+      stdoutBuffer = "";
       if (code !== 0 && code != null) {
-        reportError(String(stderrBuffer.match(/DESKTOP_ICON_[A-Z0-9_]+/) || '') || `DESKTOP_ICON_WATCHER_EXIT_${code}`);
+        reportError(
+          String(stderrBuffer.match(/DESKTOP_ICON_[A-Z0-9_]+/) || "") ||
+            `DESKTOP_ICON_WATCHER_EXIT_${code}`,
+        );
       }
-      notifyExit({ code, signal: signalName || '', stderr: stderrBuffer });
+      notifyExit({ code, signal: signalName || "", stderr: stderrBuffer });
     });
   }
   const stop = (timeoutMs = 1500) => {
@@ -740,25 +798,36 @@ function startDesktopIconWatcher(options = {}) {
         if (timer) clearTimeout(timer);
         resolve({ ok: code === 0 || code == null, code });
       };
-      if (typeof child.once === 'function') child.once('exit', finish);
+      if (typeof child.once === "function") child.once("exit", finish);
       try {
-        if (child.stdin && typeof child.stdin.write === 'function') child.stdin.write('Q\n');
-        else if (typeof child.kill === 'function') child.kill();
+        if (child.stdin && typeof child.stdin.write === "function")
+          child.stdin.write("Q\n");
+        else if (typeof child.kill === "function") child.kill();
       } catch (_) {
-        try { if (typeof child.kill === 'function') child.kill(); } catch (_) { }
+        try {
+          if (typeof child.kill === "function") child.kill();
+        } catch (_) {}
       }
-      timer = setTimeout(() => {
-        try { if (!exited && typeof child.kill === 'function') child.kill(); } catch (_) { }
-        finish(exitCode);
-      }, Math.max(250, Math.min(5000, finiteNumber(timeoutMs, 1500))));
-      if (timer && typeof timer.unref === 'function') timer.unref();
+      timer = setTimeout(
+        () => {
+          try {
+            if (!exited && typeof child.kill === "function") child.kill();
+          } catch (_) {}
+          finish(exitCode);
+        },
+        Math.max(250, Math.min(5000, finiteNumber(timeoutMs, 1500))),
+      );
+      if (timer && typeof timer.unref === "function") timer.unref();
     });
     return stopPromise;
   };
-  const handleAbort = () => { stop().catch(() => { }); };
+  const handleAbort = () => {
+    stop().catch(() => {});
+  };
   if (signal) {
     if (signal.aborted) handleAbort();
-    else if (typeof signal.addEventListener === 'function') signal.addEventListener('abort', handleAbort, { once: true });
+    else if (typeof signal.addEventListener === "function")
+      signal.addEventListener("abort", handleAbort, { once: true });
   }
   return {
     child,
@@ -772,35 +841,63 @@ function startDesktopIconWatcher(options = {}) {
 function physicalIconRectsToDisplayDip(physicalRects, target = {}) {
   const dipBounds = normalizeRect(target.bounds || target.dipBounds);
   const physicalBounds = normalizeRect(target.physicalBounds);
-  if (!dipBounds || !physicalBounds) throw new Error('DESKTOP_ICON_DISPLAY_BOUNDS_INVALID');
+  if (!dipBounds || !physicalBounds)
+    throw new Error("DESKTOP_ICON_DISPLAY_BOUNDS_INVALID");
   const scaleX = physicalBounds.width / dipBounds.width;
   const scaleY = physicalBounds.height / dipBounds.height;
-  if (!Number.isFinite(scaleX) || !Number.isFinite(scaleY) || scaleX <= 0 || scaleY <= 0) {
-    throw new Error('DESKTOP_ICON_DISPLAY_SCALE_INVALID');
+  if (
+    !Number.isFinite(scaleX) ||
+    !Number.isFinite(scaleY) ||
+    scaleX <= 0 ||
+    scaleY <= 0
+  ) {
+    throw new Error("DESKTOP_ICON_DISPLAY_SCALE_INVALID");
   }
   const padding = Math.max(0, Math.min(48, finiteNumber(target.paddingDip, 0)));
-  return (Array.isArray(physicalRects) ? physicalRects : []).map((value) => {
-    const clipped = clipRect(value, physicalBounds);
-    if (!clipped) return null;
-    const left = dipBounds.x + (clipped.x - physicalBounds.x) / scaleX - padding;
-    const top = dipBounds.y + (clipped.y - physicalBounds.y) / scaleY - padding;
-    const right = dipBounds.x + (clipped.x + clipped.width - physicalBounds.x) / scaleX + padding;
-    const bottom = dipBounds.y + (clipped.y + clipped.height - physicalBounds.y) / scaleY + padding;
-    const mapped = { x: left, y: top, width: right - left, height: bottom - top };
-    return target.rounding === 'inward' ? inwardIntegerRect(mapped) : outwardIntegerRect(mapped);
-  }).filter(Boolean).map((rect) => clipRect(rect, outwardIntegerRect(dipBounds))).filter(Boolean);
+  return (Array.isArray(physicalRects) ? physicalRects : [])
+    .map((value) => {
+      const clipped = clipRect(value, physicalBounds);
+      if (!clipped) return null;
+      const left =
+        dipBounds.x + (clipped.x - physicalBounds.x) / scaleX - padding;
+      const top =
+        dipBounds.y + (clipped.y - physicalBounds.y) / scaleY - padding;
+      const right =
+        dipBounds.x +
+        (clipped.x + clipped.width - physicalBounds.x) / scaleX +
+        padding;
+      const bottom =
+        dipBounds.y +
+        (clipped.y + clipped.height - physicalBounds.y) / scaleY +
+        padding;
+      const mapped = {
+        x: left,
+        y: top,
+        width: right - left,
+        height: bottom - top,
+      };
+      return target.rounding === "inward"
+        ? inwardIntegerRect(mapped)
+        : outwardIntegerRect(mapped);
+    })
+    .filter(Boolean)
+    .map((rect) => clipRect(rect, outwardIntegerRect(dipBounds)))
+    .filter(Boolean);
 }
 
 function mergeIntervals(intervals, left, right) {
-  const ordered = intervals.map((interval) => ({
-    start: Math.max(left, interval.start),
-    end: Math.min(right, interval.end),
-  })).filter((interval) => interval.end > interval.start)
+  const ordered = intervals
+    .map((interval) => ({
+      start: Math.max(left, interval.start),
+      end: Math.min(right, interval.end),
+    }))
+    .filter((interval) => interval.end > interval.start)
     .sort((a, b) => a.start - b.start || a.end - b.end);
   const merged = [];
   for (const interval of ordered) {
     const previous = merged[merged.length - 1];
-    if (previous && interval.start <= previous.end) previous.end = Math.max(previous.end, interval.end);
+    if (previous && interval.start <= previous.end)
+      previous.end = Math.max(previous.end, interval.end);
     else merged.push({ ...interval });
   }
   return merged;
@@ -826,9 +923,15 @@ function coalesceShapeRects(rects) {
     current.sort((a, b) => a.y - b.y || a.height - b.height || a.x - b.x);
     for (const rect of current) {
       const previous = horizontal[horizontal.length - 1];
-      if (previous && previous.y === rect.y && previous.height === rect.height
-        && rect.x <= previous.x + previous.width) {
-        previous.width = Math.max(previous.x + previous.width, rect.x + rect.width) - previous.x;
+      if (
+        previous &&
+        previous.y === rect.y &&
+        previous.height === rect.height &&
+        rect.x <= previous.x + previous.width
+      ) {
+        previous.width =
+          Math.max(previous.x + previous.width, rect.x + rect.width) -
+          previous.x;
         changed = true;
       } else horizontal.push({ ...rect });
     }
@@ -836,29 +939,48 @@ function coalesceShapeRects(rects) {
     horizontal.sort((a, b) => a.x - b.x || a.width - b.width || a.y - b.y);
     for (const rect of horizontal) {
       const previous = vertical[vertical.length - 1];
-      if (previous && previous.x === rect.x && previous.width === rect.width
-        && rect.y <= previous.y + previous.height) {
-        previous.height = Math.max(previous.y + previous.height, rect.y + rect.height) - previous.y;
+      if (
+        previous &&
+        previous.x === rect.x &&
+        previous.width === rect.width &&
+        rect.y <= previous.y + previous.height
+      ) {
+        previous.height =
+          Math.max(previous.y + previous.height, rect.y + rect.height) -
+          previous.y;
         changed = true;
       } else vertical.push({ ...rect });
     }
     current = vertical;
   }
-  return current.sort((a, b) => a.y - b.y || a.x - b.x || a.height - b.height || a.width - b.width);
+  return current.sort(
+    (a, b) =>
+      a.y - b.y || a.x - b.x || a.height - b.height || a.width - b.width,
+  );
 }
 
 function computeDesktopShapeRects(options = {}) {
   const full = outwardIntegerRect(options.bounds || options.fullBounds);
-  if (!full) throw new Error('DESKTOP_ICON_SHAPE_BOUNDS_INVALID');
-  const holes = (Array.isArray(options.iconRects) ? options.iconRects : options.holes || [])
-    .map(outwardIntegerRect).map((rect) => clipRect(rect, full)).filter(Boolean);
-  const shieldsInput = options.protectedShields || options.shields || options.protectedRects || [];
+  if (!full) throw new Error("DESKTOP_ICON_SHAPE_BOUNDS_INVALID");
+  const holes = (
+    Array.isArray(options.iconRects) ? options.iconRects : options.holes || []
+  )
+    .map(outwardIntegerRect)
+    .map((rect) => clipRect(rect, full))
+    .filter(Boolean);
+  const shieldsInput =
+    options.protectedShields || options.shields || options.protectedRects || [];
   const shields = (Array.isArray(shieldsInput) ? shieldsInput : [])
-    .map(outwardIntegerRect).map((rect) => clipRect(rect, full)).filter(Boolean);
-  const maxRects = Math.max(1, Math.min(
-    HARD_MAX_SHAPE_RECTS,
-    Math.round(finiteNumber(options.maxRects, DEFAULT_MAX_SHAPE_RECTS))
-  ));
+    .map(outwardIntegerRect)
+    .map((rect) => clipRect(rect, full))
+    .filter(Boolean);
+  const maxRects = Math.max(
+    1,
+    Math.min(
+      HARD_MAX_SHAPE_RECTS,
+      Math.round(finiteNumber(options.maxRects, DEFAULT_MAX_SHAPE_RECTS)),
+    ),
+  );
 
   const top = full.y;
   const bottom = full.y + full.height;
@@ -877,11 +999,17 @@ function computeDesktopShapeRects(options = {}) {
     const bandTop = bands[index];
     const bandBottom = bands[index + 1];
     if (bandBottom <= bandTop) continue;
-    const holeIntervals = holes.filter((rect) => rect.y < bandBottom && rect.y + rect.height > bandTop)
+    const holeIntervals = holes
+      .filter((rect) => rect.y < bandBottom && rect.y + rect.height > bandTop)
       .map((rect) => ({ start: rect.x, end: rect.x + rect.width }));
-    const shieldIntervals = shields.filter((rect) => rect.y < bandBottom && rect.y + rect.height > bandTop)
+    const shieldIntervals = shields
+      .filter((rect) => rect.y < bandBottom && rect.y + rect.height > bandTop)
       .map((rect) => ({ start: rect.x, end: rect.x + rect.width }));
-    const included = mergeIntervals(subtractIntervals(left, right, holeIntervals).concat(shieldIntervals), left, right);
+    const included = mergeIntervals(
+      subtractIntervals(left, right, holeIntervals).concat(shieldIntervals),
+      left,
+      right,
+    );
     const nextActive = new Map();
     for (const interval of included) {
       const localX = interval.start - full.x;
@@ -899,14 +1027,17 @@ function computeDesktopShapeRects(options = {}) {
       }
     }
     for (const [key, rect] of active) {
-      if (!nextActive.has(key) || nextActive.get(key) !== rect) finished.push(rect);
+      if (!nextActive.has(key) || nextActive.get(key) !== rect)
+        finished.push(rect);
     }
     active = nextActive;
   }
   finished.push(...active.values());
-  const result = coalesceShapeRects(finished).filter((rect) => rect.width > 0 && rect.height > 0);
+  const result = coalesceShapeRects(finished).filter(
+    (rect) => rect.width > 0 && rect.height > 0,
+  );
   if (result.length > maxRects) {
-    const failure = new Error('DESKTOP_ICON_SHAPE_TOO_COMPLEX');
+    const failure = new Error("DESKTOP_ICON_SHAPE_TOO_COMPLEX");
     failure.code = failure.message;
     failure.rectCount = result.length;
     failure.maxRects = maxRects;
@@ -916,28 +1047,49 @@ function computeDesktopShapeRects(options = {}) {
 }
 
 function applyDesktopIconShape(win, options = {}) {
-  if (!win || typeof win.setShape !== 'function') {
-    return { ok: false, applied: false, error: 'DESKTOP_ICON_SHAPE_UNAVAILABLE', rects: [] };
+  if (!win || typeof win.setShape !== "function") {
+    return {
+      ok: false,
+      applied: false,
+      error: "DESKTOP_ICON_SHAPE_UNAVAILABLE",
+      rects: [],
+    };
   }
   let rects;
   try {
-    rects = Array.isArray(options) ? options : options.rects || computeDesktopShapeRects(options);
+    rects = Array.isArray(options)
+      ? options
+      : options.rects || computeDesktopShapeRects(options);
     const normalized = rects.map(outwardIntegerRect).filter(Boolean);
     win.setShape(normalized);
-    return { ok: true, applied: true, rectCount: normalized.length, rects: normalized };
+    return {
+      ok: true,
+      applied: true,
+      rectCount: normalized.length,
+      rects: normalized,
+    };
   } catch (error) {
     return {
       ok: false,
       applied: false,
-      error: String(error && error.code || error && error.message || error || 'DESKTOP_ICON_SHAPE_APPLY_FAILED'),
+      error: String(
+        (error && error.code) ||
+          (error && error.message) ||
+          error ||
+          "DESKTOP_ICON_SHAPE_APPLY_FAILED",
+      ),
       rects: [],
     };
   }
 }
 
 function clearDesktopIconShape(win) {
-  if (!win || typeof win.setShape !== 'function') {
-    return { ok: false, cleared: false, error: 'DESKTOP_ICON_SHAPE_UNAVAILABLE' };
+  if (!win || typeof win.setShape !== "function") {
+    return {
+      ok: false,
+      cleared: false,
+      error: "DESKTOP_ICON_SHAPE_UNAVAILABLE",
+    };
   }
   try {
     win.setShape([]);
@@ -946,7 +1098,9 @@ function clearDesktopIconShape(win) {
     return {
       ok: false,
       cleared: false,
-      error: String(error && error.message || error || 'DESKTOP_ICON_SHAPE_CLEAR_FAILED'),
+      error: String(
+        (error && error.message) || error || "DESKTOP_ICON_SHAPE_CLEAR_FAILED",
+      ),
     };
   }
 }

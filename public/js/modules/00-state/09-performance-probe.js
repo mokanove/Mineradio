@@ -1,10 +1,10 @@
 (function installMineradioPerformanceProbe() {
-  var PERF_PROBE_VERSION = 'foreground-cpu-phase-a';
+  var PERF_PROBE_VERSION = "foreground-cpu-phase-a";
   var MAX_SAMPLES_PER_METRIC = 90;
   var MAX_TOP_METRICS = 24;
 
   function readNow() {
-    return (typeof performance !== 'undefined' && performance && performance.now)
+    return typeof performance !== "undefined" && performance && performance.now
       ? performance.now()
       : Date.now();
   }
@@ -43,7 +43,7 @@
       foregroundFpsMode: renderState.foregroundFpsMode,
       interactionBoost: renderState.interactionBoost,
       lastRenderAt: roundNumber(renderState.lastRenderAt, 2),
-      lastSampleAt: roundNumber(renderState.lastSampleAt, 2)
+      lastSampleAt: roundNumber(renderState.lastSampleAt, 2),
     };
   }
 
@@ -54,11 +54,11 @@
     lastResetAt: readNow(),
     renderState: null,
     metrics: emptyMap(),
-    counters: emptyMap()
+    counters: emptyMap(),
   };
 
   function metricFor(name) {
-    var key = String(name || 'unknown');
+    var key = String(name || "unknown");
     if (!state.metrics[key]) {
       state.metrics[key] = {
         name: key,
@@ -67,7 +67,7 @@
         avgMs: 0,
         maxMs: 0,
         lastMs: 0,
-        samples: []
+        samples: [],
       };
     }
     return state.metrics[key];
@@ -110,7 +110,7 @@
 
   function count(name, amount) {
     if (!state.enabled) return 0;
-    var key = String(name || 'unknown');
+    var key = String(name || "unknown");
     var delta = Number(amount);
     if (!isFinite(delta)) delta = 1;
     state.counters[key] = (state.counters[key] || 0) + delta;
@@ -124,14 +124,18 @@
       avgMs: roundNumber(metric.avgMs, 3),
       maxMs: roundNumber(metric.maxMs, 3),
       lastMs: roundNumber(metric.lastMs, 3),
-      samples: metric.samples.slice(-18)
+      samples: metric.samples.slice(-18),
     };
   }
 
   function metricsByTotal(limit) {
     return Object.keys(state.metrics)
-      .map(function (key) { return state.metrics[key]; })
-      .sort(function (a, b) { return b.totalMs - a.totalMs; })
+      .map(function (key) {
+        return state.metrics[key];
+      })
+      .sort(function (a, b) {
+        return b.totalMs - a.totalMs;
+      })
       .slice(0, limit || MAX_TOP_METRICS)
       .map(function (metric) {
         return {
@@ -140,7 +144,7 @@
           totalMs: roundNumber(metric.totalMs, 3),
           avgMs: roundNumber(metric.avgMs, 3),
           maxMs: roundNumber(metric.maxMs, 3),
-          lastMs: roundNumber(metric.lastMs, 3)
+          lastMs: roundNumber(metric.lastMs, 3),
         };
       });
   }
@@ -158,17 +162,17 @@
       render: cloneRenderState(state.renderState),
       counters: clonePlainMap(state.counters),
       topByTotal: metricsByTotal(MAX_TOP_METRICS),
-      metrics: metrics
+      metrics: metrics,
     };
   }
 
   function snapshot() {
     var snap = summary();
-    if (typeof collectRuntimePerfSnapshot === 'function') {
+    if (typeof collectRuntimePerfSnapshot === "function") {
       try {
         snap.runtimeSnapshot = collectRuntimePerfSnapshot(readNow());
       } catch (e) {
-        snap.runtimeSnapshotError = String(e && e.message || e);
+        snap.runtimeSnapshotError = String((e && e.message) || e);
       }
     }
     return snap;
@@ -182,7 +186,23 @@
   }
 
   function attachLegacyRenderKeys(api, renderState) {
-    ['mode', 'fps', 'frames', 'skipped', 'longFrames', 'targetFps', 'displayHz', 'adaptiveDivisor', 'adaptiveKind', 'adaptivePressure', 'adaptiveFrameCostMs', 'foregroundFpsMode', 'interactionBoost', 'lastRenderAt', 'lastSampleAt'].forEach(function (key) {
+    [
+      "mode",
+      "fps",
+      "frames",
+      "skipped",
+      "longFrames",
+      "targetFps",
+      "displayHz",
+      "adaptiveDivisor",
+      "adaptiveKind",
+      "adaptivePressure",
+      "adaptiveFrameCostMs",
+      "foregroundFpsMode",
+      "interactionBoost",
+      "lastRenderAt",
+      "lastSampleAt",
+    ].forEach(function (key) {
       try {
         Object.defineProperty(api, key, {
           configurable: true,
@@ -192,9 +212,9 @@
           },
           set: function (value) {
             if (renderState) renderState[key] = value;
-          }
+          },
         });
-      } catch (e) { }
+      } catch (e) {}
     });
   }
 
@@ -216,7 +236,7 @@
     summary: summary,
     snapshot: snapshot,
     reset: reset,
-    registerRenderState: registerRenderState
+    registerRenderState: registerRenderState,
   };
 
   window.__mineradioPerf = api;

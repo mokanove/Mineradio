@@ -1,27 +1,45 @@
-'use strict';
+"use strict";
 
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
 
 const LOGIN_EASTER_EGG_GATE_VERSION = String.fromCharCode(
-  119, 111, 114, 108, 100, 45, 112, 101, 97, 99, 101, 45, 118, 49,
+  119,
+  111,
+  114,
+  108,
+  100,
+  45,
+  112,
+  101,
+  97,
+  99,
+  101,
+  45,
+  118,
+  49,
 );
-const LOGIN_EASTER_EGG_STATE_FILE = 'login-easter-egg.json';
-const LOGIN_EASTER_EGG_PASSWORD = String.fromCodePoint(19990, 30028, 21644, 24179);
+const LOGIN_EASTER_EGG_STATE_FILE = "login-easter-egg.json";
+const LOGIN_EASTER_EGG_PASSWORD = String.fromCodePoint(
+  19990,
+  30028,
+  21644,
+  24179,
+);
 const LOGIN_EASTER_EGG_CREDENTIAL_FILES = [
-  '.cookie',
-  '.qq-cookie',
-  '.kugou-cookie',
-  '.kugou-vip-evidence.json',
-  '.qishui-cookie',
-  '.qishui-token',
-  '.spotify-token.json',
+  ".cookie",
+  ".qq-cookie",
+  ".kugou-cookie",
+  ".kugou-vip-evidence.json",
+  ".qishui-cookie",
+  ".qishui-token",
+  ".spotify-token.json",
 ];
 
 function safeReadJson(file) {
   try {
-    return JSON.parse(fs.readFileSync(file, 'utf8')) || {};
+    return JSON.parse(fs.readFileSync(file, "utf8")) || {};
   } catch (_) {
     return {};
   }
@@ -30,22 +48,26 @@ function safeReadJson(file) {
 function writeJsonAtomic(file, value) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const tempFile = `${file}.${process.pid}.${Date.now()}.tmp`;
-  fs.writeFileSync(tempFile, JSON.stringify(value, null, 2), 'utf8');
+  fs.writeFileSync(tempFile, JSON.stringify(value, null, 2), "utf8");
   fs.renameSync(tempFile, file);
 }
 
 function securePasswordMatch(input) {
-  const expected = Buffer.from(LOGIN_EASTER_EGG_PASSWORD, 'utf8');
-  const received = Buffer.from(String(input || ''), 'utf8');
-  return received.length === expected.length && crypto.timingSafeEqual(received, expected);
+  const expected = Buffer.from(LOGIN_EASTER_EGG_PASSWORD, "utf8");
+  const received = Buffer.from(String(input || ""), "utf8");
+  return (
+    received.length === expected.length &&
+    crypto.timingSafeEqual(received, expected)
+  );
 }
 
 class LoginEasterEggGate {
   constructor(options = {}) {
-    this.userDataPath = path.resolve(String(options.userDataPath || '.'));
+    this.userDataPath = path.resolve(String(options.userDataPath || "."));
     this.credentialRoots = options.credentialRoots || [];
     this.stateFile = path.join(this.userDataPath, LOGIN_EASTER_EGG_STATE_FILE);
-    this.now = typeof options.now === 'function' ? options.now : () => Date.now();
+    this.now =
+      typeof options.now === "function" ? options.now : () => Date.now();
     this.state = this.readState();
   }
 
@@ -53,13 +75,13 @@ class LoginEasterEggGate {
     const raw = safeReadJson(this.stateFile);
     return {
       schema: 1,
-      gateVersion: String(raw.gateVersion || ''),
-      cookieResetVersion: String(raw.cookieResetVersion || ''),
+      gateVersion: String(raw.gateVersion || ""),
+      cookieResetVersion: String(raw.cookieResetVersion || ""),
       resetComplete: raw.resetComplete === true,
       unlocked: raw.unlocked === true,
       resetAt: Number(raw.resetAt || 0) || 0,
       unlockedAt: Number(raw.unlockedAt || 0) || 0,
-      resetError: String(raw.resetError || ''),
+      resetError: String(raw.resetError || ""),
     };
   }
 
@@ -73,8 +95,12 @@ class LoginEasterEggGate {
     return {
       ok: true,
       gateVersion: LOGIN_EASTER_EGG_GATE_VERSION,
-      unlocked: this.state.gateVersion === LOGIN_EASTER_EGG_GATE_VERSION && this.state.unlocked === true,
-      resetComplete: this.state.gateVersion === LOGIN_EASTER_EGG_GATE_VERSION && this.state.resetComplete === true,
+      unlocked:
+        this.state.gateVersion === LOGIN_EASTER_EGG_GATE_VERSION &&
+        this.state.unlocked === true,
+      resetComplete:
+        this.state.gateVersion === LOGIN_EASTER_EGG_GATE_VERSION &&
+        this.state.resetComplete === true,
     };
   }
 
@@ -85,10 +111,12 @@ class LoginEasterEggGate {
 
   resolveCredentialRoots() {
     let extraRoots = this.credentialRoots;
-    if (typeof extraRoots === 'function') extraRoots = extraRoots();
+    if (typeof extraRoots === "function") extraRoots = extraRoots();
     if (!Array.isArray(extraRoots)) extraRoots = [extraRoots];
     const roots = [this.userDataPath].concat(extraRoots || []);
-    return Array.from(new Set(roots.filter(Boolean).map((root) => path.resolve(String(root)))));
+    return Array.from(
+      new Set(roots.filter(Boolean).map((root) => path.resolve(String(root)))),
+    );
   }
 
   clearCredentialFiles() {
@@ -98,7 +126,9 @@ class LoginEasterEggGate {
         try {
           if (fs.existsSync(file)) fs.unlinkSync(file);
         } catch (error) {
-          throw new Error(`LOGIN_CREDENTIAL_CLEAR_FAILED:${file}:${error.message}`);
+          throw new Error(
+            `LOGIN_CREDENTIAL_CLEAR_FAILED:${file}:${error.message}`,
+          );
         }
       }
     }
@@ -106,7 +136,8 @@ class LoginEasterEggGate {
 
   async clearCredentialState(clearProviderSessions) {
     this.clearCredentialFiles();
-    if (typeof clearProviderSessions === 'function') await clearProviderSessions();
+    if (typeof clearProviderSessions === "function")
+      await clearProviderSessions();
     // Logout handlers may flush an empty or stale in-memory store while the
     // provider sessions are closing. The second pass also removes migration
     // copies so a later launch cannot restore an old credential.
@@ -124,28 +155,43 @@ class LoginEasterEggGate {
         try {
           await this.clearCredentialState(clearProviderSessions);
         } catch (error) {
-          const resetError = String(error && error.message || error || 'LOGIN_SESSION_RESET_FAILED');
+          const resetError = String(
+            (error && error.message) || error || "LOGIN_SESSION_RESET_FAILED",
+          );
           try {
-            this.writeState({ cookieResetVersion: '', resetComplete: false, resetError });
+            this.writeState({
+              cookieResetVersion: "",
+              resetComplete: false,
+              resetError,
+            });
           } catch (_) {
-            this.state = Object.assign({}, this.state, { cookieResetVersion: '', resetComplete: false, resetError });
+            this.state = Object.assign({}, this.state, {
+              cookieResetVersion: "",
+              resetComplete: false,
+              resetError,
+            });
           }
-          return Object.assign({ resetPerformed: false, error: resetError }, this.publicStatus());
+          return Object.assign(
+            { resetPerformed: false, error: resetError },
+            this.publicStatus(),
+          );
         }
       }
       return Object.assign({ resetPerformed: false }, this.publicStatus());
     }
 
-    let resetError = '';
+    let resetError = "";
     try {
       await this.clearCredentialState(clearProviderSessions);
     } catch (error) {
-      resetError = String(error && error.message || error || 'LOGIN_SESSION_RESET_FAILED');
+      resetError = String(
+        (error && error.message) || error || "LOGIN_SESSION_RESET_FAILED",
+      );
     }
 
     const nextState = {
       gateVersion: LOGIN_EASTER_EGG_GATE_VERSION,
-      cookieResetVersion: resetError ? '' : LOGIN_EASTER_EGG_GATE_VERSION,
+      cookieResetVersion: resetError ? "" : LOGIN_EASTER_EGG_GATE_VERSION,
       resetComplete: !resetError,
       unlocked: false,
       resetAt: this.now(),
@@ -157,25 +203,30 @@ class LoginEasterEggGate {
     } catch (error) {
       resetError = `LOGIN_EASTER_EGG_STATE_WRITE_FAILED:${error.message}`;
       this.state = Object.assign({}, this.state, nextState, {
-        cookieResetVersion: '',
+        cookieResetVersion: "",
         resetComplete: false,
         resetError,
       });
     }
-    return Object.assign({ resetPerformed: true, error: resetError || '' }, this.publicStatus());
+    return Object.assign(
+      { resetPerformed: true, error: resetError || "" },
+      this.publicStatus(),
+    );
   }
 
   async resetForReplay(clearProviderSessions) {
     this.state = this.readState();
-    let resetError = '';
+    let resetError = "";
     try {
       await this.clearCredentialState(clearProviderSessions);
     } catch (error) {
-      resetError = String(error && error.message || error || 'LOGIN_SESSION_RESET_FAILED');
+      resetError = String(
+        (error && error.message) || error || "LOGIN_SESSION_RESET_FAILED",
+      );
     }
     const nextState = {
       gateVersion: LOGIN_EASTER_EGG_GATE_VERSION,
-      cookieResetVersion: resetError ? '' : LOGIN_EASTER_EGG_GATE_VERSION,
+      cookieResetVersion: resetError ? "" : LOGIN_EASTER_EGG_GATE_VERSION,
       resetComplete: !resetError,
       unlocked: false,
       resetAt: this.now(),
@@ -187,30 +238,44 @@ class LoginEasterEggGate {
     } catch (error) {
       resetError = `LOGIN_EASTER_EGG_STATE_WRITE_FAILED:${error.message}`;
       this.state = Object.assign({}, this.state, nextState, {
-        cookieResetVersion: '',
+        cookieResetVersion: "",
         resetComplete: false,
         resetError,
       });
     }
-    return Object.assign({ resetPerformed: true, replayReset: true, error: resetError || '' }, this.publicStatus());
+    return Object.assign(
+      { resetPerformed: true, replayReset: true, error: resetError || "" },
+      this.publicStatus(),
+    );
   }
 
   unlock(input) {
     this.state = this.readState();
-    if (!this.state.resetComplete || this.state.gateVersion !== LOGIN_EASTER_EGG_GATE_VERSION) {
-      return { ok: false, unlocked: false, error: 'LOGIN_EASTER_EGG_RESET_INCOMPLETE' };
+    if (
+      !this.state.resetComplete ||
+      this.state.gateVersion !== LOGIN_EASTER_EGG_GATE_VERSION
+    ) {
+      return {
+        ok: false,
+        unlocked: false,
+        error: "LOGIN_EASTER_EGG_RESET_INCOMPLETE",
+      };
     }
     if (!securePasswordMatch(input)) {
-      return { ok: false, unlocked: false, error: 'LOGIN_EASTER_EGG_INVALID' };
+      return { ok: false, unlocked: false, error: "LOGIN_EASTER_EGG_INVALID" };
     }
     try {
-      this.writeState({ unlocked: true, unlockedAt: this.now(), resetError: '' });
+      this.writeState({
+        unlocked: true,
+        unlockedAt: this.now(),
+        resetError: "",
+      });
     } catch (error) {
       return {
         ok: false,
         unlocked: false,
-        error: 'LOGIN_EASTER_EGG_STATE_WRITE_FAILED',
-        message: String(error && error.message || error),
+        error: "LOGIN_EASTER_EGG_STATE_WRITE_FAILED",
+        message: String((error && error.message) || error),
       };
     }
     return this.publicStatus();

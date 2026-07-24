@@ -71,7 +71,5 @@ jobs:
           body: |
             # 📝 Release Note
             - Fixes and improvements
-            # ⚠️ 注意
-            `系统内存清理`按钮和`Wallpaper Engine 目录选择、项目启动`功能只支持windows 其他系统未做过测试 状态未知
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

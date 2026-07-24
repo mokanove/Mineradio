@@ -1,13 +1,13 @@
-'use strict';
+"use strict";
 
-const { spawn } = require('child_process');
-const { EventEmitter } = require('events');
-const fs = require('fs');
-const net = require('net');
-const os = require('os');
-const path = require('path');
-const { PassThrough } = require('stream');
-const { desktopIconProbeScript } = require('./desktop-icon-shape-runtime');
+const { spawn } = require("child_process");
+const { EventEmitter } = require("events");
+const fs = require("fs");
+const net = require("net");
+const os = require("os");
+const path = require("path");
+const { PassThrough } = require("stream");
+const { desktopIconProbeScript } = require("./desktop-icon-shape-runtime");
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 2400;
 
@@ -17,12 +17,17 @@ function finiteNumber(value, fallback = 0) {
 }
 
 function normalizeRect(value) {
-  if (!value || typeof value !== 'object') return null;
+  if (!value || typeof value !== "object") return null;
   const x = finiteNumber(value.x, NaN);
   const y = finiteNumber(value.y, NaN);
   const width = finiteNumber(value.width, NaN);
   const height = finiteNumber(value.height, NaN);
-  if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return null;
+  if (
+    ![x, y, width, height].every(Number.isFinite) ||
+    width <= 0 ||
+    height <= 0
+  )
+    return null;
   const left = Math.floor(x);
   const top = Math.floor(y);
   const right = Math.ceil(x + width);
@@ -798,25 +803,37 @@ public static class MineradioDesktopNativeIconLayerGuard {
 }
 
 function nativeIconLayerGuardScript(options = {}) {
-  const bounds = normalizeRect(options.physicalBounds || options.targetPhysicalBounds)
-    || { x: 0, y: 0, width: 1, height: 1 };
-  const iconHostWindowId = String(options.iconHostWindowId || '');
-  const listViewWindowId = String(options.listViewWindowId || '');
-  const mainWindowId = String(options.mainWindowId || '');
-  if (!/^\d+$/.test(iconHostWindowId) || iconHostWindowId === '0') {
-    throw new Error('DESKTOP_ICON_LAYER_HOST_INVALID');
+  const bounds = normalizeRect(
+    options.physicalBounds || options.targetPhysicalBounds,
+  ) || { x: 0, y: 0, width: 1, height: 1 };
+  const iconHostWindowId = String(options.iconHostWindowId || "");
+  const listViewWindowId = String(options.listViewWindowId || "");
+  const mainWindowId = String(options.mainWindowId || "");
+  if (!/^\d+$/.test(iconHostWindowId) || iconHostWindowId === "0") {
+    throw new Error("DESKTOP_ICON_LAYER_HOST_INVALID");
   }
-  if (!/^\d+$/.test(listViewWindowId) || listViewWindowId === '0') {
-    throw new Error('DESKTOP_ICON_LAYER_LIST_INVALID');
+  if (!/^\d+$/.test(listViewWindowId) || listViewWindowId === "0") {
+    throw new Error("DESKTOP_ICON_LAYER_LIST_INVALID");
   }
-  if (!/^\d+$/.test(mainWindowId) || mainWindowId === '0') {
-    throw new Error('DESKTOP_ICON_LAYER_MAIN_INVALID');
+  if (!/^\d+$/.test(mainWindowId) || mainWindowId === "0") {
+    throw new Error("DESKTOP_ICON_LAYER_MAIN_INVALID");
   }
-  const debounceMs = Math.max(100, Math.min(180, Math.round(finiteNumber(options.debounceMs, 140))));
-  const rebindMs = Math.max(1000, Math.min(10000, Math.round(finiteNumber(options.rebindMs, 2000))));
-  const ownerProcessId = Math.max(1, Math.round(finiteNumber(options.ownerProcessId, process.pid)));
-  const inputExpression = options.namedPipeIo === true ? '$reader' : '[Console]::In';
-  const outputExpression = options.namedPipeIo === true ? '$writer' : '[Console]::Out';
+  const debounceMs = Math.max(
+    100,
+    Math.min(180, Math.round(finiteNumber(options.debounceMs, 140))),
+  );
+  const rebindMs = Math.max(
+    1000,
+    Math.min(10000, Math.round(finiteNumber(options.rebindMs, 2000))),
+  );
+  const ownerProcessId = Math.max(
+    1,
+    Math.round(finiteNumber(options.ownerProcessId, process.pid)),
+  );
+  const inputExpression =
+    options.namedPipeIo === true ? "$reader" : "[Console]::In";
+  const outputExpression =
+    options.namedPipeIo === true ? "$writer" : "[Console]::Out";
   return `${desktopIconProbeScript({ invoke: false, extraCSharp: nativeIconLayerGuardCSharpSource() })}
 [MineradioDesktopNativeIconLayerGuard]::Run(${debounceMs}, ${rebindMs}, ${ownerProcessId}, [Int64]${iconHostWindowId}, [Int64]${listViewWindowId}, [Int64]${mainWindowId}, ${bounds.x}, ${bounds.y}, ${bounds.width}, ${bounds.height}, ${inputExpression}, ${outputExpression})
 `;
@@ -824,9 +841,10 @@ function nativeIconLayerGuardScript(options = {}) {
 
 function nativeIconLayerNamedPipeScript(options = {}) {
   const rawBody = nativeIconLayerGuardScript({ ...options, namedPipeIo: true });
-  const invocationMarker = '\n[MineradioDesktopNativeIconLayerGuard]::Run(';
+  const invocationMarker = "\n[MineradioDesktopNativeIconLayerGuard]::Run(";
   const invocationIndex = rawBody.lastIndexOf(invocationMarker);
-  if (invocationIndex < 0) throw new Error('DESKTOP_ICON_LAYER_GUARD_SCRIPT_INVALID');
+  if (invocationIndex < 0)
+    throw new Error("DESKTOP_ICON_LAYER_GUARD_SCRIPT_INVALID");
   const compileBody = rawBody.slice(0, invocationIndex);
   const invocationBody = rawBody.slice(invocationIndex);
   return `param(
@@ -866,7 +884,7 @@ ${invocationBody}
 }
 
 function powershellSingleQuoted(value) {
-  return `'${String(value || '').replace(/'/g, "''")}'`;
+  return `'${String(value || "").replace(/'/g, "''")}'`;
 }
 
 function externalGuardTransport(options = {}) {
@@ -882,8 +900,11 @@ function externalGuardTransport(options = {}) {
   let connected = false;
   let cancelled = false;
   let guardPid = 0;
-  let bootstrapOutput = '';
-  const connectTimeoutMs = Math.max(2000, Math.min(20000, finiteNumber(options.connectTimeoutMs, 12000)));
+  let bootstrapOutput = "";
+  const connectTimeoutMs = Math.max(
+    2000,
+    Math.min(20000, finiteNumber(options.connectTimeoutMs, 12000)),
+  );
   let connectTimer = null;
   const pipeBase = `MineradioNativeIconLayer-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const inputPipeName = `${pipeBase}-input`;
@@ -891,42 +912,57 @@ function externalGuardTransport(options = {}) {
   const inputPipePath = `\\\\.\\pipe\\${inputPipeName}`;
   const outputPipePath = `\\\\.\\pipe\\${outputPipeName}`;
   const closeServers = () => {
-    try { if (inputServer) inputServer.close(); } catch (_) { }
-    try { if (outputServer) outputServer.close(); } catch (_) { }
+    try {
+      if (inputServer) inputServer.close();
+    } catch (_) {}
+    try {
+      if (outputServer) outputServer.close();
+    } catch (_) {}
   };
-  const emitExit = (code, signalName = '') => {
+  const emitExit = (code, signalName = "") => {
     if (exited) return;
     exited = true;
     if (connectTimer) clearTimeout(connectTimer);
     closeServers();
-    transport.emit('exit', code, signalName);
+    transport.emit("exit", code, signalName);
   };
   const markConnected = () => {
-    if (!inputSocket || inputSocket.destroyed || !outputSocket || outputSocket.destroyed) return;
+    if (
+      !inputSocket ||
+      inputSocket.destroyed ||
+      !outputSocket ||
+      outputSocket.destroyed
+    )
+      return;
     connected = true;
     if (connectTimer) clearTimeout(connectTimer);
     closeServers();
   };
   transport.stdin = {
     write(value) {
-      if (!inputSocket || inputSocket.destroyed) throw new Error('DESKTOP_ICON_LAYER_PIPE_NOT_CONNECTED');
+      if (!inputSocket || inputSocket.destroyed)
+        throw new Error("DESKTOP_ICON_LAYER_PIPE_NOT_CONNECTED");
       return inputSocket.write(value);
     },
   };
   transport.kill = () => {
     cancelled = true;
-    try { if (inputSocket && !inputSocket.destroyed) inputSocket.destroy(); } catch (_) { }
+    try {
+      if (inputSocket && !inputSocket.destroyed) inputSocket.destroy();
+    } catch (_) {}
     closeServers();
     if (!connected) {
-      try { if (outputSocket && !outputSocket.destroyed) outputSocket.destroy(); } catch (_) { }
-      emitExit(null, 'CANCELLED');
+      try {
+        if (outputSocket && !outputSocket.destroyed) outputSocket.destroy();
+      } catch (_) {}
+      emitExit(null, "CANCELLED");
     }
     return true;
   };
   transport.getGuardPid = () => guardPid;
   const handleServerError = (error) => {
-    transport.emit('error', error);
-    emitExit(null, 'PIPE_ERROR');
+    transport.emit("error", error);
+    emitExit(null, "PIPE_ERROR");
   };
   inputServer = net.createServer((candidate) => {
     if (cancelled || (inputSocket && !inputSocket.destroyed)) {
@@ -934,7 +970,9 @@ function externalGuardTransport(options = {}) {
       return;
     }
     inputSocket = candidate;
-    candidate.on('error', (error) => transport.stderr.write(String(error && error.stack || error)));
+    candidate.on("error", (error) =>
+      transport.stderr.write(String((error && error.stack) || error)),
+    );
     markConnected();
   });
   outputServer = net.createServer((candidate) => {
@@ -943,20 +981,24 @@ function externalGuardTransport(options = {}) {
       return;
     }
     outputSocket = candidate;
-    candidate.on('data', (chunk) => transport.stdout.write(chunk));
-    candidate.on('error', (error) => transport.stderr.write(String(error && error.stack || error)));
-    candidate.on('close', () => emitExit(0, ''));
+    candidate.on("data", (chunk) => transport.stdout.write(chunk));
+    candidate.on("error", (error) =>
+      transport.stderr.write(String((error && error.stack) || error)),
+    );
+    candidate.on("close", () => emitExit(0, ""));
     markConnected();
   });
-  inputServer.on('error', handleServerError);
-  outputServer.on('error', handleServerError);
+  inputServer.on("error", handleServerError);
+  outputServer.on("error", handleServerError);
   let listeningServers = 0;
   const launchGuard = () => {
     listeningServers += 1;
     if (listeningServers !== 2 || cancelled || exited) return;
-    const powershellPath = String(options.powershellPath || 'powershell.exe');
-    const windowsRoot = String(process.env.SystemRoot || process.env.WINDIR || 'C:\\Windows');
-    const conhostPath = path.join(windowsRoot, 'System32', 'conhost.exe');
+    const powershellPath = String(options.powershellPath || "powershell.exe");
+    const windowsRoot = String(
+      process.env.SystemRoot || process.env.WINDIR || "C:\\Windows",
+    );
+    const conhostPath = path.join(windowsRoot, "System32", "conhost.exe");
     const commandLine = `"${conhostPath.replace(/"/g, '""')}" --headless "${powershellPath.replace(/"/g, '""')}" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "${String(options.scriptPath).replace(/"/g, '""')}" -InputPipeName "${inputPipeName}" -OutputPipeName "${outputPipeName}"`;
     const bootstrapScript = `$result = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = ${powershellSingleQuoted(commandLine)} }
 if (-not $result -or [int]$result.ReturnValue -ne 0 -or [int]$result.ProcessId -le 0) { throw 'DESKTOP_ICON_LAYER_EXTERNAL_LAUNCH_FAILED' }
@@ -964,32 +1006,40 @@ $result.ProcessId`;
     try {
       bootstrap = (options.bootstrapSpawnImpl || spawn)(
         powershellPath,
-        ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', bootstrapScript],
-        { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }
+        [
+          "-NoLogo",
+          "-NoProfile",
+          "-NonInteractive",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-Command",
+          bootstrapScript,
+        ],
+        { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
       );
-      if (bootstrap.stderr && typeof bootstrap.stderr.on === 'function') {
-        bootstrap.stderr.on('data', (chunk) => transport.stderr.write(chunk));
+      if (bootstrap.stderr && typeof bootstrap.stderr.on === "function") {
+        bootstrap.stderr.on("data", (chunk) => transport.stderr.write(chunk));
       }
-      if (bootstrap.stdout && typeof bootstrap.stdout.on === 'function') {
-        bootstrap.stdout.on('data', (chunk) => {
-          bootstrapOutput += String(chunk || '');
+      if (bootstrap.stdout && typeof bootstrap.stdout.on === "function") {
+        bootstrap.stdout.on("data", (chunk) => {
+          bootstrapOutput += String(chunk || "");
           const match = bootstrapOutput.match(/\b(\d+)\b/);
           if (match) guardPid = Math.max(0, Number(match[1]) || 0);
         });
       }
-      bootstrap.on('error', (error) => {
-        if (!connected) transport.emit('error', error);
+      bootstrap.on("error", (error) => {
+        if (!connected) transport.emit("error", error);
       });
-      bootstrap.on('exit', (code) => {
+      bootstrap.on("exit", (code) => {
         if (code !== 0 && !connected) {
-          const error = new Error('DESKTOP_ICON_LAYER_EXTERNAL_LAUNCH_FAILED');
-          transport.emit('error', error);
-          emitExit(code, '');
+          const error = new Error("DESKTOP_ICON_LAYER_EXTERNAL_LAUNCH_FAILED");
+          transport.emit("error", error);
+          emitExit(code, "");
         }
       });
     } catch (error) {
-      transport.emit('error', error);
-      emitExit(null, '');
+      transport.emit("error", error);
+      emitExit(null, "");
     }
   };
   inputServer.listen(inputPipePath, launchGuard);
@@ -997,55 +1047,70 @@ $result.ProcessId`;
   connectTimer = setTimeout(() => {
     if (connected || exited) return;
     cancelled = true;
-    const error = new Error('DESKTOP_ICON_LAYER_PIPE_CONNECT_TIMEOUT');
-    transport.emit('error', error);
-    try { if (inputSocket && !inputSocket.destroyed) inputSocket.destroy(); } catch (_) { }
-    try { if (outputSocket && !outputSocket.destroyed) outputSocket.destroy(); } catch (_) { }
+    const error = new Error("DESKTOP_ICON_LAYER_PIPE_CONNECT_TIMEOUT");
+    transport.emit("error", error);
+    try {
+      if (inputSocket && !inputSocket.destroyed) inputSocket.destroy();
+    } catch (_) {}
+    try {
+      if (outputSocket && !outputSocket.destroyed) outputSocket.destroy();
+    } catch (_) {}
     closeServers();
-    emitExit(null, 'TIMEOUT');
+    emitExit(null, "TIMEOUT");
   }, connectTimeoutMs);
-  if (connectTimer && typeof connectTimer.unref === 'function') connectTimer.unref();
-  if (typeof inputServer.unref === 'function') inputServer.unref();
-  if (typeof outputServer.unref === 'function') outputServer.unref();
+  if (connectTimer && typeof connectTimer.unref === "function")
+    connectTimer.unref();
+  if (typeof inputServer.unref === "function") inputServer.unref();
+  if (typeof outputServer.unref === "function") outputServer.unref();
   return transport;
 }
 
 function parseNativeIconLayerLayout(line) {
-  const raw = typeof line === 'string' ? JSON.parse(line) : line;
-  if (!raw || raw.ok !== true || raw.nativeLayerApplied !== true
-      || raw.nativeBackgroundKeyApplied !== true
-      || raw.compositionMode !== 'layered-color-key'
-      || typeof raw.desktopIconsVisible !== 'boolean'
-      || !/^\d+$/.test(String(raw.iconHostWindowId || ''))
-      || !/^\d+$/.test(String(raw.listViewWindowId || ''))
-      || !/^\d+$/.test(String(raw.topLevelHostWindowId || ''))
-      || raw.physicalPixels !== true) {
-    throw new Error('DESKTOP_ICON_LAYER_ACK_INVALID');
+  const raw = typeof line === "string" ? JSON.parse(line) : line;
+  if (
+    !raw ||
+    raw.ok !== true ||
+    raw.nativeLayerApplied !== true ||
+    raw.nativeBackgroundKeyApplied !== true ||
+    raw.compositionMode !== "layered-color-key" ||
+    typeof raw.desktopIconsVisible !== "boolean" ||
+    !/^\d+$/.test(String(raw.iconHostWindowId || "")) ||
+    !/^\d+$/.test(String(raw.listViewWindowId || "")) ||
+    !/^\d+$/.test(String(raw.topLevelHostWindowId || "")) ||
+    raw.physicalPixels !== true
+  ) {
+    throw new Error("DESKTOP_ICON_LAYER_ACK_INVALID");
   }
   return {
     ok: true,
     watcher: true,
     nativeLayerApplied: true,
     nativeBackgroundKeyApplied: true,
-    compositionMode: 'layered-color-key',
+    compositionMode: "layered-color-key",
     nativeLayerLocked: raw.nativeLayerLocked === true,
     desktopIconsVisible: raw.desktopIconsVisible === true,
-    controlSequence: Math.max(0, Math.round(finiteNumber(raw.controlSequence, 0))),
-    shieldWindowId: String(raw.shieldWindowId || '0'),
+    controlSequence: Math.max(
+      0,
+      Math.round(finiteNumber(raw.controlSequence, 0)),
+    ),
+    shieldWindowId: String(raw.shieldWindowId || "0"),
     iconHostWindowId: String(raw.iconHostWindowId),
     listViewWindowId: String(raw.listViewWindowId),
     topLevelHostWindowId: String(raw.topLevelHostWindowId),
     processId: Math.max(0, Math.round(finiteNumber(raw.processId, 0))),
     physicalPixels: true,
-    icons: (Array.isArray(raw.icons) ? raw.icons : []).map(normalizeRect).filter(Boolean),
+    icons: (Array.isArray(raw.icons) ? raw.icons : [])
+      .map(normalizeRect)
+      .filter(Boolean),
   };
 }
 
 function startNativeDesktopIconLayer(options = {}) {
   const spawnImpl = options.spawnImpl;
-  if (spawnImpl != null && typeof spawnImpl !== 'function') throw new Error('DESKTOP_ICON_LAYER_SPAWN_UNAVAILABLE');
+  if (spawnImpl != null && typeof spawnImpl !== "function")
+    throw new Error("DESKTOP_ICON_LAYER_SPAWN_UNAVAILABLE");
   const env = { ...process.env };
-  const nativeTempPath = String(options.nativeTempPath || '').trim();
+  const nativeTempPath = String(options.nativeTempPath || "").trim();
   if (nativeTempPath) {
     env.TEMP = nativeTempPath;
     env.TMP = nativeTempPath;
@@ -1054,27 +1119,41 @@ function startNativeDesktopIconLayer(options = {}) {
   fs.mkdirSync(scriptDirectory, { recursive: true });
   const scriptPath = path.join(
     scriptDirectory,
-    `mineradio-native-icon-layer-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.ps1`
+    `mineradio-native-icon-layer-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.ps1`,
   );
-  const useExternalGuard = typeof spawnImpl !== 'function';
-  fs.writeFileSync(scriptPath, useExternalGuard
-    ? nativeIconLayerNamedPipeScript(options)
-    : nativeIconLayerGuardScript(options), 'utf8');
+  const useExternalGuard = typeof spawnImpl !== "function";
+  fs.writeFileSync(
+    scriptPath,
+    useExternalGuard
+      ? nativeIconLayerNamedPipeScript(options)
+      : nativeIconLayerGuardScript(options),
+    "utf8",
+  );
   let child;
   try {
     child = useExternalGuard
       ? externalGuardTransport({ ...options, scriptPath })
       : spawnImpl(
-        String(options.powershellPath || 'powershell.exe'),
-        ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath],
-        { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'], env }
-      );
+          String(options.powershellPath || "powershell.exe"),
+          [
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            scriptPath,
+          ],
+          { windowsHide: true, stdio: ["pipe", "pipe", "pipe"], env },
+        );
   } catch (error) {
-    try { fs.unlinkSync(scriptPath); } catch (_) { }
+    try {
+      fs.unlinkSync(scriptPath);
+    } catch (_) {}
     throw error;
   }
-  let stdoutBuffer = '';
-  let stderrBuffer = '';
+  let stdoutBuffer = "";
+  let stderrBuffer = "";
   let exited = false;
   let exitCode = null;
   let exitNotified = false;
@@ -1083,7 +1162,7 @@ function startNativeDesktopIconLayer(options = {}) {
   let nextControlSequence = 0;
   let readySettled = false;
   let restoredConfirmed = false;
-  let terminalError = '';
+  let terminalError = "";
   let stopFinish = null;
   let resolveReady;
   let rejectReady;
@@ -1092,21 +1171,30 @@ function startNativeDesktopIconLayer(options = {}) {
     resolveReady = resolve;
     rejectReady = reject;
   });
-  const readyTimeoutMs = Math.max(3000, Math.min(30000, finiteNumber(options.readyTimeoutMs, 18000)));
+  const readyTimeoutMs = Math.max(
+    3000,
+    Math.min(30000, finiteNumber(options.readyTimeoutMs, 18000)),
+  );
   const readyTimer = setTimeout(() => {
     if (readySettled) return;
-    reportError(new Error('DESKTOP_ICON_LAYER_READY_TIMEOUT'));
+    reportError(new Error("DESKTOP_ICON_LAYER_READY_TIMEOUT"));
   }, readyTimeoutMs);
-  if (readyTimer && typeof readyTimer.unref === 'function') readyTimer.unref();
+  if (readyTimer && typeof readyTimer.unref === "function") readyTimer.unref();
 
   const reportError = (value) => {
     if (!readySettled) {
       readySettled = true;
       clearTimeout(readyTimer);
-      rejectReady(value instanceof Error ? value : new Error(String(value || 'DESKTOP_ICON_LAYER_FAILED')));
+      rejectReady(
+        value instanceof Error
+          ? value
+          : new Error(String(value || "DESKTOP_ICON_LAYER_FAILED")),
+      );
     }
-    if (typeof options.onError === 'function') {
-      try { options.onError(value); } catch (_) { }
+    if (typeof options.onError === "function") {
+      try {
+        options.onError(value);
+      } catch (_) {}
     }
   };
   const rejectWaiters = (error) => {
@@ -1127,38 +1215,48 @@ function startNativeDesktopIconLayer(options = {}) {
   const notifyExit = (details) => {
     if (exitNotified) return;
     exitNotified = true;
-    const error = new Error(`DESKTOP_ICON_LAYER_EXIT_${details && details.code == null ? 'UNKNOWN' : details.code}`);
+    const error = new Error(
+      `DESKTOP_ICON_LAYER_EXIT_${details && details.code == null ? "UNKNOWN" : details.code}`,
+    );
     if (!readySettled) {
       readySettled = true;
       clearTimeout(readyTimer);
       rejectReady(error);
     }
     rejectWaiters(error);
-    if (typeof options.onExit === 'function') {
+    if (typeof options.onExit === "function") {
       try {
         options.onExit({
           ...details,
           restored: restoredConfirmed,
-          terminalError: String(terminalError || ''),
+          terminalError: String(terminalError || ""),
         });
-      } catch (_) { }
+      } catch (_) {}
     }
-    try { fs.unlinkSync(scriptPath); } catch (_) { }
+    try {
+      fs.unlinkSync(scriptPath);
+    } catch (_) {}
   };
   const consumeLine = (line) => {
-    const trimmed = String(line || '').trim();
+    const trimmed = String(line || "").trim();
     if (!trimmed) return;
     try {
       const raw = JSON.parse(trimmed);
       if (raw && raw.terminal === true) {
         restoredConfirmed = raw.ok === true && raw.restored === true;
-        terminalError = String(raw.error || '');
-        if (typeof stopFinish === 'function') stopFinish(restoredConfirmed ? 0 : -1);
-        if (!restoredConfirmed) reportError(new Error(terminalError || 'DESKTOP_ICON_LAYER_RESTORE_FAILED'));
+        terminalError = String(raw.error || "");
+        if (typeof stopFinish === "function")
+          stopFinish(restoredConfirmed ? 0 : -1);
+        if (!restoredConfirmed)
+          reportError(
+            new Error(terminalError || "DESKTOP_ICON_LAYER_RESTORE_FAILED"),
+          );
         return;
       }
       if (raw && raw.ok === false) {
-        const diagnosticError = String(raw.error || 'DESKTOP_ICON_LAYER_FAILED');
+        const diagnosticError = String(
+          raw.error || "DESKTOP_ICON_LAYER_FAILED",
+        );
         if (!terminalError) terminalError = diagnosticError;
         reportError(diagnosticError);
         return;
@@ -1171,67 +1269,102 @@ function startNativeDesktopIconLayer(options = {}) {
         resolveReady(layout);
       }
       acknowledgeControls(layout);
-      if (typeof options.onLayout === 'function') {
-        try { options.onLayout(layout); } catch (error) { reportError(error); }
+      if (typeof options.onLayout === "function") {
+        try {
+          options.onLayout(layout);
+        } catch (error) {
+          reportError(error);
+        }
       }
     } catch (_) {
-      if (typeof options.onDiagnostic === 'function') {
-        try { options.onDiagnostic(trimmed); } catch (_) { }
+      if (typeof options.onDiagnostic === "function") {
+        try {
+          options.onDiagnostic(trimmed);
+        } catch (_) {}
       }
     }
   };
   const consumeStdout = (chunk) => {
-    stdoutBuffer += String(chunk || '');
+    stdoutBuffer += String(chunk || "");
     const lines = stdoutBuffer.split(/\r?\n/);
-    stdoutBuffer = lines.pop() || '';
+    stdoutBuffer = lines.pop() || "";
     for (const line of lines) consumeLine(line);
   };
   const consumeStderr = (chunk) => {
-    stderrBuffer = (stderrBuffer + String(chunk || '')).slice(-32768);
+    stderrBuffer = (stderrBuffer + String(chunk || "")).slice(-32768);
   };
-  if (child.stdout && typeof child.stdout.on === 'function') child.stdout.on('data', consumeStdout);
-  if (child.stderr && typeof child.stderr.on === 'function') child.stderr.on('data', consumeStderr);
-  if (typeof child.on === 'function') {
-    child.on('error', (error) => {
-      if (!terminalError) terminalError = String(error && error.message || 'DESKTOP_ICON_LAYER_CHILD_ERROR');
+  if (child.stdout && typeof child.stdout.on === "function")
+    child.stdout.on("data", consumeStdout);
+  if (child.stderr && typeof child.stderr.on === "function")
+    child.stderr.on("data", consumeStderr);
+  if (typeof child.on === "function") {
+    child.on("error", (error) => {
+      if (!terminalError)
+        terminalError = String(
+          (error && error.message) || "DESKTOP_ICON_LAYER_CHILD_ERROR",
+        );
       reportError(error);
       if (exited) return;
       exited = true;
-      notifyExit({ code: null, signal: '', stderr: stderrBuffer, error, terminalError: String(terminalError || '') });
+      notifyExit({
+        code: null,
+        signal: "",
+        stderr: stderrBuffer,
+        error,
+        terminalError: String(terminalError || ""),
+      });
     });
-    child.on('exit', (code, signalName) => {
+    child.on("exit", (code, signalName) => {
       if (exited && exitNotified) return;
       exited = true;
       exitCode = code;
       if (stdoutBuffer.trim()) consumeLine(stdoutBuffer);
-      stdoutBuffer = '';
+      stdoutBuffer = "";
       if (!restoredConfirmed) {
-        if (!terminalError) terminalError = 'DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED';
+        if (!terminalError)
+          terminalError = "DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED";
         reportError(new Error(terminalError));
       } else if (code !== 0 && code != null) {
-        const exitError = String(stderrBuffer.match(/DESKTOP_ICON_[A-Z0-9_]+/) || '')
-          || `DESKTOP_ICON_LAYER_EXIT_${code}`;
+        const exitError =
+          String(stderrBuffer.match(/DESKTOP_ICON_[A-Z0-9_]+/) || "") ||
+          `DESKTOP_ICON_LAYER_EXIT_${code}`;
         if (!terminalError) terminalError = exitError;
         reportError(exitError);
       }
-      notifyExit({ code, signal: signalName || '', stderr: stderrBuffer, terminalError: String(terminalError || '') });
+      notifyExit({
+        code,
+        signal: signalName || "",
+        stderr: stderrBuffer,
+        terminalError: String(terminalError || ""),
+      });
     });
   }
 
-  const sendControl = (kind, payload = '', timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS) => {
-    if (exited || !child.stdin || typeof child.stdin.write !== 'function') {
-      return Promise.reject(new Error('DESKTOP_ICON_LAYER_NOT_RUNNING'));
+  const sendControl = (
+    kind,
+    payload = "",
+    timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS,
+  ) => {
+    if (exited || !child.stdin || typeof child.stdin.write !== "function") {
+      return Promise.reject(new Error("DESKTOP_ICON_LAYER_NOT_RUNNING"));
     }
     const sequence = ++nextControlSequence;
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        controlWaiters.delete(sequence);
-        reject(new Error('DESKTOP_ICON_LAYER_COMMAND_TIMEOUT'));
-      }, Math.max(500, Math.min(5000, finiteNumber(timeoutMs, DEFAULT_COMMAND_TIMEOUT_MS))));
-      if (timer && typeof timer.unref === 'function') timer.unref();
+      const timer = setTimeout(
+        () => {
+          controlWaiters.delete(sequence);
+          reject(new Error("DESKTOP_ICON_LAYER_COMMAND_TIMEOUT"));
+        },
+        Math.max(
+          500,
+          Math.min(5000, finiteNumber(timeoutMs, DEFAULT_COMMAND_TIMEOUT_MS)),
+        ),
+      );
+      if (timer && typeof timer.unref === "function") timer.unref();
       controlWaiters.set(sequence, { resolve, reject, timer });
-      try { child.stdin.write(`${kind}|${sequence}|${payload}\n`); }
-      catch (error) {
+      try {
+        child.stdin.write(`${kind}|${sequence}|${payload}\n`);
+      } catch (error) {
         clearTimeout(timer);
         controlWaiters.delete(sequence);
         reject(error);
@@ -1239,17 +1372,26 @@ function startNativeDesktopIconLayer(options = {}) {
     });
   };
 
-  const updateShields = () => lastLayout ? Promise.resolve(lastLayout) : ready;
-  const setLocked = (value, timeoutMs) => sendControl('L', value === true ? '1' : '0', timeoutMs);
-  const setIconsVisible = (value, timeoutMs) => sendControl('V', value === true ? '1' : '0', timeoutMs);
-  const ensureOrder = (timeoutMs) => sendControl('Z', '', timeoutMs);
+  const updateShields = () =>
+    lastLayout ? Promise.resolve(lastLayout) : ready;
+  const setLocked = (value, timeoutMs) =>
+    sendControl("L", value === true ? "1" : "0", timeoutMs);
+  const setIconsVisible = (value, timeoutMs) =>
+    sendControl("V", value === true ? "1" : "0", timeoutMs);
+  const ensureOrder = (timeoutMs) => sendControl("Z", "", timeoutMs);
   const stop = (timeoutMs = 2200) => {
     if (stopPromise) return stopPromise;
     stopPromise = new Promise((resolve) => {
       if (exited) {
-        resolve({ ok: restoredConfirmed, code: exitCode, restored: restoredConfirmed,
-          error: restoredConfirmed ? '' : (terminalError || 'DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED'),
-          terminalError: String(terminalError || '') });
+        resolve({
+          ok: restoredConfirmed,
+          code: exitCode,
+          restored: restoredConfirmed,
+          error: restoredConfirmed
+            ? ""
+            : terminalError || "DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED",
+          terminalError: String(terminalError || ""),
+        });
         return;
       }
       let settled = false;
@@ -1263,21 +1405,31 @@ function startNativeDesktopIconLayer(options = {}) {
           ok: restoredConfirmed,
           code,
           restored: restoredConfirmed,
-          error: restoredConfirmed ? '' : (terminalError || 'DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED'),
-          terminalError: String(terminalError || ''),
+          error: restoredConfirmed
+            ? ""
+            : terminalError || "DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED",
+          terminalError: String(terminalError || ""),
         });
       };
       stopFinish = finish;
-      if (typeof child.once === 'function') child.once('exit', (code) => finish(code));
-      try { child.stdin.write('Q\n'); }
-      catch (error) {
-        terminalError = String(error && error.message || 'DESKTOP_ICON_LAYER_PIPE_NOT_CONNECTED');
-        try { if (typeof child.kill === 'function') child.kill(); } catch (_) { }
+      if (typeof child.once === "function")
+        child.once("exit", (code) => finish(code));
+      try {
+        child.stdin.write("Q\n");
+      } catch (error) {
+        terminalError = String(
+          (error && error.message) || "DESKTOP_ICON_LAYER_PIPE_NOT_CONNECTED",
+        );
+        try {
+          if (typeof child.kill === "function") child.kill();
+        } catch (_) {}
         finish(exitCode == null ? -1 : exitCode);
       }
-      timer = setTimeout(() => finish(exitCode == null ? -1 : exitCode),
-        Math.max(500, Math.min(5000, finiteNumber(timeoutMs, 2200))));
-      if (timer && typeof timer.unref === 'function') timer.unref();
+      timer = setTimeout(
+        () => finish(exitCode == null ? -1 : exitCode),
+        Math.max(500, Math.min(5000, finiteNumber(timeoutMs, 2200))),
+      );
+      if (timer && typeof timer.unref === "function") timer.unref();
     });
     return stopPromise;
   };

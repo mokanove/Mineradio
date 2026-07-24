@@ -7,7 +7,7 @@ const {
   evaluateTransitionPair,
   inferStyleCompatibility,
   isClosedOutgoingPhrase,
-} = require('./transition-evaluator');
+} = require("./transition-evaluator");
 
 function round(value, digits = 3) {
   const factor = 10 ** digits;
@@ -31,7 +31,9 @@ function average(values) {
 }
 
 function windowBeats(beats, start, duration) {
-  return beats.filter((beat) => beat.time >= start && beat.time < start + duration);
+  return beats.filter(
+    (beat) => beat.time >= start && beat.time < start + duration,
+  );
 }
 
 function windowStats(beats, start, duration) {
@@ -41,7 +43,12 @@ function windowStats(beats, start, duration) {
     energy: round(energy),
     lowDensity: round(average(window.map((beat) => toNumber(beat.low)))),
     vocalDensity: 0,
-    beatStability: round(window.length ? window.filter((beat) => toNumber(beat.confidence, 0.8) >= 0.75).length / window.length : 0),
+    beatStability: round(
+      window.length
+        ? window.filter((beat) => toNumber(beat.confidence, 0.8) >= 0.75)
+            .length / window.length
+        : 0,
+    ),
   };
 }
 
@@ -62,13 +69,19 @@ function uniqueCandidates(candidates) {
   candidates
     .filter((candidate) => Number.isFinite(candidate.time))
     .sort((a, b) => {
-      const roleOrder = { exit: 0, entry: 1, 'avoid-exit': 2 };
-      return (roleOrder[a.role] ?? 5) - (roleOrder[b.role] ?? 5)
-        || b.confidence - a.confidence
-        || a.time - b.time;
+      const roleOrder = { exit: 0, entry: 1, "avoid-exit": 2 };
+      return (
+        (roleOrder[a.role] ?? 5) - (roleOrder[b.role] ?? 5) ||
+        b.confidence - a.confidence ||
+        a.time - b.time
+      );
     })
     .forEach((candidate) => {
-      const duplicate = out.find((item) => item.type === candidate.type && Math.abs(item.time - candidate.time) < 1.5);
+      const duplicate = out.find(
+        (item) =>
+          item.type === candidate.type &&
+          Math.abs(item.time - candidate.time) < 1.5,
+      );
       if (!duplicate) out.push(candidate);
     });
   return out;
@@ -88,22 +101,32 @@ function addLyricCandidates(candidates, lines, beats) {
   repeatedLyricGroups(lines).forEach((group) => {
     group.forEach((line) => {
       const metrics = candidateMetric(beats, line.time);
-      const type = metrics.energyAfter >= metrics.energyBefore ? 'chorus' : 'hook';
+      const type =
+        metrics.energyAfter >= metrics.energyBefore ? "chorus" : "hook";
       candidates.push({
         type,
-        role: 'entry',
+        role: "entry",
         time: round(line.time),
-        confidence: round(Math.min(0.95, 0.56 + group.length * 0.08 + Math.max(0, metrics.energyAfter - metrics.energyBefore) * 0.5)),
+        confidence: round(
+          Math.min(
+            0.95,
+            0.56 +
+              group.length * 0.08 +
+              Math.max(0, metrics.energyAfter - metrics.energyBefore) * 0.5,
+          ),
+        ),
         text: line.text,
         repeats: group.length,
         ...metrics,
       });
 
-      const before = (lines || []).filter((item) => item.time < line.time && item.time >= line.time - 10).at(-1);
+      const before = (lines || [])
+        .filter((item) => item.time < line.time && item.time >= line.time - 10)
+        .at(-1);
       if (before) {
         candidates.push({
-          type: 'pre-section',
-          role: 'entry',
+          type: "pre-section",
+          role: "entry",
           time: round(before.time),
           confidence: round(Math.min(0.9, 0.5 + group.length * 0.07)),
           text: before.text,
@@ -121,8 +144,8 @@ function addLyricCandidates(candidates, lines, beats) {
   const lastLyric = (lines || []).at(-1);
   if (lastLyric) {
     candidates.push({
-      type: 'outro',
-      role: 'exit',
+      type: "outro",
+      role: "exit",
       time: round(lastLyric.time),
       confidence: 0.62,
       text: lastLyric.text,
@@ -147,30 +170,35 @@ function addEnergyCandidates(candidates, beats, duration) {
   const sorted = windows.slice().sort((a, b) => b.energy - a.energy);
   const peak = sorted[0];
   candidates.push({
-    type: 'peak',
-    role: 'avoid-exit',
+    type: "peak",
+    role: "avoid-exit",
     time: peak.time,
     confidence: round(Math.min(0.95, 0.55 + peak.energy * 0.4)),
     ...candidateMetric(beats, peak.time),
   });
 
   const release = windows
-    .filter((window) => window.time > peak.time + 8 && window.energy <= peak.energy * 0.82)
+    .filter(
+      (window) =>
+        window.time > peak.time + 8 && window.energy <= peak.energy * 0.82,
+    )
     .sort((a, b) => a.time - b.time)[0];
   if (release) {
     candidates.push({
-      type: 'release',
-      role: 'exit',
+      type: "release",
+      role: "exit",
       time: release.time,
-      confidence: round(Math.min(0.92, 0.5 + Math.max(0, peak.energy - release.energy) * 0.6)),
+      confidence: round(
+        Math.min(0.92, 0.5 + Math.max(0, peak.energy - release.energy) * 0.6),
+      ),
       ...candidateMetric(beats, release.time),
     });
   }
 
   const tailStart = Math.max(0, duration - 16);
   candidates.push({
-    type: 'outro',
-    role: 'exit',
+    type: "outro",
+    role: "exit",
     time: round(tailStart),
     confidence: 0.58,
     ...candidateMetric(beats, tailStart),
@@ -199,43 +227,57 @@ function analyzeSectionCandidates(opts = {}) {
 }
 
 function scoreExit(candidate) {
-  if (!candidate || candidate.role !== 'exit') return 0;
+  if (!candidate || candidate.role !== "exit") return 0;
   let score = candidate.confidence || 0;
-  if (candidate.type === 'release') score += 0.18;
-  if (candidate.type === 'outro') score += 0.12;
+  if (candidate.type === "release") score += 0.18;
+  if (candidate.type === "outro") score += 0.12;
   if (candidate.energyAfter < candidate.energyBefore) score += 0.08;
   return score;
 }
 
 function scoreLateExit(candidate, duration) {
-  if (!candidate || candidate.role !== 'exit') return 0;
-  const lateRatio = duration > 0 ? Math.max(0, Math.min(1, candidate.time / duration)) : 0;
+  if (!candidate || candidate.role !== "exit") return 0;
+  const lateRatio =
+    duration > 0 ? Math.max(0, Math.min(1, candidate.time / duration)) : 0;
   let score = scoreExit(candidate) + lateRatio * 0.42;
-  if (candidate.type === 'outro') score += 0.26;
+  if (candidate.type === "outro") score += 0.26;
   return score;
 }
 
 function scoreEntry(candidate) {
-  if (!candidate || candidate.role !== 'entry') return 0;
+  if (!candidate || candidate.role !== "entry") return 0;
   let score = candidate.confidence || 0;
-  if (candidate.type === 'pre-section') score += 0.2;
-  if (candidate.type === 'chorus' || candidate.type === 'hook') score += 0.1;
-  if (candidate.resolvesTo && (candidate.resolvesTo.type === 'chorus' || candidate.resolvesTo.type === 'hook')) score += 0.08;
+  if (candidate.type === "pre-section") score += 0.2;
+  if (candidate.type === "chorus" || candidate.type === "hook") score += 0.1;
+  if (
+    candidate.resolvesTo &&
+    (candidate.resolvesTo.type === "chorus" ||
+      candidate.resolvesTo.type === "hook")
+  )
+    score += 0.08;
   return score;
 }
 
 function hasNearbyClosedOutgoingPhrase(exit, exits) {
   if (!exit || exit.text) return false;
-  return (exits || []).some((candidate) => (
-    candidate
-    && candidate.text
-    && Math.abs(toNumber(candidate.time) - toNumber(exit.time)) <= 8
-    && isClosedOutgoingPhrase(candidate.text)
-  ));
+  return (exits || []).some(
+    (candidate) =>
+      candidate &&
+      candidate.text &&
+      Math.abs(toNumber(candidate.time) - toNumber(exit.time)) <= 8 &&
+      isClosedOutgoingPhrase(candidate.text),
+  );
 }
 
-function scoreCandidatePair(exit, entry, fromAnalysis, toAnalysis, exitScore, exits = []) {
-  const baseScore = (exitScore(exit) * 0.5) + (scoreEntry(entry) * 0.5);
+function scoreCandidatePair(
+  exit,
+  entry,
+  fromAnalysis,
+  toAnalysis,
+  exitScore,
+  exits = [],
+) {
+  const baseScore = exitScore(exit) * 0.5 + scoreEntry(entry) * 0.5;
   const evaluation = evaluateTransitionPair({
     exit,
     entry,
@@ -244,18 +286,26 @@ function scoreCandidatePair(exit, entry, fromAnalysis, toAnalysis, exitScore, ex
     styleCompatibility: inferStyleCompatibility(fromAnalysis, toAnalysis),
   });
   const nearClosedPhrase = hasNearbyClosedOutgoingPhrase(exit, exits);
-  let pairScore = (baseScore * 0.7) + (evaluation.score * 0.3);
-  if (evaluation.recipe === 'lyric-handoff') pairScore += 0.22;
-  else if (evaluation.recipe === 'instrumental-outro-to-vocal-hook') pairScore += 0.07;
-  if (evaluation.risks.includes('closed outgoing phrase')) pairScore = Math.min(pairScore, 0.74);
+  let pairScore = baseScore * 0.7 + evaluation.score * 0.3;
+  if (evaluation.recipe === "lyric-handoff") pairScore += 0.22;
+  else if (evaluation.recipe === "instrumental-outro-to-vocal-hook")
+    pairScore += 0.07;
+  if (evaluation.risks.includes("closed outgoing phrase"))
+    pairScore = Math.min(pairScore, 0.74);
   if (nearClosedPhrase) {
     pairScore = Math.min(pairScore, 0.74);
-    evaluation.risks = Array.from(new Set([...(evaluation.risks || []), 'near closed outgoing phrase']));
+    evaluation.risks = Array.from(
+      new Set([...(evaluation.risks || []), "near closed outgoing phrase"]),
+    );
   }
   return {
     exit,
     entry,
-    recipe: evaluation.recipe || (entry && entry.type === 'pre-section' ? 'outro-to-chorus' : 'section-jump'),
+    recipe:
+      evaluation.recipe ||
+      (entry && entry.type === "pre-section"
+        ? "outro-to-chorus"
+        : "section-jump"),
     score: round(Math.min(0.99, pairScore)),
     evaluation,
     baseScore,
@@ -263,16 +313,32 @@ function scoreCandidatePair(exit, entry, fromAnalysis, toAnalysis, exitScore, ex
 }
 
 function chooseTransitionCandidates(fromAnalysis, toAnalysis, opts = {}) {
-  const exitScore = opts.exitBias === 'late'
-    ? (candidate) => scoreLateExit(candidate, toNumber(fromAnalysis && fromAnalysis.duration))
-    : scoreExit;
-  const exits = (fromAnalysis.candidates || []).filter((candidate) => candidate.role === 'exit')
-    .sort((a, b) => exitScore(b) - exitScore(a) || (opts.exitBias === 'late' ? b.time - a.time : a.time - b.time));
+  const exitScore =
+    opts.exitBias === "late"
+      ? (candidate) =>
+          scoreLateExit(
+            candidate,
+            toNumber(fromAnalysis && fromAnalysis.duration),
+          )
+      : scoreExit;
+  const exits = (fromAnalysis.candidates || [])
+    .filter((candidate) => candidate.role === "exit")
+    .sort(
+      (a, b) =>
+        exitScore(b) - exitScore(a) ||
+        (opts.exitBias === "late" ? b.time - a.time : a.time - b.time),
+    );
   const maxEntryTime = Math.max(8, toNumber(opts.maxEntryTime, 32));
-  let entries = (toAnalysis.candidates || []).filter((candidate) => candidate.role === 'entry' && toNumber(candidate.time, Infinity) <= maxEntryTime)
+  let entries = (toAnalysis.candidates || [])
+    .filter(
+      (candidate) =>
+        candidate.role === "entry" &&
+        toNumber(candidate.time, Infinity) <= maxEntryTime,
+    )
     .sort((a, b) => scoreEntry(b) - scoreEntry(a) || a.time - b.time);
   if (!entries.length) {
-    entries = (toAnalysis.candidates || []).filter((candidate) => candidate.role === 'entry')
+    entries = (toAnalysis.candidates || [])
+      .filter((candidate) => candidate.role === "entry")
       .sort((a, b) => toNumber(a.time) - toNumber(b.time))
       .slice(0, 1);
   }
@@ -281,16 +347,36 @@ function chooseTransitionCandidates(fromAnalysis, toAnalysis, opts = {}) {
   const consideredEntries = entries.slice(0, 6);
   consideredExits.forEach((exit) => {
     consideredEntries.forEach((entry) => {
-      pairs.push(scoreCandidatePair(exit, entry, fromAnalysis, toAnalysis, exitScore, exits));
+      pairs.push(
+        scoreCandidatePair(
+          exit,
+          entry,
+          fromAnalysis,
+          toAnalysis,
+          exitScore,
+          exits,
+        ),
+      );
     });
   });
-  pairs.sort((a, b) => (
-    b.score - a.score
-    || b.evaluation.dimensions.lyricHandoff - a.evaluation.dimensions.lyricHandoff
-    || exitScore(b.exit) - exitScore(a.exit)
-    || scoreEntry(b.entry) - scoreEntry(a.entry)
-  ));
-  const chosen = pairs[0] || scoreCandidatePair(exits[0] || null, entries[0] || null, fromAnalysis, toAnalysis, exitScore, exits);
+  pairs.sort(
+    (a, b) =>
+      b.score - a.score ||
+      b.evaluation.dimensions.lyricHandoff -
+        a.evaluation.dimensions.lyricHandoff ||
+      exitScore(b.exit) - exitScore(a.exit) ||
+      scoreEntry(b.entry) - scoreEntry(a.entry),
+  );
+  const chosen =
+    pairs[0] ||
+    scoreCandidatePair(
+      exits[0] || null,
+      entries[0] || null,
+      fromAnalysis,
+      toAnalysis,
+      exitScore,
+      exits,
+    );
   return {
     recipe: chosen.recipe,
     exit: chosen.exit,

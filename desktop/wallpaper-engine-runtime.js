@@ -1,10 +1,12 @@
-'use strict';
+"use strict";
 
-const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
-const childProcess = require('child_process');
-const { discoverSteamLibraries: defaultDiscoverSteamLibraries } = require('./wallpaper-engine-library');
+const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
+const childProcess = require("child_process");
+const {
+  discoverSteamLibraries: defaultDiscoverSteamLibraries,
+} = require("./wallpaper-engine-library");
 
 const SIGNER_PATTERN = /\bSkutta Software\b/i;
 const MIN_WIDTH = 64;
@@ -30,11 +32,19 @@ const ENGINE_PROCESS_STABLE_MS = 720;
 const ENGINE_READY_POLL_MS = 180;
 const ENGINE_READY_SUCCESS_COUNT = 2;
 const ENGINE_READY_CACHE_MS = 2500;
-const INITIAL_MUTE_RETRY_DELAYS_MS = Object.freeze([0, 120, 320, 700, 1300, 2200]);
+const INITIAL_MUTE_RETRY_DELAYS_MS = Object.freeze([
+  0, 120, 320, 700, 1300, 2200,
+]);
 const INITIAL_MUTE_RETRY_DEADLINE_MS = 8000;
-const MUTE_REASSERT_DELAYS_MS = Object.freeze([80, 220, 650, 1500, 3200, 6500, 10000]);
+const MUTE_REASSERT_DELAYS_MS = Object.freeze([
+  80, 220, 650, 1500, 3200, 6500, 10000,
+]);
 const SAFE_PROPERTY_KEY = /^[a-z0-9_.-]{1,128}$/i;
-const BLOCKED_PROPERTY_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+const BLOCKED_PROPERTY_KEYS = new Set([
+  "__proto__",
+  "prototype",
+  "constructor",
+]);
 const WALLPAPER_PACKAGE_INDEX_MAX_BYTES = 16 * 1024 * 1024;
 const WALLPAPER_PACKAGE_SCENE_MAX_BYTES = 32 * 1024 * 1024;
 const WALLPAPER_PACKAGE_ENTRY_MAX_COUNT = 32768;
@@ -57,12 +67,27 @@ function clampInteger(value, minimum, maximum, fallback) {
 function safeRuntimeOptions(options = {}) {
   return {
     width: clampInteger(options.width, MIN_WIDTH, MAX_WIDTH, DEFAULT_WIDTH),
-    height: clampInteger(options.height, MIN_HEIGHT, MAX_HEIGHT, DEFAULT_HEIGHT),
+    height: clampInteger(
+      options.height,
+      MIN_HEIGHT,
+      MAX_HEIGHT,
+      DEFAULT_HEIGHT,
+    ),
     fps: clampInteger(options.fps, MIN_FPS, MAX_FPS, DEFAULT_FPS),
     x: clampInteger(options.x, MIN_POSITION, MAX_POSITION, DEFAULT_X),
     y: clampInteger(options.y, MIN_POSITION, MAX_POSITION, DEFAULT_Y),
-    sourceTimeoutMs: clampInteger(options.sourceTimeoutMs, 500, 30000, DEFAULT_SOURCE_TIMEOUT_MS),
-    sourcePollMs: clampInteger(options.sourcePollMs, 50, 1000, DEFAULT_SOURCE_POLL_MS),
+    sourceTimeoutMs: clampInteger(
+      options.sourceTimeoutMs,
+      500,
+      30000,
+      DEFAULT_SOURCE_TIMEOUT_MS,
+    ),
+    sourcePollMs: clampInteger(
+      options.sourcePollMs,
+      50,
+      1000,
+      DEFAULT_SOURCE_POLL_MS,
+    ),
   };
 }
 
@@ -73,16 +98,36 @@ function runtimeError(code) {
 }
 
 function normalizeEngineProcessState(value) {
-  if (value === true) return { ok: true, running: true, matching: true, executable: '', matchingPids: [] };
-  if (value === false) return { ok: true, running: false, matching: false, executable: '', matchingPids: [] };
-  if (!value || typeof value !== 'object') {
-    return { ok: false, running: false, matching: false, executable: '', matchingPids: [] };
+  if (value === true)
+    return {
+      ok: true,
+      running: true,
+      matching: true,
+      executable: "",
+      matchingPids: [],
+    };
+  if (value === false)
+    return {
+      ok: true,
+      running: false,
+      matching: false,
+      executable: "",
+      matchingPids: [],
+    };
+  if (!value || typeof value !== "object") {
+    return {
+      ok: false,
+      running: false,
+      matching: false,
+      executable: "",
+      matchingPids: [],
+    };
   }
   return {
     ok: value.ok !== false,
     running: value.running === true,
     matching: value.matching === true,
-    executable: String(value.executable || ''),
+    executable: String(value.executable || ""),
     matchingPids: Array.isArray(value.matchingPids)
       ? value.matchingPids.map((entry) => Number(entry) || 0).filter(Boolean)
       : [],
@@ -91,26 +136,38 @@ function normalizeEngineProcessState(value) {
 
 function engineProcessPidKey(state) {
   return Array.isArray(state && state.matchingPids)
-    ? state.matchingPids.map((value) => Number(value) || 0).filter(Boolean).sort((a, b) => a - b).join(',')
-    : '';
+    ? state.matchingPids
+        .map((value) => Number(value) || 0)
+        .filter(Boolean)
+        .sort((a, b) => a - b)
+        .join(",")
+    : "";
 }
 
 function sanitizeMuteProperties(value) {
   const output = Object.create(null);
   output.volume = 0;
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return { ...output };
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    return { ...output };
   let count = 0;
   for (const [rawKey, rawValue] of Object.entries(value)) {
     if (count >= 32) break;
-    const key = String(rawKey || '').trim();
-    if (!SAFE_PROPERTY_KEY.test(key) || BLOCKED_PROPERTY_KEYS.has(key.toLowerCase())) continue;
-    if (key.toLowerCase() === 'volume') continue;
-    if (typeof rawValue === 'boolean') output[key] = rawValue;
-    else if (typeof rawValue === 'number' && Number.isFinite(rawValue)) output[key] = rawValue;
-    else if (typeof rawValue === 'string' && /^[a-z0-9_.-]{1,64}$/i.test(rawValue.trim())) {
+    const key = String(rawKey || "").trim();
+    if (
+      !SAFE_PROPERTY_KEY.test(key) ||
+      BLOCKED_PROPERTY_KEYS.has(key.toLowerCase())
+    )
+      continue;
+    if (key.toLowerCase() === "volume") continue;
+    if (typeof rawValue === "boolean") output[key] = rawValue;
+    else if (typeof rawValue === "number" && Number.isFinite(rawValue))
+      output[key] = rawValue;
+    else if (
+      typeof rawValue === "string" &&
+      /^[a-z0-9_.-]{1,64}$/i.test(rawValue.trim())
+    ) {
       output[key] = rawValue.trim();
-    }
-    else continue;
+    } else continue;
     count += 1;
   }
   return { ...output };
@@ -129,16 +186,27 @@ async function readFileHandleRange(handle, length, position) {
   const buffer = Buffer.allocUnsafe(length);
   let offset = 0;
   while (offset < length) {
-    const result = await handle.read(buffer, offset, length - offset, position + offset);
-    if (!result || result.bytesRead <= 0) throw runtimeError('WALLPAPER_SCENE_PACKAGE_INVALID');
+    const result = await handle.read(
+      buffer,
+      offset,
+      length - offset,
+      position + offset,
+    );
+    if (!result || result.bytesRead <= 0)
+      throw runtimeError("WALLPAPER_SCENE_PACKAGE_INVALID");
     offset += result.bytesRead;
   }
   return buffer;
 }
 
 function readPackageUInt32(buffer, state) {
-  if (!buffer || !state || state.offset < 0 || state.offset + 4 > buffer.length) {
-    throw runtimeError('WALLPAPER_SCENE_PACKAGE_INDEX_INVALID');
+  if (
+    !buffer ||
+    !state ||
+    state.offset < 0 ||
+    state.offset + 4 > buffer.length
+  ) {
+    throw runtimeError("WALLPAPER_SCENE_PACKAGE_INDEX_INVALID");
   }
   const value = buffer.readUInt32LE(state.offset);
   state.offset += 4;
@@ -147,53 +215,79 @@ function readPackageUInt32(buffer, state) {
 
 function readPackageString(buffer, state, maximumLength) {
   const length = readPackageUInt32(buffer, state);
-  if (length <= 0 || length > maximumLength || state.offset + length > buffer.length) {
-    throw runtimeError('WALLPAPER_SCENE_PACKAGE_INDEX_INVALID');
+  if (
+    length <= 0 ||
+    length > maximumLength ||
+    state.offset + length > buffer.length
+  ) {
+    throw runtimeError("WALLPAPER_SCENE_PACKAGE_INDEX_INVALID");
   }
-  const value = buffer.subarray(state.offset, state.offset + length).toString('utf8');
+  const value = buffer
+    .subarray(state.offset, state.offset + length)
+    .toString("utf8");
   state.offset += length;
   return value;
 }
 
 async function readWallpaperPackageScene(scenePackage) {
   const packageStat = await statFile(scenePackage);
-  if (!packageStat || packageStat.size < 32) throw runtimeError('WALLPAPER_SCENE_PACKAGE_INVALID');
-  const handle = await fs.promises.open(scenePackage, 'r');
+  if (!packageStat || packageStat.size < 32)
+    throw runtimeError("WALLPAPER_SCENE_PACKAGE_INVALID");
+  const handle = await fs.promises.open(scenePackage, "r");
   try {
-    const indexLength = Math.min(packageStat.size, WALLPAPER_PACKAGE_INDEX_MAX_BYTES);
+    const indexLength = Math.min(
+      packageStat.size,
+      WALLPAPER_PACKAGE_INDEX_MAX_BYTES,
+    );
     const indexBuffer = await readFileHandleRange(handle, indexLength, 0);
     const state = { offset: 0 };
     const header = readPackageString(indexBuffer, state, 32);
-    if (!/^PKGV\d{4}$/i.test(header)) throw runtimeError('WALLPAPER_SCENE_PACKAGE_FORMAT_UNSUPPORTED');
+    if (!/^PKGV\d{4}$/i.test(header))
+      throw runtimeError("WALLPAPER_SCENE_PACKAGE_FORMAT_UNSUPPORTED");
     const entryCount = readPackageUInt32(indexBuffer, state);
     if (entryCount <= 0 || entryCount > WALLPAPER_PACKAGE_ENTRY_MAX_COUNT) {
-      throw runtimeError('WALLPAPER_SCENE_PACKAGE_INDEX_INVALID');
+      throw runtimeError("WALLPAPER_SCENE_PACKAGE_INDEX_INVALID");
     }
     let sceneEntry = null;
     for (let index = 0; index < entryCount; index += 1) {
-      const name = readPackageString(indexBuffer, state, WALLPAPER_PACKAGE_ENTRY_NAME_MAX_BYTES);
+      const name = readPackageString(
+        indexBuffer,
+        state,
+        WALLPAPER_PACKAGE_ENTRY_NAME_MAX_BYTES,
+      );
       const offset = readPackageUInt32(indexBuffer, state);
       const length = readPackageUInt32(indexBuffer, state);
-      if (name.replace(/\\/g, '/').toLowerCase() === 'scene.json') sceneEntry = { offset, length };
+      if (name.replace(/\\/g, "/").toLowerCase() === "scene.json")
+        sceneEntry = { offset, length };
     }
-    if (!sceneEntry || sceneEntry.length <= 0 || sceneEntry.length > WALLPAPER_PACKAGE_SCENE_MAX_BYTES) {
-      throw runtimeError('WALLPAPER_SCENE_PACKAGE_SCENE_INVALID');
+    if (
+      !sceneEntry ||
+      sceneEntry.length <= 0 ||
+      sceneEntry.length > WALLPAPER_PACKAGE_SCENE_MAX_BYTES
+    ) {
+      throw runtimeError("WALLPAPER_SCENE_PACKAGE_SCENE_INVALID");
     }
     const dataOffset = state.offset + sceneEntry.offset;
-    if (!Number.isSafeInteger(dataOffset)
-      || dataOffset < state.offset
-      || dataOffset + sceneEntry.length > packageStat.size) {
-      throw runtimeError('WALLPAPER_SCENE_PACKAGE_SCENE_INVALID');
+    if (
+      !Number.isSafeInteger(dataOffset) ||
+      dataOffset < state.offset ||
+      dataOffset + sceneEntry.length > packageStat.size
+    ) {
+      throw runtimeError("WALLPAPER_SCENE_PACKAGE_SCENE_INVALID");
     }
-    const sceneBuffer = await readFileHandleRange(handle, sceneEntry.length, dataOffset);
+    const sceneBuffer = await readFileHandleRange(
+      handle,
+      sceneEntry.length,
+      dataOffset,
+    );
     let scene;
     try {
-      scene = JSON.parse(sceneBuffer.toString('utf8').replace(/^\uFEFF/, ''));
+      scene = JSON.parse(sceneBuffer.toString("utf8").replace(/^\uFEFF/, ""));
     } catch (_) {
-      throw runtimeError('WALLPAPER_SCENE_PACKAGE_SCENE_INVALID');
+      throw runtimeError("WALLPAPER_SCENE_PACKAGE_SCENE_INVALID");
     }
-    if (!scene || typeof scene !== 'object' || Array.isArray(scene)) {
-      throw runtimeError('WALLPAPER_SCENE_PACKAGE_SCENE_INVALID');
+    if (!scene || typeof scene !== "object" || Array.isArray(scene)) {
+      throw runtimeError("WALLPAPER_SCENE_PACKAGE_SCENE_INVALID");
     }
     return {
       header,
@@ -212,11 +306,14 @@ function visitSceneAudioObjects(scene, visitor) {
   let audioObjectCount = 0;
   let visited = 0;
   const walk = (value, depth) => {
-    if (!value || typeof value !== 'object' || depth > 128) return;
+    if (!value || typeof value !== "object" || depth > 128) return;
     visited += 1;
-    if (visited > 250000) throw runtimeError('WALLPAPER_SCENE_PACKAGE_SCENE_TOO_COMPLEX');
-    if (Object.prototype.hasOwnProperty.call(value, 'sound')
-      && (typeof value.sound === 'string' || Array.isArray(value.sound))) {
+    if (visited > 250000)
+      throw runtimeError("WALLPAPER_SCENE_PACKAGE_SCENE_TOO_COMPLEX");
+    if (
+      Object.prototype.hasOwnProperty.call(value, "sound") &&
+      (typeof value.sound === "string" || Array.isArray(value.sound))
+    ) {
       audioObjectCount += 1;
       visitor(value);
     }
@@ -241,20 +338,28 @@ function inspectSceneAudioSilence(scene) {
   return { audioObjectCount, allSilent };
 }
 
-async function validateMutedScenePackage(scenePackage, expectedPackageSize, expectedAudioObjectCount) {
+async function validateMutedScenePackage(
+  scenePackage,
+  expectedPackageSize,
+  expectedAudioObjectCount,
+) {
   try {
     const cached = await readWallpaperPackageScene(scenePackage);
     if (cached.packageSize !== expectedPackageSize) return false;
     const inspection = inspectSceneAudioSilence(cached.scene);
-    return inspection.allSilent && inspection.audioObjectCount === expectedAudioObjectCount;
+    return (
+      inspection.allSilent &&
+      inspection.audioObjectCount === expectedAudioObjectCount
+    );
   } catch (_) {
     return false;
   }
 }
 
 function encodePatchedScene(scene, originalLength) {
-  const encoded = Buffer.from(JSON.stringify(scene), 'utf8');
-  if (encoded.length > originalLength) throw runtimeError('WALLPAPER_SCENE_PACKAGE_PATCH_TOO_LARGE');
+  const encoded = Buffer.from(JSON.stringify(scene), "utf8");
+  if (encoded.length > originalLength)
+    throw runtimeError("WALLPAPER_SCENE_PACKAGE_PATCH_TOO_LARGE");
   const output = Buffer.alloc(originalLength, 0x20);
   encoded.copy(output);
   return output;
@@ -264,14 +369,14 @@ function signatureScript() {
   const source = [
     "$ErrorActionPreference = 'Stop'",
     "$target = [Environment]::GetEnvironmentVariable('MINERADIO_WE_SIGNATURE_TARGET', 'Process')",
-    'if ([string]::IsNullOrWhiteSpace($target)) { throw \'Missing signature target\' }',
-    '$signature = Get-AuthenticodeSignature -LiteralPath $target',
-    '[pscustomobject]@{',
-    '  status = [string]$signature.Status',
-    '  subject = if ($signature.SignerCertificate) { [string]$signature.SignerCertificate.Subject } else { \'\' }',
-    '} | ConvertTo-Json -Compress',
-  ].join('\r\n');
-  return Buffer.from(source, 'utf16le').toString('base64');
+    "if ([string]::IsNullOrWhiteSpace($target)) { throw 'Missing signature target' }",
+    "$signature = Get-AuthenticodeSignature -LiteralPath $target",
+    "[pscustomobject]@{",
+    "  status = [string]$signature.Status",
+    "  subject = if ($signature.SignerCertificate) { [string]$signature.SignerCertificate.Subject } else { '' }",
+    "} | ConvertTo-Json -Compress",
+  ].join("\r\n");
+  return Buffer.from(source, "utf16le").toString("base64");
 }
 
 function engineProcessProbeScript() {
@@ -302,7 +407,7 @@ $selected = if ($preferred.Count -gt 0) { $preferred[0] } elseif ($matching.Coun
   matchingPids = @($matching | ForEach-Object { [int]$_.process.Id })
 } | ConvertTo-Json -Compress
 `.trim();
-  return Buffer.from(source, 'utf16le').toString('base64');
+  return Buffer.from(source, "utf16le").toString("base64");
 }
 
 function controlBrokerScript() {
@@ -537,7 +642,7 @@ Add-Type -TypeDefinition $source -Language CSharp
 $workingDirectory = [IO.Path]::GetDirectoryName($target)
 [void][MineradioExplorerParentLauncher]::Launch($target, $commandLine, $workingDirectory, $waitForExit, $waitTimeout)
 `.trim();
-  return Buffer.from(source, 'utf16le').toString('base64');
+  return Buffer.from(source, "utf16le").toString("base64");
 }
 
 function nativeWindowControlScript() {
@@ -762,7 +867,7 @@ public static class MineradioWeWindowControl {
 Add-Type -TypeDefinition $source -Language CSharp
 [MineradioWeWindowControl]::Run($action, $sourceId, $expectedTitle, $expectedExecutable, $hostWindowId, $hostExecutable, $hostCornerRadius) | ConvertTo-Json -Compress
 `.trim();
-  return Buffer.from(source, 'utf16le').toString('base64');
+  return Buffer.from(source, "utf16le").toString("base64");
 }
 
 function nativeParallaxPointerRelayScript() {
@@ -984,7 +1089,7 @@ public static class MineradioWeParallaxPointerRelay {
 Add-Type -TypeDefinition $source -Language CSharp
 [MineradioWeParallaxPointerRelay]::Run($sourceId, $expectedTitle, $expectedExecutable, $hostWindowId, $hostExecutable, $sessionId)
 `.trim();
-  return Buffer.from(source, 'utf16le').toString('base64');
+  return Buffer.from(source, "utf16le").toString("base64");
 }
 
 function nativeDwmThumbnailSurfaceScript() {
@@ -1442,21 +1547,29 @@ try {
 }
 
 function quoteWindowsArgument(value) {
-  const text = String(value == null ? '' : value);
+  const text = String(value == null ? "" : value);
   if (text && !/[\s"]/.test(text)) return text;
-  return `"${text.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/g, '$1$1')}"`;
+  return `"${text.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/g, "$1$1")}"`;
 }
 
 function wallpaperRawPropertiesIndex(args) {
   if (!Array.isArray(args)) return -1;
-  const optionIndex = args.findIndex((value) => String(value || '').toLowerCase() === '-properties');
+  const optionIndex = args.findIndex(
+    (value) => String(value || "").toLowerCase() === "-properties",
+  );
   const rawIndex = optionIndex >= 0 ? optionIndex + 1 : -1;
   if (rawIndex <= 0 || rawIndex >= args.length) return -1;
-  const raw = String(args[rawIndex] || '');
-  if (!raw.startsWith('RAW~(') || !raw.endsWith(')~END') || /[\u0000\r\n]/.test(raw)) return -1;
+  const raw = String(args[rawIndex] || "");
+  if (
+    !raw.startsWith("RAW~(") ||
+    !raw.endsWith(")~END") ||
+    /[\u0000\r\n]/.test(raw)
+  )
+    return -1;
   try {
     const parsed = JSON.parse(raw.slice(5, -5));
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return -1;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      return -1;
   } catch (_) {
     return -1;
   }
@@ -1466,71 +1579,104 @@ function wallpaperRawPropertiesIndex(args) {
 function verbatimWallpaperControlArguments(args) {
   const rawIndex = wallpaperRawPropertiesIndex(args);
   if (rawIndex < 0) return null;
-  return args.map((value, index) => index === rawIndex
-    ? String(value)
-    : quoteWindowsArgument(value));
+  return args.map((value, index) =>
+    index === rawIndex ? String(value) : quoteWindowsArgument(value),
+  );
 }
 
 function wallpaperControlCommandLine(executable, args) {
   const verbatimArgs = verbatimWallpaperControlArguments(args);
-  const argumentLine = (verbatimArgs || (Array.isArray(args) ? args : []).map(quoteWindowsArgument)).join(' ');
-  return `${quoteWindowsArgument(executable)}${argumentLine ? ` ${argumentLine}` : ''}`;
+  const argumentLine = (
+    verbatimArgs || (Array.isArray(args) ? args : []).map(quoteWindowsArgument)
+  ).join(" ");
+  return `${quoteWindowsArgument(executable)}${argumentLine ? ` ${argumentLine}` : ""}`;
 }
 
-function defaultEngineProcessProbe(powerShellExecutable, nativeTempPath, expectedExecutable) {
+function defaultEngineProcessProbe(
+  powerShellExecutable,
+  nativeTempPath,
+  expectedExecutable,
+) {
   return new Promise((resolve) => {
-    childProcess.execFile(powerShellExecutable || 'powershell.exe', [
-      '-NoLogo',
-      '-NoProfile',
-      '-NonInteractive',
-      '-EncodedCommand',
-      engineProcessProbeScript(),
-    ], {
-      encoding: 'utf8',
-      windowsHide: true,
-      timeout: 3500,
-      maxBuffer: 16 * 1024,
-      shell: false,
-      env: {
-        ...process.env,
-        TEMP: nativeTempPath,
-        TMP: nativeTempPath,
-        MINERADIO_NATIVE_TEMP_DIR: nativeTempPath,
-        MINERADIO_WE_ENGINE_TARGET: String(expectedExecutable || ''),
+    childProcess.execFile(
+      powerShellExecutable || "powershell.exe",
+      [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-EncodedCommand",
+        engineProcessProbeScript(),
+      ],
+      {
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 3500,
+        maxBuffer: 16 * 1024,
+        shell: false,
+        env: {
+          ...process.env,
+          TEMP: nativeTempPath,
+          TMP: nativeTempPath,
+          MINERADIO_NATIVE_TEMP_DIR: nativeTempPath,
+          MINERADIO_WE_ENGINE_TARGET: String(expectedExecutable || ""),
+        },
       },
-    }, (error, stdout) => {
-      if (error) {
-        resolve({ ok: false, running: false, matching: false, executable: '', matchingPids: [] });
-        return;
-      }
-      const jsonLine = String(stdout || '').split(/\r?\n/).map((line) => line.trim()).reverse().find((line) => /^\{.*\}$/.test(line));
-      try {
-        const result = jsonLine ? JSON.parse(jsonLine) : null;
-        if (!result
-          || typeof result !== 'object'
-          || typeof result.running !== 'boolean'
-          || typeof result.matching !== 'boolean') {
-          throw new Error('Wallpaper Engine process probe returned invalid data');
+      (error, stdout) => {
+        if (error) {
+          resolve({
+            ok: false,
+            running: false,
+            matching: false,
+            executable: "",
+            matchingPids: [],
+          });
+          return;
         }
-        resolve({
-          ok: true,
-          running: result && result.running === true,
-          matching: result && result.matching === true,
-          executable: String(result && result.executable || ''),
-          matchingPids: Array.isArray(result && result.matchingPids)
-            ? result.matchingPids.map((value) => Number(value) || 0).filter(Boolean)
-            : [],
-        });
-      } catch (_) {
-        resolve({ ok: false, running: false, matching: false, executable: '', matchingPids: [] });
-      }
-    });
+        const jsonLine = String(stdout || "")
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .reverse()
+          .find((line) => /^\{.*\}$/.test(line));
+        try {
+          const result = jsonLine ? JSON.parse(jsonLine) : null;
+          if (
+            !result ||
+            typeof result !== "object" ||
+            typeof result.running !== "boolean" ||
+            typeof result.matching !== "boolean"
+          ) {
+            throw new Error(
+              "Wallpaper Engine process probe returned invalid data",
+            );
+          }
+          resolve({
+            ok: true,
+            running: result && result.running === true,
+            matching: result && result.matching === true,
+            executable: String((result && result.executable) || ""),
+            matchingPids: Array.isArray(result && result.matchingPids)
+              ? result.matchingPids
+                  .map((value) => Number(value) || 0)
+                  .filter(Boolean)
+              : [],
+          });
+        } catch (_) {
+          resolve({
+            ok: false,
+            running: false,
+            matching: false,
+            executable: "",
+            matchingPids: [],
+          });
+        }
+      },
+    );
   });
 }
 
 function defaultDesktopCapturer() {
   try {
-    return require('electron').desktopCapturer;
+    return require("electron").desktopCapturer;
   } catch (_) {
     return null;
   }
@@ -1540,22 +1686,36 @@ class WallpaperEngineRuntime {
   constructor(options = {}) {
     this.library = options.library || null;
     this.desktopCapturer = options.desktopCapturer || defaultDesktopCapturer();
-    this.discoverSteamLibraries = options.discoverSteamLibraries || defaultDiscoverSteamLibraries;
+    this.discoverSteamLibraries =
+      options.discoverSteamLibraries || defaultDiscoverSteamLibraries;
     this.execFile = options.execFile || childProcess.execFile;
     this.controlExecFile = options.controlExecFile || childProcess.execFile;
     this.spawn = options.spawn || childProcess.spawn;
     this.platform = options.platform || process.platform;
     this.arch = options.arch || process.arch;
-    this.sleep = options.sleep || ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
-    this.nativeSleep = options.nativeSleep || ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
+    this.sleep =
+      options.sleep ||
+      ((milliseconds) =>
+        new Promise((resolve) => setTimeout(resolve, milliseconds)));
+    this.nativeSleep =
+      options.nativeSleep ||
+      ((milliseconds) =>
+        new Promise((resolve) => setTimeout(resolve, milliseconds)));
     this.now = options.now || Date.now;
     this.wallNow = options.wallNow || Date.now;
-    this.powerShellExecutable = options.powerShellExecutable || 'powershell.exe';
-    this.nativeTempPath = path.resolve(String(
-      options.nativeTempPath
-      || process.env.MINERADIO_NATIVE_TEMP_DIR
-      || path.join(process.env.LOCALAPPDATA || process.env.APPDATA || process.cwd(), 'Mineradio', 'native-helper-temp')
-    ));
+    this.powerShellExecutable =
+      options.powerShellExecutable || "powershell.exe";
+    this.nativeTempPath = path.resolve(
+      String(
+        options.nativeTempPath ||
+          process.env.MINERADIO_NATIVE_TEMP_DIR ||
+          path.join(
+            process.env.LOCALAPPDATA || process.env.APPDATA || process.cwd(),
+            "Mineradio",
+            "native-helper-temp",
+          ),
+      ),
+    );
     fs.mkdirSync(this.nativeTempPath, { recursive: true });
     this.nativeExecFile = options.nativeExecFile || childProcess.execFile;
     this.pointerRelaySpawn = options.pointerRelaySpawn || childProcess.spawn;
@@ -1564,53 +1724,62 @@ class WallpaperEngineRuntime {
       options.dwmSurfaceStartTimeoutMs,
       10,
       30000,
-      DWM_SURFACE_START_TIMEOUT_MS
+      DWM_SURFACE_START_TIMEOUT_MS,
     );
     this.pointerRelayStartTimeoutMs = clampInteger(
       options.pointerRelayStartTimeoutMs,
       10,
       30000,
-      POINTER_RELAY_START_TIMEOUT_MS
+      POINTER_RELAY_START_TIMEOUT_MS,
     );
-    this.pointerRelayRetryDelaysMs = Array.isArray(options.pointerRelayRetryDelaysMs)
+    this.pointerRelayRetryDelaysMs = Array.isArray(
+      options.pointerRelayRetryDelaysMs,
+    )
       ? options.pointerRelayRetryDelaysMs
-        .map((value) => clampInteger(value, 1, 30000, 0))
-        .filter((value) => value > 0)
-        .slice(0, POINTER_RELAY_RETRY_DELAYS_MS.length)
+          .map((value) => clampInteger(value, 1, 30000, 0))
+          .filter((value) => value > 0)
+          .slice(0, POINTER_RELAY_RETRY_DELAYS_MS.length)
       : [...POINTER_RELAY_RETRY_DELAYS_MS];
     if (!this.pointerRelayRetryDelaysMs.length) {
       this.pointerRelayRetryDelaysMs = [...POINTER_RELAY_RETRY_DELAYS_MS];
     }
-    this.windowController = typeof options.windowController === 'function'
-      ? options.windowController
-      : ((action, details) => this._nativeWindowControl(action, details));
-    this.engineProcessProbe = options.engineProcessProbe
-      || ((expectedExecutable) => defaultEngineProcessProbe(
-        this.powerShellExecutable,
-        this.nativeTempPath,
-        expectedExecutable
-      ));
-    this.engineReadyProbe = typeof options.engineReadyProbe === 'function'
-      ? options.engineReadyProbe
-      : ((executable) => this._runTransientControl(executable, [
-        '-control',
-        'getWallpaper',
-        '-monitor',
-        '0',
-      ]));
-    this.useDesktopShellBroker = this.platform === 'win32' && options.useDesktopShellBroker !== false;
-    this.hostElevationProbe = typeof options.hostElevationProbe === 'function'
-      ? options.hostElevationProbe
-      : (async () => null);
+    this.windowController =
+      typeof options.windowController === "function"
+        ? options.windowController
+        : (action, details) => this._nativeWindowControl(action, details);
+    this.engineProcessProbe =
+      options.engineProcessProbe ||
+      ((expectedExecutable) =>
+        defaultEngineProcessProbe(
+          this.powerShellExecutable,
+          this.nativeTempPath,
+          expectedExecutable,
+        ));
+    this.engineReadyProbe =
+      typeof options.engineReadyProbe === "function"
+        ? options.engineReadyProbe
+        : (executable) =>
+            this._runTransientControl(executable, [
+              "-control",
+              "getWallpaper",
+              "-monitor",
+              "0",
+            ]);
+    this.useDesktopShellBroker =
+      this.platform === "win32" && options.useDesktopShellBroker !== false;
+    this.hostElevationProbe =
+      typeof options.hostElevationProbe === "function"
+        ? options.hostElevationProbe
+        : async () => null;
     this.hostElevationCache = null;
     this.signatureCache = new Map();
     this.executableCache = null;
     this.executableDiscoveryPromise = null;
     this.engineBootstrapPromise = null;
-    this.engineBootstrapExecutable = '';
-    this.engineReadyExecutable = '';
+    this.engineBootstrapExecutable = "";
+    this.engineReadyExecutable = "";
     this.engineReadyAt = 0;
-    this.engineReadyPidsKey = '';
+    this.engineReadyPidsKey = "";
     this.active = null;
     this.pending = null;
     this.generation = 0;
@@ -1629,79 +1798,159 @@ class WallpaperEngineRuntime {
       height: session.height,
       fps: session.fps,
       embeddedBackend: true,
-      captureMode: 'dwm-thumbnail',
-      sourceWindowEmbedded: !!(session.windowEmbedding && session.windowEmbedding.embedded),
-      sourceWindowAligned: !!(session.windowEmbedding && session.windowEmbedding.aligned),
-      sourceWindowRounded: !!(session.windowEmbedding && session.windowEmbedding.rounded),
-      sourceWindowParked: !!(session.windowParking && session.windowParking.parked),
-      sourceWindowVisibleWidth: Math.max(0, Number(session.windowEmbedding && session.windowEmbedding.visibleWidth) || 0),
-      sourceWindowVisibleHeight: Math.max(0, Number(session.windowEmbedding && session.windowEmbedding.visibleHeight) || 0),
-      sourceWindowRect: session.windowEmbedding ? {
-        left: Number(session.windowEmbedding.left) || 0,
-        top: Number(session.windowEmbedding.top) || 0,
-        right: Number(session.windowEmbedding.right) || 0,
-        bottom: Number(session.windowEmbedding.bottom) || 0,
-      } : null,
-      hostWindowRect: session.windowEmbedding ? {
-        left: Number(session.windowEmbedding.hostLeft) || 0,
-        top: Number(session.windowEmbedding.hostTop) || 0,
-        right: Number(session.windowEmbedding.hostRight) || 0,
-        bottom: Number(session.windowEmbedding.hostBottom) || 0,
-      } : null,
-      sourceWindowParkingRect: session.windowParking ? {
-        left: Number(session.windowParking.left) || 0,
-        top: Number(session.windowParking.top) || 0,
-        right: Number(session.windowParking.right) || 0,
-        bottom: Number(session.windowParking.bottom) || 0,
-        visibleWidth: Math.max(0, Number(session.windowParking.visibleWidth) || 0),
-        visibleHeight: Math.max(0, Number(session.windowParking.visibleHeight) || 0),
-      } : null,
+      captureMode: "dwm-thumbnail",
+      sourceWindowEmbedded: !!(
+        session.windowEmbedding && session.windowEmbedding.embedded
+      ),
+      sourceWindowAligned: !!(
+        session.windowEmbedding && session.windowEmbedding.aligned
+      ),
+      sourceWindowRounded: !!(
+        session.windowEmbedding && session.windowEmbedding.rounded
+      ),
+      sourceWindowParked: !!(
+        session.windowParking && session.windowParking.parked
+      ),
+      sourceWindowVisibleWidth: Math.max(
+        0,
+        Number(
+          session.windowEmbedding && session.windowEmbedding.visibleWidth,
+        ) || 0,
+      ),
+      sourceWindowVisibleHeight: Math.max(
+        0,
+        Number(
+          session.windowEmbedding && session.windowEmbedding.visibleHeight,
+        ) || 0,
+      ),
+      sourceWindowRect: session.windowEmbedding
+        ? {
+            left: Number(session.windowEmbedding.left) || 0,
+            top: Number(session.windowEmbedding.top) || 0,
+            right: Number(session.windowEmbedding.right) || 0,
+            bottom: Number(session.windowEmbedding.bottom) || 0,
+          }
+        : null,
+      hostWindowRect: session.windowEmbedding
+        ? {
+            left: Number(session.windowEmbedding.hostLeft) || 0,
+            top: Number(session.windowEmbedding.hostTop) || 0,
+            right: Number(session.windowEmbedding.hostRight) || 0,
+            bottom: Number(session.windowEmbedding.hostBottom) || 0,
+          }
+        : null,
+      sourceWindowParkingRect: session.windowParking
+        ? {
+            left: Number(session.windowParking.left) || 0,
+            top: Number(session.windowParking.top) || 0,
+            right: Number(session.windowParking.right) || 0,
+            bottom: Number(session.windowParking.bottom) || 0,
+            visibleWidth: Math.max(
+              0,
+              Number(session.windowParking.visibleWidth) || 0,
+            ),
+            visibleHeight: Math.max(
+              0,
+              Number(session.windowParking.visibleHeight) || 0,
+            ),
+          }
+        : null,
       dwmSurfaceActive: session.dwmSurfaceActive === true,
       dwmSurfaceReady: session.dwmSurfaceReady === true,
-      dwmSurfaceHelperPid: Math.max(0, Number(session.dwmSurfaceHelperPid) || 0),
+      dwmSurfaceHelperPid: Math.max(
+        0,
+        Number(session.dwmSurfaceHelperPid) || 0,
+      ),
       dwmSurfaceWindowId: Math.max(0, Number(session.dwmSurfaceWindowId) || 0),
       dwmDesktopIconLayering: session.dwmDesktopIconLayering === true,
       dwmGlassSurfaceReady: session.dwmGlassSurfaceReady === true,
       dwmGlassSurfaceActive: session.dwmGlassSurfaceActive === true,
-      dwmGlassSurfaceWindowId: Math.max(0, Number(session.dwmGlassSurfaceWindowId) || 0),
+      dwmGlassSurfaceWindowId: Math.max(
+        0,
+        Number(session.dwmGlassSurfaceWindowId) || 0,
+      ),
       // Compatibility fields: these now describe the DOM sampler and alias the
       // one base DWM HWND. They no longer represent a second native window.
-      dwmGlassSurfaceSampleMode: 'single-dwm-svg-sampler',
-      dwmGlassSurfaceGeometry: session.dwmGlassSurfaceGeometry ? { ...session.dwmGlassSurfaceGeometry } : null,
+      dwmGlassSurfaceSampleMode: "single-dwm-svg-sampler",
+      dwmGlassSurfaceGeometry: session.dwmGlassSurfaceGeometry
+        ? { ...session.dwmGlassSurfaceGeometry }
+        : null,
       parallaxPointerRelayActive: session.parallaxPointerRelayActive === true,
       parallaxPointerRelayReady: session.parallaxPointerRelayReady === true,
-      parallaxPointerRelayHelperPid: Math.max(0, Number(session.parallaxPointerRelayHelperPid) || 0),
-      parallaxPointerRelayTargetWindowId: Math.max(0, Number(session.parallaxPointerRelayTargetWindowId) || 0),
-      parallaxPointerRelayTargetClass: String(session.parallaxPointerRelayTargetClass || ''),
-      parallaxPointerRelayTargetTitle: String(session.parallaxPointerRelayTargetTitle || ''),
-      parallaxPointerRelayQueued: Math.max(0, Number(session.parallaxPointerRelayQueued) || 0),
-      parallaxPointerRelayCoalesced: Math.max(0, Number(session.parallaxPointerRelayCoalesced) || 0),
-      parallaxPointerRelayPosted: Math.max(0, Number(session.parallaxPointerRelayPosted) || 0),
-      parallaxPointerRelayLatestX: typeof session.parallaxPointerRelayLatestX === 'number'
-        && Number.isFinite(session.parallaxPointerRelayLatestX)
-        ? Math.max(0, Math.min(65535, Math.round(session.parallaxPointerRelayLatestX))) : null,
-      parallaxPointerRelayLatestY: typeof session.parallaxPointerRelayLatestY === 'number'
-        && Number.isFinite(session.parallaxPointerRelayLatestY)
-        ? Math.max(0, Math.min(65535, Math.round(session.parallaxPointerRelayLatestY))) : null,
+      parallaxPointerRelayHelperPid: Math.max(
+        0,
+        Number(session.parallaxPointerRelayHelperPid) || 0,
+      ),
+      parallaxPointerRelayTargetWindowId: Math.max(
+        0,
+        Number(session.parallaxPointerRelayTargetWindowId) || 0,
+      ),
+      parallaxPointerRelayTargetClass: String(
+        session.parallaxPointerRelayTargetClass || "",
+      ),
+      parallaxPointerRelayTargetTitle: String(
+        session.parallaxPointerRelayTargetTitle || "",
+      ),
+      parallaxPointerRelayQueued: Math.max(
+        0,
+        Number(session.parallaxPointerRelayQueued) || 0,
+      ),
+      parallaxPointerRelayCoalesced: Math.max(
+        0,
+        Number(session.parallaxPointerRelayCoalesced) || 0,
+      ),
+      parallaxPointerRelayPosted: Math.max(
+        0,
+        Number(session.parallaxPointerRelayPosted) || 0,
+      ),
+      parallaxPointerRelayLatestX:
+        typeof session.parallaxPointerRelayLatestX === "number" &&
+        Number.isFinite(session.parallaxPointerRelayLatestX)
+          ? Math.max(
+              0,
+              Math.min(65535, Math.round(session.parallaxPointerRelayLatestX)),
+            )
+          : null,
+      parallaxPointerRelayLatestY:
+        typeof session.parallaxPointerRelayLatestY === "number" &&
+        Number.isFinite(session.parallaxPointerRelayLatestY)
+          ? Math.max(
+              0,
+              Math.min(65535, Math.round(session.parallaxPointerRelayLatestY)),
+            )
+          : null,
       audioMuted: session.audioMuted === true,
       audioPropertySuppressed: session.audioPropertySuppressed === true,
-      audioMuteCommandCount: Math.max(0, Number(session.audioMuteCommandCount) || 0),
-      silentStageApplied: Math.max(0, Number(session.stagedAudioPropertyCount) || 0) > 0,
-      stagedAudioPropertyCount: Math.max(0, Number(session.stagedAudioPropertyCount) || 0),
-      sceneAudioPatched: Math.max(0, Number(session.patchedSceneAudioObjectCount) || 0) > 0,
-      patchedSceneAudioObjectCount: Math.max(0, Number(session.patchedSceneAudioObjectCount) || 0),
+      audioMuteCommandCount: Math.max(
+        0,
+        Number(session.audioMuteCommandCount) || 0,
+      ),
+      silentStageApplied:
+        Math.max(0, Number(session.stagedAudioPropertyCount) || 0) > 0,
+      stagedAudioPropertyCount: Math.max(
+        0,
+        Number(session.stagedAudioPropertyCount) || 0,
+      ),
+      sceneAudioPatched:
+        Math.max(0, Number(session.patchedSceneAudioObjectCount) || 0) > 0,
+      patchedSceneAudioObjectCount: Math.max(
+        0,
+        Number(session.patchedSceneAudioObjectCount) || 0,
+      ),
     };
   }
 
   getStatus() {
     const current = this.active;
-    return current ? this._publicSession(current) : {
-      ok: true,
-      active: false,
-      id: '',
-      sessionId: '',
-      sourceId: '',
-    };
+    return current
+      ? this._publicSession(current)
+      : {
+          ok: true,
+          active: false,
+          id: "",
+          sessionId: "",
+          sourceId: "",
+        };
   }
 
   async _execFileText(file, args, options = {}) {
@@ -1711,7 +1960,7 @@ class WallpaperEngineRuntime {
         if (settled) return;
         settled = true;
         if (error) reject(error);
-        else resolve(String(stdout || ''));
+        else resolve(String(stdout || ""));
       };
       try {
         this.execFile(file, args, options, done);
@@ -1734,7 +1983,8 @@ class WallpaperEngineRuntime {
 
   _stopSessionDwmSurface(session) {
     if (!session) return false;
-    if (session.dwmSurfaceRetryTimer) clearTimeout(session.dwmSurfaceRetryTimer);
+    if (session.dwmSurfaceRetryTimer)
+      clearTimeout(session.dwmSurfaceRetryTimer);
     session.dwmSurfaceRetryTimer = null;
     const child = session.dwmSurfaceProcess;
     const stdin = child && child.stdin;
@@ -1744,12 +1994,13 @@ class WallpaperEngineRuntime {
     session.dwmSurfaceHelperPid = 0;
     session.dwmSurfaceWindowId = 0;
     session.dwmDesktopIconLayering = false;
-    session.dwmDesktopIconLayeringAckToken = (Number(session.dwmDesktopIconLayeringAckToken) || 0) + 1;
+    session.dwmDesktopIconLayeringAckToken =
+      (Number(session.dwmDesktopIconLayeringAckToken) || 0) + 1;
     session.dwmGlassSurfaceReady = false;
     session.dwmGlassSurfaceActive = false;
     session.dwmGlassSurfaceWindowId = 0;
     session.dwmGlassSurfaceGeometry = null;
-    session.dwmGlassSurfaceGeometryKey = '';
+    session.dwmGlassSurfaceGeometryKey = "";
     if (!child) return false;
     let trackedStop = null;
     const pendingStop = new Promise((resolve) => {
@@ -1767,23 +2018,31 @@ class WallpaperEngineRuntime {
         finish(true);
         return;
       }
-      if (typeof child.once === 'function') child.once('exit', () => finish(true));
+      if (typeof child.once === "function")
+        child.once("exit", () => finish(true));
       try {
         if (stdin && stdin.destroyed !== true && stdin.writableEnded !== true) {
-          stdin.write('Q\n', 'ascii');
+          stdin.write("Q\n", "ascii");
           stdin.end();
         }
-      } catch (_) { }
+      } catch (_) {}
       killTimer = setTimeout(() => {
-        if (settled || typeof child.kill !== 'function') return;
-        try { child.kill(); } catch (_) { }
+        if (settled || typeof child.kill !== "function") return;
+        try {
+          child.kill();
+        } catch (_) {}
       }, DWM_SURFACE_STOP_TIMEOUT_MS);
-      settleTimer = setTimeout(() => finish(false), DWM_SURFACE_STOP_TIMEOUT_MS + 500);
-      if (killTimer && typeof killTimer.unref === 'function') killTimer.unref();
-      if (settleTimer && typeof settleTimer.unref === 'function') settleTimer.unref();
+      settleTimer = setTimeout(
+        () => finish(false),
+        DWM_SURFACE_STOP_TIMEOUT_MS + 500,
+      );
+      if (killTimer && typeof killTimer.unref === "function") killTimer.unref();
+      if (settleTimer && typeof settleTimer.unref === "function")
+        settleTimer.unref();
     });
     trackedStop = pendingStop.finally(() => {
-      if (session.dwmSurfaceStopPromise === trackedStop) session.dwmSurfaceStopPromise = null;
+      if (session.dwmSurfaceStopPromise === trackedStop)
+        session.dwmSurfaceStopPromise = null;
     });
     session.dwmSurfaceStopPromise = trackedStop;
     return true;
@@ -1791,79 +2050,129 @@ class WallpaperEngineRuntime {
 
   async _waitForSessionDwmSurfaceStop(session) {
     const pending = session && session.dwmSurfaceStopPromise;
-    if (!pending || typeof pending.then !== 'function') return true;
+    if (!pending || typeof pending.then !== "function") return true;
     return pending;
   }
 
   _scheduleSessionDwmSurfaceRetry(session) {
-    if (!session || this.platform !== 'win32' || this.disposed || this.active !== session
-      || session.stopping === true || !session.windowEmbedding || session.windowEmbedding.aligned !== true
-      || session.dwmSurfaceRetryTimer || session.dwmSurfaceReady === true) return false;
+    if (
+      !session ||
+      this.platform !== "win32" ||
+      this.disposed ||
+      this.active !== session ||
+      session.stopping === true ||
+      !session.windowEmbedding ||
+      session.windowEmbedding.aligned !== true ||
+      session.dwmSurfaceRetryTimer ||
+      session.dwmSurfaceReady === true
+    )
+      return false;
     session.dwmSurfaceRetryTimer = setTimeout(() => {
       session.dwmSurfaceRetryTimer = null;
-      if (this.disposed || this.active !== session || session.stopping === true) return;
-      this._startSessionDwmSurface(session).then((ready) => {
-        if (!ready) this._scheduleSessionDwmSurfaceRetry(session);
-      }).catch(() => this._scheduleSessionDwmSurfaceRetry(session));
+      if (this.disposed || this.active !== session || session.stopping === true)
+        return;
+      this._startSessionDwmSurface(session)
+        .then((ready) => {
+          if (!ready) this._scheduleSessionDwmSurfaceRetry(session);
+        })
+        .catch(() => this._scheduleSessionDwmSurfaceRetry(session));
     }, DWM_SURFACE_RETRY_DELAY_MS);
-    if (session.dwmSurfaceRetryTimer && typeof session.dwmSurfaceRetryTimer.unref === 'function') {
+    if (
+      session.dwmSurfaceRetryTimer &&
+      typeof session.dwmSurfaceRetryTimer.unref === "function"
+    ) {
       session.dwmSurfaceRetryTimer.unref();
     }
     return true;
   }
 
   async _startSessionDwmSurface(session) {
-    if (!session || this.platform !== 'win32' || this.disposed || this.active !== session
-      || session.stopping === true || !session.windowEmbedding || session.windowEmbedding.aligned !== true) return false;
+    if (
+      !session ||
+      this.platform !== "win32" ||
+      this.disposed ||
+      this.active !== session ||
+      session.stopping === true ||
+      !session.windowEmbedding ||
+      session.windowEmbedding.aligned !== true
+    )
+      return false;
     if (session.dwmSurfaceReady === true && session.dwmSurfaceProcess) {
       return true;
     }
     if (session.dwmSurfaceStartPromise) return session.dwmSurfaceStartPromise;
 
-    const sourceId = String(session.windowSourceId || session.sourceId || '');
-    const hostWindowId = String(session.dwmSurfaceHostWindowId || '');
-    const hostExecutable = String(session.dwmSurfaceHostExecutable || '');
-    if (!/^window:\d+:\d+$/.test(sourceId) || !/^\d+$/.test(hostWindowId)
-      || !session.locationTitle || !session.executable || !hostExecutable) return false;
+    const sourceId = String(session.windowSourceId || session.sourceId || "");
+    const hostWindowId = String(session.dwmSurfaceHostWindowId || "");
+    const hostExecutable = String(session.dwmSurfaceHostExecutable || "");
+    if (
+      !/^window:\d+:\d+$/.test(sourceId) ||
+      !/^\d+$/.test(hostWindowId) ||
+      !session.locationTitle ||
+      !session.executable ||
+      !hostExecutable
+    )
+      return false;
 
     const operation = (async () => {
       let child;
       try {
         const helperSource = nativeDwmThumbnailSurfaceScript();
-        const helperDigest = crypto.createHash('sha256').update(helperSource).digest('hex').slice(0, 20);
-        const helperFile = path.join(this.nativeTempPath, `wallpaper-engine-dwm-surface-${helperDigest}.ps1`);
+        const helperDigest = crypto
+          .createHash("sha256")
+          .update(helperSource)
+          .digest("hex")
+          .slice(0, 20);
+        const helperFile = path.join(
+          this.nativeTempPath,
+          `wallpaper-engine-dwm-surface-${helperDigest}.ps1`,
+        );
         if (!fs.existsSync(helperFile)) {
-          fs.writeFileSync(helperFile, `\uFEFF${helperSource}`, 'utf8');
+          fs.writeFileSync(helperFile, `\uFEFF${helperSource}`, "utf8");
         }
-        child = this.dwmSurfaceSpawn(this.powerShellExecutable, [
-          '-NoLogo',
-          '-NoProfile',
-          '-NonInteractive',
-          '-STA',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-File',
-          helperFile,
-        ], {
-          windowsHide: true,
-          shell: false,
-          stdio: ['pipe', 'pipe', 'pipe'],
-          env: this._powerShellEnv({
-            MINERADIO_WE_DWM_SOURCE_ID: sourceId,
-            MINERADIO_WE_DWM_SOURCE_TITLE: session.locationTitle,
-            MINERADIO_WE_DWM_SOURCE_EXECUTABLE: session.executable,
-            MINERADIO_WE_DWM_HOST_WINDOW_ID: hostWindowId,
-            MINERADIO_WE_DWM_HOST_EXECUTABLE: hostExecutable,
-            MINERADIO_WE_DWM_HOST_CORNER_RADIUS: String(session.dwmSurfaceHostCornerRadius || 0),
-            MINERADIO_WE_DWM_DESKTOP_ICON_LAYERING: session.dwmSurfaceDesktopIconLayering === true ? '1' : '0',
-            MINERADIO_WE_DWM_SESSION_ID: session.sessionId,
-          }),
-        });
+        child = this.dwmSurfaceSpawn(
+          this.powerShellExecutable,
+          [
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-STA",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            helperFile,
+          ],
+          {
+            windowsHide: true,
+            shell: false,
+            stdio: ["pipe", "pipe", "pipe"],
+            env: this._powerShellEnv({
+              MINERADIO_WE_DWM_SOURCE_ID: sourceId,
+              MINERADIO_WE_DWM_SOURCE_TITLE: session.locationTitle,
+              MINERADIO_WE_DWM_SOURCE_EXECUTABLE: session.executable,
+              MINERADIO_WE_DWM_HOST_WINDOW_ID: hostWindowId,
+              MINERADIO_WE_DWM_HOST_EXECUTABLE: hostExecutable,
+              MINERADIO_WE_DWM_HOST_CORNER_RADIUS: String(
+                session.dwmSurfaceHostCornerRadius || 0,
+              ),
+              MINERADIO_WE_DWM_DESKTOP_ICON_LAYERING:
+                session.dwmSurfaceDesktopIconLayering === true ? "1" : "0",
+              MINERADIO_WE_DWM_SESSION_ID: session.sessionId,
+            }),
+          },
+        );
       } catch (_) {
         return false;
       }
-      if (!child || !child.stdin || !child.stdout || typeof child.stdout.on !== 'function') {
-        try { if (child && typeof child.kill === 'function') child.kill(); } catch (_) { }
+      if (
+        !child ||
+        !child.stdin ||
+        !child.stdout ||
+        typeof child.stdout.on !== "function"
+      ) {
+        try {
+          if (child && typeof child.kill === "function") child.kill();
+        } catch (_) {}
         return false;
       }
 
@@ -1874,8 +2183,8 @@ class WallpaperEngineRuntime {
       session.dwmGlassSurfaceReady = false;
       session.dwmGlassSurfaceActive = false;
       session.dwmGlassSurfaceWindowId = 0;
-      let stdout = '';
-      let stderr = '';
+      let stdout = "";
+      let stderr = "";
       let settled = false;
       const ready = await new Promise((resolve) => {
         let timeout = null;
@@ -1885,59 +2194,94 @@ class WallpaperEngineRuntime {
           if (timeout) clearTimeout(timeout);
           resolve(value === true);
         };
-        timeout = setTimeout(() => finish(false), this.dwmSurfaceStartTimeoutMs);
-        if (child.stdout && typeof child.stdout.setEncoding === 'function') child.stdout.setEncoding('utf8');
-        if (child.stderr && typeof child.stderr.setEncoding === 'function') child.stderr.setEncoding('utf8');
-        child.stdout.on('data', (chunk) => {
-          stdout = `${stdout}${String(chunk || '')}`.slice(-8192);
+        timeout = setTimeout(
+          () => finish(false),
+          this.dwmSurfaceStartTimeoutMs,
+        );
+        if (child.stdout && typeof child.stdout.setEncoding === "function")
+          child.stdout.setEncoding("utf8");
+        if (child.stderr && typeof child.stderr.setEncoding === "function")
+          child.stderr.setEncoding("utf8");
+        child.stdout.on("data", (chunk) => {
+          stdout = `${stdout}${String(chunk || "")}`.slice(-8192);
           const lines = stdout.split(/\r?\n/);
-          stdout = lines.pop() || '';
+          stdout = lines.pop() || "";
           for (const line of lines) {
             const trimmed = line.trim();
             if (!/^\{.*\}$/.test(trimmed)) continue;
             try {
               const result = JSON.parse(trimmed);
-              if (result && result.ok === true && result.dwm === true
-                && result.active === true && session.dwmSurfaceProcess === child
-                && Number(result.surfaceWindowHandle) === Number(session.dwmSurfaceWindowId)) {
+              if (
+                result &&
+                result.ok === true &&
+                result.dwm === true &&
+                result.active === true &&
+                session.dwmSurfaceProcess === child &&
+                Number(result.surfaceWindowHandle) ===
+                  Number(session.dwmSurfaceWindowId)
+              ) {
                 session.dwmSurfaceActive = true;
               }
-              if (result && result.ok === true && result.iconLayering === true
-                && typeof result.enabled === 'boolean' && session.dwmSurfaceProcess === child) {
+              if (
+                result &&
+                result.ok === true &&
+                result.iconLayering === true &&
+                typeof result.enabled === "boolean" &&
+                session.dwmSurfaceProcess === child
+              ) {
                 session.dwmDesktopIconLayering = result.enabled === true;
-                session.dwmDesktopIconLayeringAckToken = (Number(session.dwmDesktopIconLayeringAckToken) || 0) + 1;
+                session.dwmDesktopIconLayeringAckToken =
+                  (Number(session.dwmDesktopIconLayeringAckToken) || 0) + 1;
               }
-              if (result && result.ok === true && result.ready === true
-                && String(result.hostWindowHandle || '') === hostWindowId
-                && Number(result.sourceWindowHandle) > 0
-                && Number(result.surfaceWindowHandle) > 0) {
-                session.dwmSurfaceWindowId = Math.max(0, Number(result.surfaceWindowHandle) || 0);
+              if (
+                result &&
+                result.ok === true &&
+                result.ready === true &&
+                String(result.hostWindowHandle || "") === hostWindowId &&
+                Number(result.sourceWindowHandle) > 0 &&
+                Number(result.surfaceWindowHandle) > 0
+              ) {
+                session.dwmSurfaceWindowId = Math.max(
+                  0,
+                  Number(result.surfaceWindowHandle) || 0,
+                );
                 session.dwmGlassSurfaceWindowId = session.dwmSurfaceWindowId;
-                session.dwmGlassSurfaceReady = session.dwmGlassSurfaceWindowId > 0;
-                session.dwmDesktopIconLayering = result.desktopIconLayering === true;
+                session.dwmGlassSurfaceReady =
+                  session.dwmGlassSurfaceWindowId > 0;
+                session.dwmDesktopIconLayering =
+                  result.desktopIconLayering === true;
                 finish(true);
                 return;
               }
-            } catch (_) { }
+            } catch (_) {}
           }
         });
-        if (child.stderr && typeof child.stderr.on === 'function') {
-          child.stderr.on('data', (chunk) => {
-            if (stderr.length < 4096) stderr = `${stderr}${String(chunk || '')}`.slice(0, 4096);
+        if (child.stderr && typeof child.stderr.on === "function") {
+          child.stderr.on("data", (chunk) => {
+            if (stderr.length < 4096)
+              stderr = `${stderr}${String(chunk || "")}`.slice(0, 4096);
           });
         }
-        if (typeof child.once === 'function') {
-          child.once('error', () => finish(false));
-          child.once('exit', () => finish(false));
+        if (typeof child.once === "function") {
+          child.once("error", () => finish(false));
+          child.once("exit", () => finish(false));
         }
       });
 
-      if (!ready || this.active !== session || this.disposed || session.stopping === true
-        || session.dwmSurfaceProcess !== child) {
+      if (
+        !ready ||
+        this.active !== session ||
+        this.disposed ||
+        session.stopping === true ||
+        session.dwmSurfaceProcess !== child
+      ) {
         if (!ready && stderr.trim()) {
-          console.warn(`[Wallpaper Engine] DWM surface unavailable: ${stderr.trim().replace(/\s+/g, ' ').slice(0, 400)}`);
+          console.warn(
+            `[Wallpaper Engine] DWM surface unavailable: ${stderr.trim().replace(/\s+/g, " ").slice(0, 400)}`,
+          );
         }
-        if (session.dwmSurfaceProcess === child) this._stopSessionDwmSurface(session);
+        if (session.dwmSurfaceProcess === child)
+          this._stopSessionDwmSurface(session);
         return false;
       }
 
@@ -1947,8 +2291,8 @@ class WallpaperEngineRuntime {
       // Only then does activateDwmSurface() register the DWM thumbnail.
       session.dwmSurfaceActive = false;
       session.windowParking = null;
-      if (typeof child.once === 'function') {
-        child.once('exit', () => {
+      if (typeof child.once === "function") {
+        child.once("exit", () => {
           if (session.dwmSurfaceProcess !== child) return;
           session.dwmSurfaceProcess = null;
           session.dwmSurfaceReady = false;
@@ -1956,12 +2300,13 @@ class WallpaperEngineRuntime {
           session.dwmSurfaceHelperPid = 0;
           session.dwmSurfaceWindowId = 0;
           session.dwmDesktopIconLayering = false;
-          session.dwmDesktopIconLayeringAckToken = (Number(session.dwmDesktopIconLayeringAckToken) || 0) + 1;
+          session.dwmDesktopIconLayeringAckToken =
+            (Number(session.dwmDesktopIconLayeringAckToken) || 0) + 1;
           session.dwmGlassSurfaceReady = false;
           session.dwmGlassSurfaceActive = false;
           session.dwmGlassSurfaceWindowId = 0;
           session.dwmGlassSurfaceGeometry = null;
-          session.dwmGlassSurfaceGeometryKey = '';
+          session.dwmGlassSurfaceGeometryKey = "";
           this._scheduleSessionDwmSurfaceRetry(session);
         });
       }
@@ -1971,24 +2316,35 @@ class WallpaperEngineRuntime {
     try {
       return await operation;
     } finally {
-      if (session.dwmSurfaceStartPromise === operation) session.dwmSurfaceStartPromise = null;
+      if (session.dwmSurfaceStartPromise === operation)
+        session.dwmSurfaceStartPromise = null;
     }
   }
 
-  updateGlassSurface(expectedSessionId = '', geometry = {}) {
-    if (expectedSessionId && typeof expectedSessionId === 'object') {
+  updateGlassSurface(expectedSessionId = "", geometry = {}) {
+    if (expectedSessionId && typeof expectedSessionId === "object") {
       geometry = expectedSessionId;
-      expectedSessionId = geometry.sessionId || '';
+      expectedSessionId = geometry.sessionId || "";
     }
     const session = this.active;
-    expectedSessionId = String(expectedSessionId || '');
-    if (!session || (expectedSessionId && session.sessionId !== expectedSessionId)) {
-      return { ok: false, error: 'WALLPAPER_ENGINE_SESSION_MISMATCH' };
+    expectedSessionId = String(expectedSessionId || "");
+    if (
+      !session ||
+      (expectedSessionId && session.sessionId !== expectedSessionId)
+    ) {
+      return { ok: false, error: "WALLPAPER_ENGINE_SESSION_MISMATCH" };
     }
-    if (!session.dwmSurfaceReady || !session.dwmGlassSurfaceReady
-      || Number(session.dwmSurfaceWindowId) <= 0
-      || Number(session.dwmGlassSurfaceWindowId) !== Number(session.dwmSurfaceWindowId)) {
-      return { ok: false, error: 'WALLPAPER_ENGINE_DWM_GLASS_SURFACE_UNAVAILABLE' };
+    if (
+      !session.dwmSurfaceReady ||
+      !session.dwmGlassSurfaceReady ||
+      Number(session.dwmSurfaceWindowId) <= 0 ||
+      Number(session.dwmGlassSurfaceWindowId) !==
+        Number(session.dwmSurfaceWindowId)
+    ) {
+      return {
+        ok: false,
+        error: "WALLPAPER_ENGINE_DWM_GLASS_SURFACE_UNAVAILABLE",
+      };
     }
 
     const viewportWidth = Number(geometry && geometry.viewportWidth);
@@ -1998,19 +2354,36 @@ class WallpaperEngineRuntime {
     const width = Number(geometry && geometry.width);
     const height = Number(geometry && geometry.height);
     const radius = Number(geometry && geometry.radius);
-    if (![viewportWidth, viewportHeight, left, top, width, height, radius].every(Number.isFinite)
-      || viewportWidth < 2 || viewportHeight < 2 || width < 0 || height < 0) {
-      return { ok: false, error: 'WALLPAPER_ENGINE_DWM_GLASS_GEOMETRY_INVALID' };
+    if (
+      ![viewportWidth, viewportHeight, left, top, width, height, radius].every(
+        Number.isFinite,
+      ) ||
+      viewportWidth < 2 ||
+      viewportHeight < 2 ||
+      width < 0 ||
+      height < 0
+    ) {
+      return {
+        ok: false,
+        error: "WALLPAPER_ENGINE_DWM_GLASS_GEOMETRY_INVALID",
+      };
     }
-    const normalized = (value, extent, min, max) => Math.max(min, Math.min(max,
-      Math.round((value / extent) * 1000000)));
+    const normalized = (value, extent, min, max) =>
+      Math.max(min, Math.min(max, Math.round((value / extent) * 1000000)));
     const xUnit = normalized(left, viewportWidth, -2000000, 3000000);
     const yUnit = normalized(top, viewportHeight, -2000000, 3000000);
     const widthUnit = normalized(width, viewportWidth, 0, 3000000);
     const heightUnit = normalized(height, viewportHeight, 0, 3000000);
     const radiusUnit = normalized(radius, viewportWidth, 0, 1000000);
     const active = geometry.active === true && width >= 2 && height >= 2;
-    const key = [xUnit, yUnit, widthUnit, heightUnit, radiusUnit, active ? 1 : 0].join('|');
+    const key = [
+      xUnit,
+      yUnit,
+      widthUnit,
+      heightUnit,
+      radiusUnit,
+      active ? 1 : 0,
+    ].join("|");
     if (key === session.dwmGlassSurfaceGeometryKey) {
       return { ok: true, updated: false, ...this._publicSession(session) };
     }
@@ -2031,46 +2404,68 @@ class WallpaperEngineRuntime {
     return { ok: true, updated: true, ...this._publicSession(session) };
   }
 
-  async activateDwmSurface(expectedSessionId = '') {
+  async activateDwmSurface(expectedSessionId = "") {
     const session = this.active;
-    expectedSessionId = String(expectedSessionId || '');
-    if (!session || (expectedSessionId && session.sessionId !== expectedSessionId)) {
-      throw runtimeError('WALLPAPER_ENGINE_SESSION_MISMATCH');
+    expectedSessionId = String(expectedSessionId || "");
+    if (
+      !session ||
+      (expectedSessionId && session.sessionId !== expectedSessionId)
+    ) {
+      throw runtimeError("WALLPAPER_ENGINE_SESSION_MISMATCH");
     }
-    if (session.dwmSurfaceReady !== true || !session.dwmSurfaceProcess
-      || !session.dwmSurfaceProcess.stdin) {
-      throw runtimeError('WALLPAPER_ENGINE_DWM_SURFACE_FAILED');
+    if (
+      session.dwmSurfaceReady !== true ||
+      !session.dwmSurfaceProcess ||
+      !session.dwmSurfaceProcess.stdin
+    ) {
+      throw runtimeError("WALLPAPER_ENGINE_DWM_SURFACE_FAILED");
     }
     if (session.dwmSurfaceActive === true) return this._publicSession(session);
     const child = session.dwmSurfaceProcess;
     const stdin = child.stdin;
     if (stdin.destroyed === true || stdin.writableEnded === true) {
-      throw runtimeError('WALLPAPER_ENGINE_DWM_SURFACE_FAILED');
+      throw runtimeError("WALLPAPER_ENGINE_DWM_SURFACE_FAILED");
     }
-    try { stdin.write('D\n', 'ascii'); }
-    catch (_) { throw runtimeError('WALLPAPER_ENGINE_DWM_SURFACE_FAILED'); }
+    try {
+      stdin.write("D\n", "ascii");
+    } catch (_) {
+      throw runtimeError("WALLPAPER_ENGINE_DWM_SURFACE_FAILED");
+    }
     const deadline = this.now() + 2200;
     while (this.now() <= deadline) {
-      if (this.disposed || this.active !== session || session.stopping === true
-        || session.dwmSurfaceProcess !== child) {
-        throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
+      if (
+        this.disposed ||
+        this.active !== session ||
+        session.stopping === true ||
+        session.dwmSurfaceProcess !== child
+      ) {
+        throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
       }
-      if (session.dwmSurfaceActive === true) return this._publicSession(session);
+      if (session.dwmSurfaceActive === true)
+        return this._publicSession(session);
       await this.sleep(20);
     }
-    throw runtimeError('WALLPAPER_ENGINE_DWM_SURFACE_FAILED');
+    throw runtimeError("WALLPAPER_ENGINE_DWM_SURFACE_FAILED");
   }
 
-  async updateDwmDesktopIconLayering(expectedSessionId = '', enabled = false) {
+  async updateDwmDesktopIconLayering(expectedSessionId = "", enabled = false) {
     const session = this.active;
-    expectedSessionId = String(expectedSessionId || '');
+    expectedSessionId = String(expectedSessionId || "");
     enabled = enabled === true;
-    if (!session || (expectedSessionId && session.sessionId !== expectedSessionId)) return false;
+    if (
+      !session ||
+      (expectedSessionId && session.sessionId !== expectedSessionId)
+    )
+      return false;
     // Latch the latest desired order even while the helper is between retries.
     // _startSessionDwmSurface() replays this field into the next helper env.
     session.dwmSurfaceDesktopIconLayering = enabled;
-    if (session.dwmSurfaceReady !== true || !session.dwmSurfaceProcess
-      || !session.dwmSurfaceProcess.stdin) return false;
+    if (
+      session.dwmSurfaceReady !== true ||
+      !session.dwmSurfaceProcess ||
+      !session.dwmSurfaceProcess.stdin
+    )
+      return false;
     if (session.dwmDesktopIconLayering === enabled) {
       // A helper ACK may arrive just after a caller's timeout rollback. Keep
       // the desired restart state aligned with the now-observed helper state.
@@ -2082,15 +2477,26 @@ class WallpaperEngineRuntime {
     const stdin = child.stdin;
     if (stdin.destroyed === true || stdin.writableEnded === true) return false;
     const ackToken = Number(session.dwmDesktopIconLayeringAckToken) || 0;
-    try { stdin.write(`I|${enabled ? 1 : 0}\n`, 'ascii'); }
-    catch (_) { return false; }
+    try {
+      stdin.write(`I|${enabled ? 1 : 0}\n`, "ascii");
+    } catch (_) {
+      return false;
+    }
 
     const deadline = this.now() + 2200;
     while (this.now() <= deadline) {
-      if (this.disposed || this.active !== session || session.stopping === true
-        || session.dwmSurfaceProcess !== child) return false;
-      if ((Number(session.dwmDesktopIconLayeringAckToken) || 0) > ackToken
-        && session.dwmDesktopIconLayering === enabled) return true;
+      if (
+        this.disposed ||
+        this.active !== session ||
+        session.stopping === true ||
+        session.dwmSurfaceProcess !== child
+      )
+        return false;
+      if (
+        (Number(session.dwmDesktopIconLayeringAckToken) || 0) > ackToken &&
+        session.dwmDesktopIconLayering === enabled
+      )
+        return true;
       await this.sleep(20);
     }
     if (this.active === session && session.dwmSurfaceProcess === child) {
@@ -2106,86 +2512,119 @@ class WallpaperEngineRuntime {
     return false;
   }
 
-  async getDwmGlassCaptureSource(expectedSessionId = '', options = {}) {
-    if (!this.desktopCapturer || typeof this.desktopCapturer.getSources !== 'function') {
-      throw runtimeError('WALLPAPER_ENGINE_CAPTURE_UNAVAILABLE');
+  async getDwmGlassCaptureSource(expectedSessionId = "", options = {}) {
+    if (
+      !this.desktopCapturer ||
+      typeof this.desktopCapturer.getSources !== "function"
+    ) {
+      throw runtimeError("WALLPAPER_ENGINE_CAPTURE_UNAVAILABLE");
     }
     const session = this.active;
-    expectedSessionId = String(expectedSessionId || '');
-    if (!session || (expectedSessionId && session.sessionId !== expectedSessionId)) {
-      throw runtimeError('WALLPAPER_ENGINE_SESSION_MISMATCH');
+    expectedSessionId = String(expectedSessionId || "");
+    if (
+      !session ||
+      (expectedSessionId && session.sessionId !== expectedSessionId)
+    ) {
+      throw runtimeError("WALLPAPER_ENGINE_SESSION_MISMATCH");
     }
-    const expectedWindowId = String(Math.max(0, Number(session.dwmSurfaceWindowId) || 0));
-    if (session.dwmSurfaceReady !== true || session.dwmGlassSurfaceReady !== true
-      || session.dwmGlassSurfaceActive !== true || !/^\d+$/.test(expectedWindowId)
-      || expectedWindowId === '0'
-      || Number(session.dwmGlassSurfaceWindowId) !== Number(session.dwmSurfaceWindowId)) {
-      throw runtimeError('WALLPAPER_ENGINE_DWM_GLASS_SURFACE_UNAVAILABLE');
+    const expectedWindowId = String(
+      Math.max(0, Number(session.dwmSurfaceWindowId) || 0),
+    );
+    if (
+      session.dwmSurfaceReady !== true ||
+      session.dwmGlassSurfaceReady !== true ||
+      session.dwmGlassSurfaceActive !== true ||
+      !/^\d+$/.test(expectedWindowId) ||
+      expectedWindowId === "0" ||
+      Number(session.dwmGlassSurfaceWindowId) !==
+        Number(session.dwmSurfaceWindowId)
+    ) {
+      throw runtimeError("WALLPAPER_ENGINE_DWM_GLASS_SURFACE_UNAVAILABLE");
     }
     if (options.allowDirectSourceId === true) {
       return {
         id: `window:${expectedWindowId}:0`,
-        name: 'Mineradio WE DWM Surface',
+        name: "Mineradio WE DWM Surface",
         directWindowSource: true,
       };
     }
-    const timeoutMs = Math.max(200, Math.min(5000, Number(options.timeoutMs) || 1800));
-    const pollMs = Math.max(20, Math.min(250, Number(options.pollIntervalMs) || 60));
+    const timeoutMs = Math.max(
+      200,
+      Math.min(5000, Number(options.timeoutMs) || 1800),
+    );
+    const pollMs = Math.max(
+      20,
+      Math.min(250, Number(options.pollIntervalMs) || 60),
+    );
     const deadline = this.now() + timeoutMs;
     while (this.now() <= deadline) {
-      if (this.disposed || this.active !== session || session.stopping === true
-        || session.dwmGlassSurfaceReady !== true
-        || String(Math.max(0, Number(session.dwmGlassSurfaceWindowId) || 0)) !== expectedWindowId) {
-        throw runtimeError('WALLPAPER_ENGINE_REFRESH_SUPERSEDED');
+      if (
+        this.disposed ||
+        this.active !== session ||
+        session.stopping === true ||
+        session.dwmGlassSurfaceReady !== true ||
+        String(Math.max(0, Number(session.dwmGlassSurfaceWindowId) || 0)) !==
+          expectedWindowId
+      ) {
+        throw runtimeError("WALLPAPER_ENGINE_REFRESH_SUPERSEDED");
       }
       let sources = [];
       try {
         sources = await this.desktopCapturer.getSources({
-          types: ['window'],
+          types: ["window"],
           thumbnailSize: { width: 0, height: 0 },
           fetchWindowIcons: false,
         });
-      } catch (_) { }
+      } catch (_) {}
       if (!Array.isArray(sources)) sources = [];
       const matched = sources.find((source) => {
-        const match = /^window:(\d+):\d+$/.exec(String(source && source.id || ''));
-        return !!match && match[1] === expectedWindowId
-          && String(source && source.name || '') === 'Mineradio WE DWM Surface';
+        const match = /^window:(\d+):\d+$/.exec(
+          String((source && source.id) || ""),
+        );
+        return (
+          !!match &&
+          match[1] === expectedWindowId &&
+          String((source && source.name) || "") === "Mineradio WE DWM Surface"
+        );
       });
       if (matched) return matched;
       await this.sleep(pollMs);
     }
-    throw runtimeError('WALLPAPER_ENGINE_DWM_GLASS_CAPTURE_SOURCE_TIMEOUT');
+    throw runtimeError("WALLPAPER_ENGINE_DWM_GLASS_CAPTURE_SOURCE_TIMEOUT");
   }
 
   _sessionPointerRelayCanPost(session) {
-    return !!(session
-      && this.platform === 'win32'
-      && !this.disposed
-      && this.active === session
-      && session.stopping !== true
-      && session.windowParking
-      && session.windowParking.parked === true
-      && session.parallaxPointerRelayReady === true
-      && session.parallaxPointerRelayActive === true
-      && session.parallaxPointerRelayProcess
-      && session.parallaxPointerRelayProcess.stdin
-      && session.parallaxPointerRelayProcess.stdin.destroyed !== true);
+    return !!(
+      session &&
+      this.platform === "win32" &&
+      !this.disposed &&
+      this.active === session &&
+      session.stopping !== true &&
+      session.windowParking &&
+      session.windowParking.parked === true &&
+      session.parallaxPointerRelayReady === true &&
+      session.parallaxPointerRelayActive === true &&
+      session.parallaxPointerRelayProcess &&
+      session.parallaxPointerRelayProcess.stdin &&
+      session.parallaxPointerRelayProcess.stdin.destroyed !== true
+    );
   }
 
   _clearSessionPointerRelayTimer(session) {
     if (!session) return;
-    if (session.parallaxPointerRelayTimer) clearTimeout(session.parallaxPointerRelayTimer);
+    if (session.parallaxPointerRelayTimer)
+      clearTimeout(session.parallaxPointerRelayTimer);
     session.parallaxPointerRelayTimer = null;
     session.parallaxPointerRelayPending = false;
   }
 
   _clearSessionPointerRelayRetries(session, ready = false) {
     if (!session || !session.parallaxPointerRelayRetryTimers) return;
-    for (const timer of session.parallaxPointerRelayRetryTimers) clearTimeout(timer);
+    for (const timer of session.parallaxPointerRelayRetryTimers)
+      clearTimeout(timer);
     session.parallaxPointerRelayRetryTimers.clear();
     const resolve = session.parallaxPointerRelayRetryResolve;
-    if (typeof resolve === 'function') {
+    if (typeof resolve === "function") {
       resolve(ready === true);
       return;
     }
@@ -2194,20 +2633,35 @@ class WallpaperEngineRuntime {
   }
 
   _scheduleSessionPointerRelayRetries(session) {
-    if (!session || this.platform !== 'win32' || this.disposed || this.active !== session
-      || session.stopping === true || !session.windowParking || session.windowParking.parked !== true
-      || !session.parallaxPointerRelayRetryTimers) return Promise.resolve(false);
-    if (session.parallaxPointerRelayReady === true && session.parallaxPointerRelayProcess) {
+    if (
+      !session ||
+      this.platform !== "win32" ||
+      this.disposed ||
+      this.active !== session ||
+      session.stopping === true ||
+      !session.windowParking ||
+      session.windowParking.parked !== true ||
+      !session.parallaxPointerRelayRetryTimers
+    )
+      return Promise.resolve(false);
+    if (
+      session.parallaxPointerRelayReady === true &&
+      session.parallaxPointerRelayProcess
+    ) {
       return Promise.resolve(true);
     }
-    if (session.parallaxPointerRelayRetryPromise) return session.parallaxPointerRelayRetryPromise;
+    if (session.parallaxPointerRelayRetryPromise)
+      return session.parallaxPointerRelayRetryPromise;
 
     let settle = null;
-    const operation = new Promise((resolve) => { settle = resolve; });
+    const operation = new Promise((resolve) => {
+      settle = resolve;
+    });
     session.parallaxPointerRelayRetryPromise = operation;
     session.parallaxPointerRelayRetryResolve = (ready) => {
       if (session.parallaxPointerRelayRetryPromise !== operation) return;
-      for (const timer of session.parallaxPointerRelayRetryTimers) clearTimeout(timer);
+      for (const timer of session.parallaxPointerRelayRetryTimers)
+        clearTimeout(timer);
       session.parallaxPointerRelayRetryTimers.clear();
       session.parallaxPointerRelayRetryResolve = null;
       session.parallaxPointerRelayRetryPromise = null;
@@ -2216,13 +2670,21 @@ class WallpaperEngineRuntime {
 
     const scheduleAttempt = (index) => {
       const finish = session.parallaxPointerRelayRetryResolve;
-      if (typeof finish !== 'function') return;
-      if (this.disposed || this.active !== session || session.stopping === true
-        || !session.windowParking || session.windowParking.parked !== true) {
+      if (typeof finish !== "function") return;
+      if (
+        this.disposed ||
+        this.active !== session ||
+        session.stopping === true ||
+        !session.windowParking ||
+        session.windowParking.parked !== true
+      ) {
         finish(false);
         return;
       }
-      if (session.parallaxPointerRelayReady === true && session.parallaxPointerRelayProcess) {
+      if (
+        session.parallaxPointerRelayReady === true &&
+        session.parallaxPointerRelayProcess
+      ) {
         finish(true);
         return;
       }
@@ -2233,18 +2695,25 @@ class WallpaperEngineRuntime {
       const delay = this.pointerRelayRetryDelaysMs[index];
       const timer = setTimeout(() => {
         session.parallaxPointerRelayRetryTimers.delete(timer);
-        if (this.disposed || this.active !== session || session.stopping === true
-          || !session.windowParking || session.windowParking.parked !== true) {
+        if (
+          this.disposed ||
+          this.active !== session ||
+          session.stopping === true ||
+          !session.windowParking ||
+          session.windowParking.parked !== true
+        ) {
           const cancel = session.parallaxPointerRelayRetryResolve;
-          if (typeof cancel === 'function') cancel(false);
+          if (typeof cancel === "function") cancel(false);
           return;
         }
-        this._startSessionPointerRelay(session).then((ready) => {
-          const finishAttempt = session.parallaxPointerRelayRetryResolve;
-          if (typeof finishAttempt !== 'function') return;
-          if (ready) finishAttempt(true);
-          else scheduleAttempt(index + 1);
-        }).catch(() => scheduleAttempt(index + 1));
+        this._startSessionPointerRelay(session)
+          .then((ready) => {
+            const finishAttempt = session.parallaxPointerRelayRetryResolve;
+            if (typeof finishAttempt !== "function") return;
+            if (ready) finishAttempt(true);
+            else scheduleAttempt(index + 1);
+          })
+          .catch(() => scheduleAttempt(index + 1));
       }, delay);
       session.parallaxPointerRelayRetryTimers.add(timer);
     };
@@ -2254,13 +2723,17 @@ class WallpaperEngineRuntime {
 
   _stopSessionPointerRelay(session, options = {}) {
     if (!session) return false;
-    if (options.clearRetries !== false) this._clearSessionPointerRelayRetries(session);
+    if (options.clearRetries !== false)
+      this._clearSessionPointerRelayRetries(session);
     this._clearSessionPointerRelayTimer(session);
     const child = session.parallaxPointerRelayProcess;
     const stdin = child && child.stdin;
-    if (stdin && session.parallaxPointerRelayDrainListener
-      && typeof stdin.removeListener === 'function') {
-      stdin.removeListener('drain', session.parallaxPointerRelayDrainListener);
+    if (
+      stdin &&
+      session.parallaxPointerRelayDrainListener &&
+      typeof stdin.removeListener === "function"
+    ) {
+      stdin.removeListener("drain", session.parallaxPointerRelayDrainListener);
     }
     session.parallaxPointerRelayDrainListener = null;
     session.parallaxPointerRelayBackpressured = false;
@@ -2269,8 +2742,8 @@ class WallpaperEngineRuntime {
     session.parallaxPointerRelayProcess = null;
     session.parallaxPointerRelayHelperPid = 0;
     session.parallaxPointerRelayTargetWindowId = 0;
-    session.parallaxPointerRelayTargetClass = '';
-    session.parallaxPointerRelayTargetTitle = '';
+    session.parallaxPointerRelayTargetClass = "";
+    session.parallaxPointerRelayTargetTitle = "";
     session.parallaxPointerRelayLastPostedAt = 0;
     session.parallaxPointerRelayLatestX = null;
     session.parallaxPointerRelayLatestY = null;
@@ -2278,74 +2751,111 @@ class WallpaperEngineRuntime {
 
     try {
       if (stdin && stdin.destroyed !== true && stdin.writableEnded !== true) {
-        stdin.write('Q\n', 'ascii');
+        stdin.write("Q\n", "ascii");
         stdin.end();
       }
-    } catch (_) { }
+    } catch (_) {}
     let exited = false;
-    const markExited = () => { exited = true; };
-    if (typeof child.once === 'function') child.once('exit', markExited);
+    const markExited = () => {
+      exited = true;
+    };
+    if (typeof child.once === "function") child.once("exit", markExited);
     const killTimer = setTimeout(() => {
-      if (exited || typeof child.kill !== 'function') return;
-      try { child.kill(); } catch (_) { }
+      if (exited || typeof child.kill !== "function") return;
+      try {
+        child.kill();
+      } catch (_) {}
     }, POINTER_RELAY_STOP_TIMEOUT_MS);
-    if (killTimer && typeof killTimer.unref === 'function') killTimer.unref();
-    if (typeof child.once === 'function') child.once('exit', () => clearTimeout(killTimer));
+    if (killTimer && typeof killTimer.unref === "function") killTimer.unref();
+    if (typeof child.once === "function")
+      child.once("exit", () => clearTimeout(killTimer));
     return true;
   }
 
   async _startSessionPointerRelay(session) {
-    if (!session || this.platform !== 'win32' || this.disposed || this.active !== session
-      || session.stopping === true || !session.windowParking || session.windowParking.parked !== true) return false;
-    if (session.parallaxPointerRelayReady === true && session.parallaxPointerRelayProcess) {
+    if (
+      !session ||
+      this.platform !== "win32" ||
+      this.disposed ||
+      this.active !== session ||
+      session.stopping === true ||
+      !session.windowParking ||
+      session.windowParking.parked !== true
+    )
+      return false;
+    if (
+      session.parallaxPointerRelayReady === true &&
+      session.parallaxPointerRelayProcess
+    ) {
       session.parallaxPointerRelayActive = true;
       this._clearSessionPointerRelayRetries(session, true);
       return true;
     }
-    if (session.parallaxPointerRelayStartPromise) return session.parallaxPointerRelayStartPromise;
+    if (session.parallaxPointerRelayStartPromise)
+      return session.parallaxPointerRelayStartPromise;
 
-    const sourceId = String(session.windowSourceId || session.sourceId || '');
-    const hostWindowId = String(session.parallaxPointerHostWindowId || '');
-    const hostExecutable = String(session.parallaxPointerHostExecutable || '');
-    if (!/^window:\d+:\d+$/.test(sourceId) || !/^\d+$/.test(hostWindowId)
-      || !session.locationTitle || !session.executable || !hostExecutable) return false;
+    const sourceId = String(session.windowSourceId || session.sourceId || "");
+    const hostWindowId = String(session.parallaxPointerHostWindowId || "");
+    const hostExecutable = String(session.parallaxPointerHostExecutable || "");
+    if (
+      !/^window:\d+:\d+$/.test(sourceId) ||
+      !/^\d+$/.test(hostWindowId) ||
+      !session.locationTitle ||
+      !session.executable ||
+      !hostExecutable
+    )
+      return false;
 
     const operation = (async () => {
       let child;
       try {
-        child = this.pointerRelaySpawn(this.powerShellExecutable, [
-          '-NoLogo',
-          '-NoProfile',
-          '-NonInteractive',
-          '-EncodedCommand',
-          nativeParallaxPointerRelayScript(),
-        ], {
-          windowsHide: true,
-          shell: false,
-          stdio: ['pipe', 'pipe', 'pipe'],
-          env: this._powerShellEnv({
-            MINERADIO_WE_POINTER_SOURCE_ID: sourceId,
-            MINERADIO_WE_POINTER_SOURCE_TITLE: session.locationTitle,
-            MINERADIO_WE_POINTER_SOURCE_EXECUTABLE: session.executable,
-            MINERADIO_WE_POINTER_HOST_WINDOW_ID: hostWindowId,
-            MINERADIO_WE_POINTER_HOST_EXECUTABLE: hostExecutable,
-            MINERADIO_WE_POINTER_SESSION_ID: session.sessionId,
-          }),
-        });
+        child = this.pointerRelaySpawn(
+          this.powerShellExecutable,
+          [
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-EncodedCommand",
+            nativeParallaxPointerRelayScript(),
+          ],
+          {
+            windowsHide: true,
+            shell: false,
+            stdio: ["pipe", "pipe", "pipe"],
+            env: this._powerShellEnv({
+              MINERADIO_WE_POINTER_SOURCE_ID: sourceId,
+              MINERADIO_WE_POINTER_SOURCE_TITLE: session.locationTitle,
+              MINERADIO_WE_POINTER_SOURCE_EXECUTABLE: session.executable,
+              MINERADIO_WE_POINTER_HOST_WINDOW_ID: hostWindowId,
+              MINERADIO_WE_POINTER_HOST_EXECUTABLE: hostExecutable,
+              MINERADIO_WE_POINTER_SESSION_ID: session.sessionId,
+            }),
+          },
+        );
       } catch (_) {
         return false;
       }
-      if (!child || !child.stdin || !child.stdout || typeof child.stdout.on !== 'function') {
-        try { if (child && typeof child.kill === 'function') child.kill(); } catch (_) { }
+      if (
+        !child ||
+        !child.stdin ||
+        !child.stdout ||
+        typeof child.stdout.on !== "function"
+      ) {
+        try {
+          if (child && typeof child.kill === "function") child.kill();
+        } catch (_) {}
         return false;
       }
 
       session.parallaxPointerRelayProcess = child;
-      session.parallaxPointerRelayHelperPid = Math.max(0, Number(child.pid) || 0);
+      session.parallaxPointerRelayHelperPid = Math.max(
+        0,
+        Number(child.pid) || 0,
+      );
       session.parallaxPointerRelayReady = false;
       session.parallaxPointerRelayActive = false;
-      let stdout = '';
-      let stderr = '';
+      let stdout = "";
+      let stderr = "";
       let settled = false;
       const ready = await new Promise((resolve) => {
         let timeout = null;
@@ -2355,48 +2865,70 @@ class WallpaperEngineRuntime {
           if (timeout) clearTimeout(timeout);
           resolve(value === true);
         };
-        timeout = setTimeout(() => finish(false), this.pointerRelayStartTimeoutMs);
-        if (child.stdout && typeof child.stdout.setEncoding === 'function') child.stdout.setEncoding('utf8');
-        if (child.stderr && typeof child.stderr.setEncoding === 'function') child.stderr.setEncoding('utf8');
-        child.stdout.on('data', (chunk) => {
+        timeout = setTimeout(
+          () => finish(false),
+          this.pointerRelayStartTimeoutMs,
+        );
+        if (child.stdout && typeof child.stdout.setEncoding === "function")
+          child.stdout.setEncoding("utf8");
+        if (child.stderr && typeof child.stderr.setEncoding === "function")
+          child.stderr.setEncoding("utf8");
+        child.stdout.on("data", (chunk) => {
           if (settled) return;
-          stdout = `${stdout}${String(chunk || '')}`.slice(-8192);
+          stdout = `${stdout}${String(chunk || "")}`.slice(-8192);
           const lines = stdout.split(/\r?\n/);
-          stdout = lines.pop() || '';
+          stdout = lines.pop() || "";
           for (const line of lines) {
             const trimmed = line.trim();
             if (!/^\{.*\}$/.test(trimmed)) continue;
             try {
               const result = JSON.parse(trimmed);
-              if (result && result.ok === true && result.ready === true
-                && Number(result.sourceProcessId) > 0 && Number(result.hostProcessId) > 0
-                && Number(result.sceneInputWindowHandle) > 0) {
-                session.parallaxPointerRelayTargetWindowId = Math.max(0,
-                  Number(result.sceneInputWindowHandle) || 0);
-                session.parallaxPointerRelayTargetClass = 'WPEDesktopDX11Window';
-                session.parallaxPointerRelayTargetTitle = 'WPELiveWallpaper';
+              if (
+                result &&
+                result.ok === true &&
+                result.ready === true &&
+                Number(result.sourceProcessId) > 0 &&
+                Number(result.hostProcessId) > 0 &&
+                Number(result.sceneInputWindowHandle) > 0
+              ) {
+                session.parallaxPointerRelayTargetWindowId = Math.max(
+                  0,
+                  Number(result.sceneInputWindowHandle) || 0,
+                );
+                session.parallaxPointerRelayTargetClass =
+                  "WPEDesktopDX11Window";
+                session.parallaxPointerRelayTargetTitle = "WPELiveWallpaper";
                 finish(true);
                 return;
               }
-            } catch (_) { }
+            } catch (_) {}
           }
         });
-        if (child.stderr && typeof child.stderr.on === 'function') {
-          child.stderr.on('data', (chunk) => {
-            if (stderr.length < 2048) stderr = `${stderr}${String(chunk || '')}`.slice(0, 2048);
+        if (child.stderr && typeof child.stderr.on === "function") {
+          child.stderr.on("data", (chunk) => {
+            if (stderr.length < 2048)
+              stderr = `${stderr}${String(chunk || "")}`.slice(0, 2048);
           });
         }
-        if (typeof child.once === 'function') {
-          child.once('error', () => finish(false));
-          child.once('exit', () => finish(false));
+        if (typeof child.once === "function") {
+          child.once("error", () => finish(false));
+          child.once("exit", () => finish(false));
         }
       });
 
-      if (!ready || this.active !== session || this.disposed || session.stopping === true
-        || !session.windowParking || session.windowParking.parked !== true
-        || session.parallaxPointerRelayProcess !== child) {
+      if (
+        !ready ||
+        this.active !== session ||
+        this.disposed ||
+        session.stopping === true ||
+        !session.windowParking ||
+        session.windowParking.parked !== true ||
+        session.parallaxPointerRelayProcess !== child
+      ) {
         if (!ready && stderr.trim()) {
-          console.warn(`[Wallpaper Engine] native parallax pointer relay unavailable: ${stderr.trim().replace(/\s+/g, ' ').slice(0, 300)}`);
+          console.warn(
+            `[Wallpaper Engine] native parallax pointer relay unavailable: ${stderr.trim().replace(/\s+/g, " ").slice(0, 300)}`,
+          );
         }
         if (session.parallaxPointerRelayProcess === child) {
           this._stopSessionPointerRelay(session, { clearRetries: false });
@@ -2407,8 +2939,8 @@ class WallpaperEngineRuntime {
       session.parallaxPointerRelayReady = true;
       session.parallaxPointerRelayActive = true;
       this._clearSessionPointerRelayRetries(session, true);
-      if (typeof child.once === 'function') {
-        child.once('exit', () => {
+      if (typeof child.once === "function") {
+        child.once("exit", () => {
           if (session.parallaxPointerRelayProcess !== child) return;
           this._clearSessionPointerRelayTimer(session);
           session.parallaxPointerRelayProcess = null;
@@ -2433,26 +2965,44 @@ class WallpaperEngineRuntime {
   }
 
   _scheduleSessionPointerRelayFlush(session) {
-    if (!this._sessionPointerRelayCanPost(session)
-      || session.parallaxPointerRelayBackpressured === true
-      || session.parallaxPointerRelayTimer) return false;
-    const targetFps = Math.max(MIN_FPS, Math.min(POINTER_RELAY_MAX_FPS, Number(session.fps) || DEFAULT_FPS));
+    if (
+      !this._sessionPointerRelayCanPost(session) ||
+      session.parallaxPointerRelayBackpressured === true ||
+      session.parallaxPointerRelayTimer
+    )
+      return false;
+    const targetFps = Math.max(
+      MIN_FPS,
+      Math.min(POINTER_RELAY_MAX_FPS, Number(session.fps) || DEFAULT_FPS),
+    );
     const interval = 1000 / targetFps;
     const now = Number(this.now()) || Date.now();
-    const delay = Math.max(0, Number(session.parallaxPointerRelayLastPostedAt) + interval - now);
+    const delay = Math.max(
+      0,
+      Number(session.parallaxPointerRelayLastPostedAt) + interval - now,
+    );
     if (delay <= 0) return this._flushSessionPointerRelay(session);
-    session.parallaxPointerRelayTimer = setTimeout(() => {
-      session.parallaxPointerRelayTimer = null;
-      this._flushSessionPointerRelay(session);
-    }, Math.max(1, Math.ceil(delay)));
-    if (session.parallaxPointerRelayTimer && typeof session.parallaxPointerRelayTimer.unref === 'function') {
+    session.parallaxPointerRelayTimer = setTimeout(
+      () => {
+        session.parallaxPointerRelayTimer = null;
+        this._flushSessionPointerRelay(session);
+      },
+      Math.max(1, Math.ceil(delay)),
+    );
+    if (
+      session.parallaxPointerRelayTimer &&
+      typeof session.parallaxPointerRelayTimer.unref === "function"
+    ) {
       session.parallaxPointerRelayTimer.unref();
     }
     return true;
   }
 
   _flushSessionPointerRelay(session) {
-    if (!this._sessionPointerRelayCanPost(session) || session.parallaxPointerRelayPending !== true) {
+    if (
+      !this._sessionPointerRelayCanPost(session) ||
+      session.parallaxPointerRelayPending !== true
+    ) {
       if (session) session.parallaxPointerRelayPending = false;
       return false;
     }
@@ -2460,21 +3010,35 @@ class WallpaperEngineRuntime {
     const stdin = child && child.stdin;
     session.parallaxPointerRelayPending = false;
     try {
-      const xUnit = Math.max(0, Math.min(65535, Math.round(Number(session.parallaxPointerRelayLatestX))));
-      const yUnit = Math.max(0, Math.min(65535, Math.round(Number(session.parallaxPointerRelayLatestY))));
-      const writable = stdin.write(`M:${xUnit}:${yUnit}\n`, 'ascii');
+      const xUnit = Math.max(
+        0,
+        Math.min(
+          65535,
+          Math.round(Number(session.parallaxPointerRelayLatestX)),
+        ),
+      );
+      const yUnit = Math.max(
+        0,
+        Math.min(
+          65535,
+          Math.round(Number(session.parallaxPointerRelayLatestY)),
+        ),
+      );
+      const writable = stdin.write(`M:${xUnit}:${yUnit}\n`, "ascii");
       session.parallaxPointerRelayPosted += 1;
-      session.parallaxPointerRelayLastPostedAt = Number(this.now()) || Date.now();
+      session.parallaxPointerRelayLastPostedAt =
+        Number(this.now()) || Date.now();
       if (writable === false) {
         session.parallaxPointerRelayBackpressured = true;
         const drain = () => {
           if (session.parallaxPointerRelayDrainListener !== drain) return;
           session.parallaxPointerRelayDrainListener = null;
           session.parallaxPointerRelayBackpressured = false;
-          if (session.parallaxPointerRelayPending) this._scheduleSessionPointerRelayFlush(session);
+          if (session.parallaxPointerRelayPending)
+            this._scheduleSessionPointerRelayFlush(session);
         };
         session.parallaxPointerRelayDrainListener = drain;
-        if (typeof stdin.once === 'function') stdin.once('drain', drain);
+        if (typeof stdin.once === "function") stdin.once("drain", drain);
       }
       return true;
     } catch (_) {
@@ -2483,30 +3047,41 @@ class WallpaperEngineRuntime {
     }
   }
 
-  noteHostPointerActivity(expectedSessionId = '', coordinates = null) {
-    if (expectedSessionId && typeof expectedSessionId === 'object') {
+  noteHostPointerActivity(expectedSessionId = "", coordinates = null) {
+    if (expectedSessionId && typeof expectedSessionId === "object") {
       coordinates = expectedSessionId;
-      expectedSessionId = coordinates.sessionId || '';
+      expectedSessionId = coordinates.sessionId || "";
     }
     const session = this.active;
-    expectedSessionId = String(expectedSessionId || '');
-    coordinates = coordinates && typeof coordinates === 'object' ? coordinates : null;
+    expectedSessionId = String(expectedSessionId || "");
+    coordinates =
+      coordinates && typeof coordinates === "object" ? coordinates : null;
     const rawXUnit = coordinates && coordinates.xUnit;
     const rawYUnit = coordinates && coordinates.yUnit;
     const xUnit = Math.round(rawXUnit);
     const yUnit = Math.round(rawYUnit);
-    if (!this._sessionPointerRelayCanPost(session)
-      || !expectedSessionId
-      || session.sessionId !== expectedSessionId
-      || typeof rawXUnit !== 'number' || typeof rawYUnit !== 'number'
-      || !Number.isFinite(xUnit) || !Number.isFinite(yUnit)
-      || xUnit < 0 || xUnit > 65535 || yUnit < 0 || yUnit > 65535) return false;
+    if (
+      !this._sessionPointerRelayCanPost(session) ||
+      !expectedSessionId ||
+      session.sessionId !== expectedSessionId ||
+      typeof rawXUnit !== "number" ||
+      typeof rawYUnit !== "number" ||
+      !Number.isFinite(xUnit) ||
+      !Number.isFinite(yUnit) ||
+      xUnit < 0 ||
+      xUnit > 65535 ||
+      yUnit < 0 ||
+      yUnit > 65535
+    )
+      return false;
     session.parallaxPointerRelayLatestX = xUnit;
     session.parallaxPointerRelayLatestY = yUnit;
     session.parallaxPointerRelayQueued += 1;
-    if (session.parallaxPointerRelayPending === true
-      || session.parallaxPointerRelayTimer
-      || session.parallaxPointerRelayBackpressured === true) {
+    if (
+      session.parallaxPointerRelayPending === true ||
+      session.parallaxPointerRelayTimer ||
+      session.parallaxPointerRelayBackpressured === true
+    ) {
       session.parallaxPointerRelayCoalesced += 1;
     }
     session.parallaxPointerRelayPending = true;
@@ -2515,87 +3090,120 @@ class WallpaperEngineRuntime {
   }
 
   async _nativeWindowControl(action, details = {}) {
-    const sourceId = String(details.sourceId || '');
-    if (!/^window:\d+:\d+$/.test(sourceId)) throw runtimeError('WALLPAPER_ENGINE_WINDOW_SOURCE_INVALID');
+    const sourceId = String(details.sourceId || "");
+    if (!/^window:\d+:\d+$/.test(sourceId))
+      throw runtimeError("WALLPAPER_ENGINE_WINDOW_SOURCE_INVALID");
     return new Promise((resolve, reject) => {
       let settled = false;
       const finish = (error, stdout, stderr) => {
         if (settled) return;
         settled = true;
         if (error) {
-          const detail = String(stderr || error.message || error || '').trim().slice(0, 500);
-          if (detail) console.warn(`[Wallpaper Engine] source window ${action} failed: ${detail}`);
-          reject(runtimeError(action === 'close'
-            ? 'WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED'
-            : 'WALLPAPER_ENGINE_WINDOW_ISOLATION_FAILED'));
+          const detail = String(stderr || error.message || error || "")
+            .trim()
+            .slice(0, 500);
+          if (detail)
+            console.warn(
+              `[Wallpaper Engine] source window ${action} failed: ${detail}`,
+            );
+          reject(
+            runtimeError(
+              action === "close"
+                ? "WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED"
+                : "WALLPAPER_ENGINE_WINDOW_ISOLATION_FAILED",
+            ),
+          );
           return;
         }
         try {
-          const jsonLine = String(stdout || '').split(/\r?\n/).map((line) => line.trim()).reverse().find((line) => /^\{.*\}$/.test(line));
+          const jsonLine = String(stdout || "")
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .reverse()
+            .find((line) => /^\{.*\}$/.test(line));
           const result = jsonLine ? JSON.parse(jsonLine) : null;
-          if (!result || result.ok !== true) throw new Error('invalid native window result');
+          if (!result || result.ok !== true)
+            throw new Error("invalid native window result");
           resolve(result);
         } catch (_) {
-          reject(runtimeError(action === 'close'
-            ? 'WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED'
-            : 'WALLPAPER_ENGINE_WINDOW_ISOLATION_FAILED'));
+          reject(
+            runtimeError(
+              action === "close"
+                ? "WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED"
+                : "WALLPAPER_ENGINE_WINDOW_ISOLATION_FAILED",
+            ),
+          );
         }
       };
       try {
-        this.nativeExecFile(this.powerShellExecutable, [
-          '-NoLogo',
-          '-NoProfile',
-          '-NonInteractive',
-          '-EncodedCommand',
-          nativeWindowControlScript(),
-        ], {
-          encoding: 'utf8',
-          windowsHide: true,
-          timeout: 15000,
-          maxBuffer: 128 * 1024,
-          shell: false,
-          env: this._powerShellEnv({
-            MINERADIO_WE_WINDOW_ACTION: String(action || ''),
-            MINERADIO_WE_WINDOW_SOURCE_ID: sourceId,
-            MINERADIO_WE_WINDOW_TITLE: String(details.locationTitle || ''),
-            MINERADIO_WE_WINDOW_EXECUTABLE: String(details.executable || ''),
-            MINERADIO_WE_HOST_WINDOW_ID: String(details.hostWindowId || ''),
-            MINERADIO_WE_HOST_EXECUTABLE: String(details.hostExecutable || ''),
-            MINERADIO_WE_HOST_CORNER_RADIUS: String(Math.max(0, Math.min(512, Number(details.cornerRadius) || 0))),
-          }),
-        }, finish);
+        this.nativeExecFile(
+          this.powerShellExecutable,
+          [
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-EncodedCommand",
+            nativeWindowControlScript(),
+          ],
+          {
+            encoding: "utf8",
+            windowsHide: true,
+            timeout: 15000,
+            maxBuffer: 128 * 1024,
+            shell: false,
+            env: this._powerShellEnv({
+              MINERADIO_WE_WINDOW_ACTION: String(action || ""),
+              MINERADIO_WE_WINDOW_SOURCE_ID: sourceId,
+              MINERADIO_WE_WINDOW_TITLE: String(details.locationTitle || ""),
+              MINERADIO_WE_WINDOW_EXECUTABLE: String(details.executable || ""),
+              MINERADIO_WE_HOST_WINDOW_ID: String(details.hostWindowId || ""),
+              MINERADIO_WE_HOST_EXECUTABLE: String(
+                details.hostExecutable || "",
+              ),
+              MINERADIO_WE_HOST_CORNER_RADIUS: String(
+                Math.max(0, Math.min(512, Number(details.cornerRadius) || 0)),
+              ),
+            }),
+          },
+          finish,
+        );
       } catch (error) {
         finish(error);
       }
     });
   }
 
-  async _controlSessionWindow(action, session, sourceId = '', host = {}) {
+  async _controlSessionWindow(action, session, sourceId = "", host = {}) {
     if (!session || !session.executable || !session.locationTitle) {
-      throw runtimeError('WALLPAPER_ENGINE_WINDOW_SESSION_INVALID');
+      throw runtimeError("WALLPAPER_ENGINE_WINDOW_SESSION_INVALID");
     }
-    const effectiveSourceId = String(sourceId || session.windowSourceId || session.sourceId || '');
+    const effectiveSourceId = String(
+      sourceId || session.windowSourceId || session.sourceId || "",
+    );
     const result = await this.windowController(action, {
       sourceId: effectiveSourceId,
       locationTitle: session.locationTitle,
       executable: session.executable,
-      hostWindowId: String(host.hostWindowId || ''),
-      hostExecutable: String(host.hostExecutable || ''),
+      hostWindowId: String(host.hostWindowId || ""),
+      hostExecutable: String(host.hostExecutable || ""),
       cornerRadius: Math.max(0, Math.min(512, Number(host.cornerRadius) || 0)),
     });
-    if (!result || result.ok !== true) throw runtimeError(action === 'close'
-      ? 'WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED'
-      : 'WALLPAPER_ENGINE_WINDOW_ISOLATION_FAILED');
-    if (action === 'embed') {
+    if (!result || result.ok !== true)
+      throw runtimeError(
+        action === "close"
+          ? "WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED"
+          : "WALLPAPER_ENGINE_WINDOW_ISOLATION_FAILED",
+      );
+    if (action === "embed") {
       if (result.missing === true || result.embedded !== true) {
-        throw runtimeError('WALLPAPER_ENGINE_WINDOW_ISOLATION_FAILED');
+        throw runtimeError("WALLPAPER_ENGINE_WINDOW_ISOLATION_FAILED");
       }
       session.windowSourceId = effectiveSourceId;
       session.windowEmbedding = result;
       session.windowParking = null;
-    } else if (action === 'park') {
+    } else if (action === "park") {
       if (result.missing === true || result.parked !== true) {
-        throw runtimeError('WALLPAPER_ENGINE_WINDOW_ISOLATION_FAILED');
+        throw runtimeError("WALLPAPER_ENGINE_WINDOW_ISOLATION_FAILED");
       }
       session.windowSourceId = effectiveSourceId;
       session.windowParking = result;
@@ -2604,63 +3212,100 @@ class WallpaperEngineRuntime {
   }
 
   async _runTransientControl(executable, args) {
-    if (this.useDesktopShellBroker && await this._hostIsElevated()) {
-      return this._spawnControlViaDesktopShell(executable, args, { waitForExit: true });
+    if (this.useDesktopShellBroker && (await this._hostIsElevated())) {
+      return this._spawnControlViaDesktopShell(executable, args, {
+        waitForExit: true,
+      });
     }
     return new Promise((resolve, reject) => {
       try {
         const verbatimArgs = verbatimWallpaperControlArguments(args);
-        const controlExecutable = verbatimArgs ? path.basename(executable) : executable;
+        const controlExecutable = verbatimArgs
+          ? path.basename(executable)
+          : executable;
         const controlArgs = verbatimArgs || args;
-        this.controlExecFile(controlExecutable, controlArgs, {
-          encoding: 'utf8',
-          windowsHide: true,
-          timeout: 3500,
-          maxBuffer: 32 * 1024,
-          shell: false,
-          windowsVerbatimArguments: !!verbatimArgs,
-          ...(verbatimArgs ? { cwd: path.dirname(executable) } : {}),
-        }, (error, _stdout, stderr) => {
-          if (error) {
-            const action = String(args && args[1] || 'control').replace(/[^a-z0-9_-]/gi, '').slice(0, 48) || 'control';
-            const detail = String(stderr || error.message || error || '').trim().replace(/\s+/g, ' ').slice(0, 500);
-            console.warn(`[Wallpaper Engine] ${action} command failed${detail ? `: ${detail}` : ''}`);
-            reject(runtimeError('WALLPAPER_ENGINE_CONTROL_FAILED'));
-          }
-          else resolve();
-        });
+        this.controlExecFile(
+          controlExecutable,
+          controlArgs,
+          {
+            encoding: "utf8",
+            windowsHide: true,
+            timeout: 3500,
+            maxBuffer: 32 * 1024,
+            shell: false,
+            windowsVerbatimArguments: !!verbatimArgs,
+            ...(verbatimArgs ? { cwd: path.dirname(executable) } : {}),
+          },
+          (error, _stdout, stderr) => {
+            if (error) {
+              const action =
+                String((args && args[1]) || "control")
+                  .replace(/[^a-z0-9_-]/gi, "")
+                  .slice(0, 48) || "control";
+              const detail = String(stderr || error.message || error || "")
+                .trim()
+                .replace(/\s+/g, " ")
+                .slice(0, 500);
+              console.warn(
+                `[Wallpaper Engine] ${action} command failed${detail ? `: ${detail}` : ""}`,
+              );
+              reject(runtimeError("WALLPAPER_ENGINE_CONTROL_FAILED"));
+            } else resolve();
+          },
+        );
       } catch (_) {
-        reject(runtimeError('WALLPAPER_ENGINE_CONTROL_FAILED'));
+        reject(runtimeError("WALLPAPER_ENGINE_CONTROL_FAILED"));
       }
     });
   }
 
   async _prepareSilentLaunchFile(session, projectFile, scenePackage) {
-    if (!session || !projectFile || !scenePackage) return projectFile || scenePackage;
+    if (!session || !projectFile || !scenePackage)
+      return projectFile || scenePackage;
     let project;
     try {
       const stat = await fs.promises.stat(projectFile);
       if (!stat.isFile() || stat.size <= 0 || stat.size > 1024 * 1024) {
-        throw runtimeError('WALLPAPER_ENGINE_SILENT_STAGE_FAILED');
+        throw runtimeError("WALLPAPER_ENGINE_SILENT_STAGE_FAILED");
       }
-      const raw = await fs.promises.readFile(projectFile, 'utf8');
-      project = JSON.parse(raw.replace(/^\uFEFF/, ''));
+      const raw = await fs.promises.readFile(projectFile, "utf8");
+      project = JSON.parse(raw.replace(/^\uFEFF/, ""));
     } catch (error) {
-      if (error && error.code === 'WALLPAPER_ENGINE_SILENT_STAGE_FAILED') throw error;
-      throw runtimeError('WALLPAPER_ENGINE_SILENT_STAGE_FAILED');
+      if (error && error.code === "WALLPAPER_ENGINE_SILENT_STAGE_FAILED")
+        throw error;
+      throw runtimeError("WALLPAPER_ENGINE_SILENT_STAGE_FAILED");
     }
-    if (!project || typeof project !== 'object' || Array.isArray(project)
-      || String(project.type || '').trim().toLowerCase() !== 'scene') {
-      throw runtimeError('WALLPAPER_ENGINE_SILENT_STAGE_FAILED');
+    if (
+      !project ||
+      typeof project !== "object" ||
+      Array.isArray(project) ||
+      String(project.type || "")
+        .trim()
+        .toLowerCase() !== "scene"
+    ) {
+      throw runtimeError("WALLPAPER_ENGINE_SILENT_STAGE_FAILED");
     }
     const properties = project.general && project.general.properties;
     const muteProperties = sanitizeMuteProperties(session.muteProperties);
     let stagedPropertyCount = 0;
-    if (properties && typeof properties === 'object' && !Array.isArray(properties)) {
+    if (
+      properties &&
+      typeof properties === "object" &&
+      !Array.isArray(properties)
+    ) {
       for (const [key, value] of Object.entries(muteProperties)) {
-        if (key.toLowerCase() === 'volume' || !Object.prototype.hasOwnProperty.call(properties, key)) continue;
+        if (
+          key.toLowerCase() === "volume" ||
+          !Object.prototype.hasOwnProperty.call(properties, key)
+        )
+          continue;
         const property = properties[key];
-        if (!property || typeof property !== 'object' || Array.isArray(property)) continue;
+        if (
+          !property ||
+          typeof property !== "object" ||
+          Array.isArray(property)
+        )
+          continue;
         property.value = value;
         stagedPropertyCount += 1;
       }
@@ -2668,56 +3313,88 @@ class WallpaperEngineRuntime {
 
     let stagedScenePackage = scenePackage;
     try {
-      stagedScenePackage = await this._prepareMutedScenePackage(session, scenePackage);
+      stagedScenePackage = await this._prepareMutedScenePackage(
+        session,
+        scenePackage,
+      );
     } catch (error) {
-      console.warn('[Wallpaper Engine] cached Scene audio patch unavailable, using property-only suppression:', error && (error.code || error.message) || error);
+      console.warn(
+        "[Wallpaper Engine] cached Scene audio patch unavailable, using property-only suppression:",
+        (error && (error.code || error.message)) || error,
+      );
       session.patchedSceneAudioObjectCount = 0;
-      session.mutedScenePackageCacheFile = '';
+      session.mutedScenePackageCacheFile = "";
     }
-    if (!stagedPropertyCount && stagedScenePackage === scenePackage) return projectFile;
+    if (!stagedPropertyCount && stagedScenePackage === scenePackage)
+      return projectFile;
 
-    const nativeVolume = path.parse(path.resolve(this.nativeTempPath)).root.toLowerCase();
-    const packageVolume = path.parse(path.resolve(scenePackage)).root.toLowerCase();
-    const preferredStageRoot = nativeVolume === packageVolume
-      ? path.resolve(this.nativeTempPath, 'wallpaper-engine-scene-stage')
-      : path.resolve(path.parse(scenePackage).root, 'MineradioCache', 'wallpaper-engine-scene-stage');
+    const nativeVolume = path
+      .parse(path.resolve(this.nativeTempPath))
+      .root.toLowerCase();
+    const packageVolume = path
+      .parse(path.resolve(scenePackage))
+      .root.toLowerCase();
+    const preferredStageRoot =
+      nativeVolume === packageVolume
+        ? path.resolve(this.nativeTempPath, "wallpaper-engine-scene-stage")
+        : path.resolve(
+            path.parse(scenePackage).root,
+            "MineradioCache",
+            "wallpaper-engine-scene-stage",
+          );
     let stageRoot = preferredStageRoot;
     try {
       await fs.promises.mkdir(stageRoot, { recursive: true });
     } catch (_) {
-      stageRoot = path.resolve(path.dirname(scenePackage), '.mineradio-scene-stage');
+      stageRoot = path.resolve(
+        path.dirname(scenePackage),
+        ".mineradio-scene-stage",
+      );
       await fs.promises.mkdir(stageRoot, { recursive: true });
     }
     const stageDirectory = path.resolve(stageRoot, session.sessionId);
     const relative = path.relative(stageRoot, stageDirectory);
-    if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
-      throw runtimeError('WALLPAPER_ENGINE_SILENT_STAGE_FAILED');
+    if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+      throw runtimeError("WALLPAPER_ENGINE_SILENT_STAGE_FAILED");
     }
     await fs.promises.rm(stageDirectory, { recursive: true, force: true });
     await fs.promises.mkdir(stageDirectory, { recursive: true });
-    const manifestFile = String(project.file || '').replace(/\\/g, '/');
-    const manifestPackageName = /(?:^|\/)([^/]+\.(?:pkg|pak))$/i.exec(manifestFile);
-    const stagedPackageName = manifestPackageName && /^[a-z0-9_. -]{1,180}\.(?:pkg|pak)$/i.test(manifestPackageName[1])
-      ? manifestPackageName[1]
-      : 'scene.pkg';
+    const manifestFile = String(project.file || "").replace(/\\/g, "/");
+    const manifestPackageName = /(?:^|\/)([^/]+\.(?:pkg|pak))$/i.exec(
+      manifestFile,
+    );
+    const stagedPackageName =
+      manifestPackageName &&
+      /^[a-z0-9_. -]{1,180}\.(?:pkg|pak)$/i.test(manifestPackageName[1])
+        ? manifestPackageName[1]
+        : "scene.pkg";
     if (manifestPackageName) project.file = stagedPackageName;
     const stagedPackageFile = path.join(stageDirectory, stagedPackageName);
-    const stagedProjectFile = path.join(stageDirectory, 'project.json');
-    const temporaryFile = stagedProjectFile + '.tmp';
+    const stagedProjectFile = path.join(stageDirectory, "project.json");
+    const temporaryFile = stagedProjectFile + ".tmp";
     try {
       try {
         await fs.promises.link(stagedScenePackage, stagedPackageFile);
       } catch (_) {
         await fs.promises.copyFile(stagedScenePackage, stagedPackageFile);
       }
-      await fs.promises.writeFile(temporaryFile, JSON.stringify(project), 'utf8');
+      await fs.promises.writeFile(
+        temporaryFile,
+        JSON.stringify(project),
+        "utf8",
+      );
       await fs.promises.rename(temporaryFile, stagedProjectFile);
     } catch (error) {
-      try { await fs.promises.rm(stageDirectory, { recursive: true, force: true }); } catch (_) { }
-      console.warn('[Wallpaper Engine] silent Scene staging unavailable, using original project:', error && error.message || error);
+      try {
+        await fs.promises.rm(stageDirectory, { recursive: true, force: true });
+      } catch (_) {}
+      console.warn(
+        "[Wallpaper Engine] silent Scene staging unavailable, using original project:",
+        (error && error.message) || error,
+      );
       session.stagedAudioPropertyCount = 0;
       session.patchedSceneAudioObjectCount = 0;
-      session.mutedScenePackageCacheFile = '';
+      session.mutedScenePackageCacheFile = "";
       return projectFile;
     }
     session.stagedProjectRoot = stageDirectory;
@@ -2733,33 +3410,51 @@ class WallpaperEngineRuntime {
     const audioObjectCount = forceSceneAudioSilent(patchedScene);
     if (!audioObjectCount) return scenePackage;
     const patchedBuffer = encodePatchedScene(patchedScene, source.sceneLength);
-    const cacheRoot = path.resolve(this.nativeTempPath, 'wallpaper-engine-muted-package-cache');
+    const cacheRoot = path.resolve(
+      this.nativeTempPath,
+      "wallpaper-engine-muted-package-cache",
+    );
     await fs.promises.mkdir(cacheRoot, { recursive: true });
-    const sourceIdentity = crypto.createHash('sha256')
+    const sourceIdentity = crypto
+      .createHash("sha256")
       .update(String(MUTED_SCENE_PACKAGE_CACHE_VERSION))
-      .update('\0')
+      .update("\0")
       .update(path.resolve(scenePackage).toLowerCase())
-      .update('\0')
+      .update("\0")
       .update(String(source.packageSize))
-      .update('\0')
+      .update("\0")
       .update(String(Math.round(source.packageMtimeMs)))
-      .digest('hex');
+      .digest("hex");
     const cachedFile = path.join(cacheRoot, `${sourceIdentity}.pkg`);
     const cachedStat = await statFile(cachedFile);
-    const cachedPackageIsValid = !!cachedStat
-      && cachedStat.size === source.packageSize
-      && await validateMutedScenePackage(cachedFile, source.packageSize, audioObjectCount);
+    const cachedPackageIsValid =
+      !!cachedStat &&
+      cachedStat.size === source.packageSize &&
+      (await validateMutedScenePackage(
+        cachedFile,
+        source.packageSize,
+        audioObjectCount,
+      ));
     if (!cachedPackageIsValid) {
       if (cachedStat) await fs.promises.rm(cachedFile, { force: true });
-      const temporaryFile = path.join(cacheRoot, `${sourceIdentity}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`);
+      const temporaryFile = path.join(
+        cacheRoot,
+        `${sourceIdentity}.${process.pid}.${crypto.randomBytes(4).toString("hex")}.tmp`,
+      );
       try {
         await fs.promises.copyFile(scenePackage, temporaryFile);
-        const handle = await fs.promises.open(temporaryFile, 'r+');
+        const handle = await fs.promises.open(temporaryFile, "r+");
         try {
           let offset = 0;
           while (offset < patchedBuffer.length) {
-            const result = await handle.write(patchedBuffer, offset, patchedBuffer.length - offset, source.dataOffset + offset);
-            if (!result || result.bytesWritten <= 0) throw runtimeError('WALLPAPER_SCENE_PACKAGE_PATCH_FAILED');
+            const result = await handle.write(
+              patchedBuffer,
+              offset,
+              patchedBuffer.length - offset,
+              source.dataOffset + offset,
+            );
+            if (!result || result.bytesWritten <= 0)
+              throw runtimeError("WALLPAPER_SCENE_PACKAGE_PATCH_FAILED");
             offset += result.bytesWritten;
           }
           await handle.sync();
@@ -2772,7 +3467,7 @@ class WallpaperEngineRuntime {
           const concurrentPackageIsValid = await validateMutedScenePackage(
             cachedFile,
             source.packageSize,
-            audioObjectCount
+            audioObjectCount,
           );
           if (concurrentPackageIsValid) {
             await fs.promises.rm(temporaryFile, { force: true });
@@ -2782,17 +3477,19 @@ class WallpaperEngineRuntime {
           }
         }
       } catch (error) {
-        try { await fs.promises.rm(temporaryFile, { force: true }); } catch (_) { }
+        try {
+          await fs.promises.rm(temporaryFile, { force: true });
+        } catch (_) {}
         throw error;
       }
       const rebuiltPackageIsValid = await validateMutedScenePackage(
         cachedFile,
         source.packageSize,
-        audioObjectCount
+        audioObjectCount,
       );
       if (!rebuiltPackageIsValid) {
         await fs.promises.rm(cachedFile, { force: true });
-        throw runtimeError('WALLPAPER_SCENE_PACKAGE_PATCH_FAILED');
+        throw runtimeError("WALLPAPER_SCENE_PACKAGE_PATCH_FAILED");
       }
     }
     session.patchedSceneAudioObjectCount = audioObjectCount;
@@ -2801,27 +3498,38 @@ class WallpaperEngineRuntime {
   }
 
   async _cleanupStagedProject(session) {
-    if (!session || !session.stagedProjectRoot || !session.stagedProjectBaseRoot) return;
-    const stageRoot = path.resolve(session.stagedProjectBaseRoot || '');
+    if (
+      !session ||
+      !session.stagedProjectRoot ||
+      !session.stagedProjectBaseRoot
+    )
+      return;
+    const stageRoot = path.resolve(session.stagedProjectBaseRoot || "");
     const stageDirectory = path.resolve(session.stagedProjectRoot);
     const relative = path.relative(stageRoot, stageDirectory);
-    session.stagedProjectRoot = '';
-    session.stagedProjectBaseRoot = '';
-    session.stagedProjectFile = '';
+    session.stagedProjectRoot = "";
+    session.stagedProjectBaseRoot = "";
+    session.stagedProjectFile = "";
     session.stagedAudioPropertyCount = 0;
-    if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return;
+    if (!relative || relative.startsWith("..") || path.isAbsolute(relative))
+      return;
     try {
       await fs.promises.rm(stageDirectory, { recursive: true, force: true });
     } catch (error) {
-      console.warn('[Wallpaper Engine] silent Scene stage cleanup deferred:', error && error.message || error);
+      console.warn(
+        "[Wallpaper Engine] silent Scene stage cleanup deferred:",
+        (error && error.message) || error,
+      );
     }
   }
 
   _sessionIsCurrent(session) {
-    return !!session
-      && !this.disposed
-      && session.stopping !== true
-      && (this.pending === session || this.active === session);
+    return (
+      !!session &&
+      !this.disposed &&
+      session.stopping !== true &&
+      (this.pending === session || this.active === session)
+    );
   }
 
   _clearSessionMuteReassertions(session) {
@@ -2831,20 +3539,26 @@ class WallpaperEngineRuntime {
   }
 
   async _applySessionMute(session) {
-    if (!this._sessionIsCurrent(session) || !session.executable || !session.locationTitle) return false;
+    if (
+      !this._sessionIsCurrent(session) ||
+      !session.executable ||
+      !session.locationTitle
+    )
+      return false;
     if (session.muteApplyPromise) return session.muteApplyPromise;
     const operation = (async () => {
       const properties = sanitizeMuteProperties(session.muteProperties);
       await this._runTransientControl(session.executable, [
-        '-control',
-        'applyProperties',
-        '-properties',
+        "-control",
+        "applyProperties",
+        "-properties",
         `RAW~(${JSON.stringify(properties)})~END`,
-        '-location',
+        "-location",
         session.locationTitle,
       ]);
       if (!this._sessionIsCurrent(session)) return false;
-      session.audioMuteCommandCount = Math.max(0, Number(session.audioMuteCommandCount) || 0) + 1;
+      session.audioMuteCommandCount =
+        Math.max(0, Number(session.audioMuteCommandCount) || 0) + 1;
       session.audioMuteLastAt = this.now();
       // This flag means the unique-location property command was acknowledged.
       // It deliberately does not mutate Windows' persistent Core Audio state.
@@ -2856,7 +3570,8 @@ class WallpaperEngineRuntime {
     try {
       return await operation;
     } finally {
-      if (session.muteApplyPromise === operation) session.muteApplyPromise = null;
+      if (session.muteApplyPromise === operation)
+        session.muteApplyPromise = null;
     }
   }
 
@@ -2865,13 +3580,17 @@ class WallpaperEngineRuntime {
     if (!this._sessionIsCurrent(session)) return;
     for (const delay of MUTE_REASSERT_DELAYS_MS) {
       const timer = setTimeout(() => {
-        if (session.muteReassertTimers) session.muteReassertTimers.delete(timer);
+        if (session.muteReassertTimers)
+          session.muteReassertTimers.delete(timer);
         if (!this._sessionIsCurrent(session)) return;
         this._applySessionMute(session).catch((error) => {
-          console.warn('[Wallpaper Engine] location-scoped audio suppression retry failed:', error && error.message || error);
+          console.warn(
+            "[Wallpaper Engine] location-scoped audio suppression retry failed:",
+            (error && error.message) || error,
+          );
         });
       }, delay);
-      if (timer && typeof timer.unref === 'function') timer.unref();
+      if (timer && typeof timer.unref === "function") timer.unref();
       session.muteReassertTimers.add(timer);
     }
   }
@@ -2886,7 +3605,8 @@ class WallpaperEngineRuntime {
     let applied = false;
     for (const delay of INITIAL_MUTE_RETRY_DELAYS_MS) {
       if (delay > 0) await this.nativeSleep(delay);
-      if (!this._sessionIsCurrent(session)) throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
+      if (!this._sessionIsCurrent(session))
+        throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
       if (this.wallNow() > deadline) break;
       try {
         applied = await this._applySessionMute(session);
@@ -2896,28 +3616,44 @@ class WallpaperEngineRuntime {
       }
     }
     if (!applied) {
-      if (!this._sessionIsCurrent(session)) throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
-      throw lastError || runtimeError('WALLPAPER_ENGINE_AUDIO_SUPPRESSION_FAILED');
+      if (!this._sessionIsCurrent(session))
+        throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
+      throw (
+        lastError || runtimeError("WALLPAPER_ENGINE_AUDIO_SUPPRESSION_FAILED")
+      );
     }
     await this.nativeSleep(80);
     this._scheduleSessionMuteReassertions(session);
   }
 
-  async confirmCaptureReady(expectedSessionId = '') {
+  async confirmCaptureReady(expectedSessionId = "") {
     const session = this.active;
-    expectedSessionId = String(expectedSessionId || '');
-    if (!session || (expectedSessionId && session.sessionId !== expectedSessionId)) return false;
+    expectedSessionId = String(expectedSessionId || "");
+    if (
+      !session ||
+      (expectedSessionId && session.sessionId !== expectedSessionId)
+    )
+      return false;
     const muted = await this._applySessionMute(session);
-    if (!muted || this.active !== session || session.stopping === true) return false;
-    if (!session.windowEmbedding || session.windowEmbedding.aligned !== true) return false;
+    if (!muted || this.active !== session || session.stopping === true)
+      return false;
+    if (!session.windowEmbedding || session.windowEmbedding.aligned !== true)
+      return false;
     // Keep the native WE source physically aligned behind Mineradio so the
     // engine continues to read the real Windows cursor. DWM mirrors that live
     // surface into a click-through helper directly beneath the transparent
     // Electron host; unlike Chromium window capture, it does not bake a second
     // delayed cursor into the picture.
-    const surfaceReady = await this._startSessionDwmSurface(session).catch(() => false);
-    if (!surfaceReady || this.active !== session || session.stopping === true
-      || session.dwmSurfaceReady !== true) return false;
+    const surfaceReady = await this._startSessionDwmSurface(session).catch(
+      () => false,
+    );
+    if (
+      !surfaceReady ||
+      this.active !== session ||
+      session.stopping === true ||
+      session.dwmSurfaceReady !== true
+    )
+      return false;
     this._stopSessionPointerRelay(session);
     session.windowParking = null;
     this._scheduleSessionMuteReassertions(session);
@@ -2926,97 +3662,152 @@ class WallpaperEngineRuntime {
 
   _openControlArgs(session) {
     return [
-      '-control',
-      'openWallpaper',
-      '-file',
+      "-control",
+      "openWallpaper",
+      "-file",
       session.launchFile,
-      '-playInWindow',
+      "-playInWindow",
       session.locationTitle,
-      '-width',
+      "-width",
       String(session.launchWidth),
-      '-height',
+      "-height",
       String(session.launchHeight),
-      '-x',
+      "-x",
       String(session.launchX),
-      '-y',
+      "-y",
       String(session.launchY),
-      '-borderless',
+      "-borderless",
     ];
   }
 
   async _openInitialSessionWindow(session, expectedGeneration) {
     if (!session || !session.executable || !session.launchFile) {
-      throw runtimeError('WALLPAPER_ENGINE_WINDOW_SESSION_INVALID');
+      throw runtimeError("WALLPAPER_ENGINE_WINDOW_SESSION_INVALID");
     }
     if (session.initialOpenIssued === true) {
-      throw runtimeError('WALLPAPER_ENGINE_INITIAL_OPEN_DUPLICATE');
+      throw runtimeError("WALLPAPER_ENGINE_INITIAL_OPEN_DUPLICATE");
     }
     session.initialOpenIssued = true;
     const operation = (async () => {
-      if (expectedGeneration !== this.generation || this.disposed || this.pending !== session) {
-        throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
+      if (
+        expectedGeneration !== this.generation ||
+        this.disposed ||
+        this.pending !== session
+      ) {
+        throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
       }
-      await this._spawnControl(session.executable, this._openControlArgs(session), {
-        isCurrent: () => expectedGeneration === this.generation
-          && !this.disposed
-          && this.pending === session,
-      });
+      await this._spawnControl(
+        session.executable,
+        this._openControlArgs(session),
+        {
+          isCurrent: () =>
+            expectedGeneration === this.generation &&
+            !this.disposed &&
+            this.pending === session,
+        },
+      );
       session.launched = true;
     })();
     session.initialOpenPromise = operation;
     try {
       await operation;
     } finally {
-      if (session.initialOpenPromise === operation) session.initialOpenPromise = null;
+      if (session.initialOpenPromise === operation)
+        session.initialOpenPromise = null;
     }
-    if (expectedGeneration !== this.generation || this.disposed || this.pending !== session) {
-      throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
+    if (
+      expectedGeneration !== this.generation ||
+      this.disposed ||
+      this.pending !== session
+    ) {
+      throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
     }
   }
 
-  async _relaunchSessionWindow(session, launchWidth, launchHeight, launchX, launchY) {
+  async _relaunchSessionWindow(
+    session,
+    launchWidth,
+    launchHeight,
+    launchX,
+    launchY,
+  ) {
     const generation = this.generation;
-    const isCurrent = () => generation === this.generation
-      && !this.disposed
-      && session.stopping !== true
-      && this.active === session;
-    if (!isCurrent()) throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
-    const previousSourceId = String(session.windowSourceId || session.sourceId || '');
-    if (!previousSourceId) throw runtimeError('WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED');
+    const isCurrent = () =>
+      generation === this.generation &&
+      !this.disposed &&
+      session.stopping !== true &&
+      this.active === session;
+    if (!isCurrent()) throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
+    const previousSourceId = String(
+      session.windowSourceId || session.sourceId || "",
+    );
+    if (!previousSourceId)
+      throw runtimeError("WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED");
     try {
-      await this._spawnControl(session.executable, [
-        '-control',
-        'closeWallpaper',
-        '-location',
-        session.locationTitle,
-      ], { isCurrent });
+      await this._spawnControl(
+        session.executable,
+        ["-control", "closeWallpaper", "-location", session.locationTitle],
+        { isCurrent },
+      );
     } catch (error) {
-      if (!isCurrent()) throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
-      if (error && error.code === 'WALLPAPER_ENGINE_START_SUPERSEDED') throw error;
+      if (!isCurrent()) throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
+      if (error && error.code === "WALLPAPER_ENGINE_START_SUPERSEDED")
+        throw error;
     }
-    if (!isCurrent()) throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
+    if (!isCurrent()) throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
     let closeResult = null;
     try {
-      closeResult = await this._controlSessionWindow('close', session, previousSourceId);
-    } catch (_) { }
-    if (!isCurrent()) throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
-    if (!closeResult || (closeResult.closed !== true && closeResult.missing !== true)) {
-      throw runtimeError('WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED');
+      closeResult = await this._controlSessionWindow(
+        "close",
+        session,
+        previousSourceId,
+      );
+    } catch (_) {}
+    if (!isCurrent()) throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
+    if (
+      !closeResult ||
+      (closeResult.closed !== true && closeResult.missing !== true)
+    ) {
+      throw runtimeError("WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED");
     }
     this._stopSessionPointerRelay(session);
     this._stopSessionDwmSurface(session);
     await this.nativeSleep(180);
-    if (!isCurrent()) throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
-    session.launchWidth = clampInteger(launchWidth, MIN_WIDTH, MAX_WIDTH, session.launchWidth);
-    session.launchHeight = clampInteger(launchHeight, MIN_HEIGHT, MAX_HEIGHT, session.launchHeight);
-    session.launchX = clampInteger(launchX, MIN_POSITION, MAX_POSITION, session.launchX);
-    session.launchY = clampInteger(launchY, MIN_POSITION, MAX_POSITION, session.launchY);
+    if (!isCurrent()) throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
+    session.launchWidth = clampInteger(
+      launchWidth,
+      MIN_WIDTH,
+      MAX_WIDTH,
+      session.launchWidth,
+    );
+    session.launchHeight = clampInteger(
+      launchHeight,
+      MIN_HEIGHT,
+      MAX_HEIGHT,
+      session.launchHeight,
+    );
+    session.launchX = clampInteger(
+      launchX,
+      MIN_POSITION,
+      MAX_POSITION,
+      session.launchX,
+    );
+    session.launchY = clampInteger(
+      launchY,
+      MIN_POSITION,
+      MAX_POSITION,
+      session.launchY,
+    );
     session.windowEmbedding = null;
     session.windowParking = null;
     session.captureAttached = false;
-    await this._spawnControl(session.executable, this._openControlArgs(session), { isCurrent });
+    await this._spawnControl(
+      session.executable,
+      this._openControlArgs(session),
+      { isCurrent },
+    );
     session.launched = true;
-    if (!isCurrent()) throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
+    if (!isCurrent()) throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
     let earlyMuteError = null;
     const earlyMutePromise = this._muteSession(session, session.muteProperties)
       .then(() => true)
@@ -3033,16 +3824,18 @@ class WallpaperEngineRuntime {
         exactTitleOnly: true,
         returnSource: true,
         isCurrent,
-        supersededCode: 'WALLPAPER_ENGINE_START_SUPERSEDED',
-      }
+        supersededCode: "WALLPAPER_ENGINE_START_SUPERSEDED",
+      },
     );
-    if (!isCurrent()) throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
-    session.sourceId = String(captureSource && captureSource.id || '');
+    if (!isCurrent()) throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
+    session.sourceId = String((captureSource && captureSource.id) || "");
     session.windowSourceId = session.sourceId;
     const mutedBeforeCapture = await earlyMutePromise;
     if (!mutedBeforeCapture) {
-      if (!isCurrent()) throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
-      await this._muteSession(session, session.muteProperties).catch(() => { throw earlyMuteError; });
+      if (!isCurrent()) throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
+      await this._muteSession(session, session.muteProperties).catch(() => {
+        throw earlyMuteError;
+      });
     }
   }
 
@@ -3054,27 +3847,36 @@ class WallpaperEngineRuntime {
 
     let valid = false;
     try {
-      const output = await this._execFileText(this.powerShellExecutable, [
-        '-NoLogo',
-        '-NoProfile',
-        '-NonInteractive',
-        '-EncodedCommand',
-        signatureScript(),
-      ], {
-        encoding: 'utf8',
-        windowsHide: true,
-        timeout: 7000,
-        maxBuffer: 64 * 1024,
-        shell: false,
-        env: this._powerShellEnv({
-          MINERADIO_WE_SIGNATURE_TARGET: executable,
-        }),
-      });
-      const jsonLine = output.split(/\r?\n/).map((line) => line.trim()).reverse().find((line) => /^\{.*\}$/.test(line));
+      const output = await this._execFileText(
+        this.powerShellExecutable,
+        [
+          "-NoLogo",
+          "-NoProfile",
+          "-NonInteractive",
+          "-EncodedCommand",
+          signatureScript(),
+        ],
+        {
+          encoding: "utf8",
+          windowsHide: true,
+          timeout: 7000,
+          maxBuffer: 64 * 1024,
+          shell: false,
+          env: this._powerShellEnv({
+            MINERADIO_WE_SIGNATURE_TARGET: executable,
+          }),
+        },
+      );
+      const jsonLine = output
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .reverse()
+        .find((line) => /^\{.*\}$/.test(line));
       const signature = jsonLine ? JSON.parse(jsonLine) : null;
-      valid = !!signature
-        && String(signature.status || '').toLowerCase() === 'valid'
-        && SIGNER_PATTERN.test(String(signature.subject || ''));
+      valid =
+        !!signature &&
+        String(signature.status || "").toLowerCase() === "valid" &&
+        SIGNER_PATTERN.test(String(signature.subject || ""));
     } catch (_) {
       valid = false;
     }
@@ -3083,17 +3885,24 @@ class WallpaperEngineRuntime {
   }
 
   _candidateExecutables(libraries) {
-    const names = this.arch === 'x64'
-      ? ['wallpaper64.exe', 'wallpaper32.exe']
-      : ['wallpaper32.exe', 'wallpaper64.exe'];
+    const names =
+      this.arch === "x64"
+        ? ["wallpaper64.exe", "wallpaper32.exe"]
+        : ["wallpaper32.exe", "wallpaper64.exe"];
     const seen = new Set();
     const output = [];
     for (const library of Array.isArray(libraries) ? libraries : []) {
-      const rawRoot = String(library || '').trim();
+      const rawRoot = String(library || "").trim();
       if (!rawRoot) continue;
       const root = path.resolve(rawRoot);
       for (const name of names) {
-        const executable = path.join(root, 'steamapps', 'common', 'wallpaper_engine', name);
+        const executable = path.join(
+          root,
+          "steamapps",
+          "common",
+          "wallpaper_engine",
+          name,
+        );
         const key = executable.toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
@@ -3104,28 +3913,40 @@ class WallpaperEngineRuntime {
   }
 
   async _discoverExecutable(force = false) {
-    if (this.platform !== 'win32') return { available: false, reason: 'WALLPAPER_ENGINE_WINDOWS_ONLY' };
+    if (this.platform !== "win32")
+      return { available: false, reason: "WALLPAPER_ENGINE_WINDOWS_ONLY" };
     if (force) {
       this.executableCache = null;
       this.signatureCache.clear();
     }
     if (this.executableCache) {
       const stat = await statFile(this.executableCache.executable);
-      if (stat && await this._verifyExecutableSignature(this.executableCache.executable, stat)) {
+      if (
+        stat &&
+        (await this._verifyExecutableSignature(
+          this.executableCache.executable,
+          stat,
+        ))
+      ) {
         return this.executableCache;
       }
       this.executableCache = null;
     }
-    if (this.executableDiscoveryPromise && !force) return this.executableDiscoveryPromise;
+    if (this.executableDiscoveryPromise && !force)
+      return this.executableDiscoveryPromise;
 
     const discovery = (async () => {
       let libraries = [];
-      try { libraries = await this.discoverSteamLibraries(); } catch (_) { libraries = []; }
+      try {
+        libraries = await this.discoverSteamLibraries();
+      } catch (_) {
+        libraries = [];
+      }
       let unsignedInstallationFound = false;
       for (const executable of this._candidateExecutables(libraries)) {
         const stat = await statFile(executable);
         if (!stat) continue;
-        if (!await this._verifyExecutableSignature(executable, stat)) {
+        if (!(await this._verifyExecutableSignature(executable, stat))) {
           unsignedInstallationFound = true;
           continue;
         }
@@ -3140,54 +3961,63 @@ class WallpaperEngineRuntime {
       return {
         available: false,
         reason: unsignedInstallationFound
-          ? 'WALLPAPER_ENGINE_SIGNATURE_INVALID'
-          : 'WALLPAPER_ENGINE_NOT_INSTALLED',
+          ? "WALLPAPER_ENGINE_SIGNATURE_INVALID"
+          : "WALLPAPER_ENGINE_NOT_INSTALLED",
       };
     })();
     this.executableDiscoveryPromise = discovery;
     try {
       return await discovery;
     } finally {
-      if (this.executableDiscoveryPromise === discovery) this.executableDiscoveryPromise = null;
+      if (this.executableDiscoveryPromise === discovery)
+        this.executableDiscoveryPromise = null;
     }
   }
 
   async probe(force = false) {
-    if (force && typeof force === 'object') force = force.force === true;
+    if (force && typeof force === "object") force = force.force === true;
     const result = await this._discoverExecutable(force === true);
-    return result.available ? {
-      ok: true,
-      available: true,
-      executable: result.executableName,
-    } : {
-      ok: true,
-      available: false,
-      reason: result.reason || 'WALLPAPER_ENGINE_NOT_INSTALLED',
-    };
+    return result.available
+      ? {
+          ok: true,
+          available: true,
+          executable: result.executableName,
+        }
+      : {
+          ok: true,
+          available: false,
+          reason: result.reason || "WALLPAPER_ENGINE_NOT_INSTALLED",
+        };
   }
 
   async revealWorkshop(workshopId) {
-    workshopId = String(workshopId || '').trim();
-    if (!/^\d{5,32}$/.test(workshopId)) throw runtimeError('WALLPAPER_ENGINE_WORKSHOP_ID_INVALID');
-    if (this.disposed) throw runtimeError('WALLPAPER_ENGINE_RUNTIME_DISPOSED');
+    workshopId = String(workshopId || "").trim();
+    if (!/^\d{5,32}$/.test(workshopId))
+      throw runtimeError("WALLPAPER_ENGINE_WORKSHOP_ID_INVALID");
+    if (this.disposed) throw runtimeError("WALLPAPER_ENGINE_RUNTIME_DISPOSED");
     const installation = await this._discoverExecutable(false);
     if (!installation.available || !installation.executable) {
-      throw runtimeError(installation.reason || 'WALLPAPER_ENGINE_NOT_INSTALLED');
+      throw runtimeError(
+        installation.reason || "WALLPAPER_ENGINE_NOT_INSTALLED",
+      );
     }
     const executable = await this._ensureEngineReady(installation.executable);
     await this._runTransientControl(executable, [
-      '-control',
-      'revealWallpaper',
-      '-id',
+      "-control",
+      "revealWallpaper",
+      "-id",
       workshopId,
     ]);
     return { ok: true, workshopId };
   }
 
   async _spawnControl(executable, args, options = {}) {
-    const isCurrent = typeof options.isCurrent === 'function' ? options.isCurrent : null;
-    const elevated = this.useDesktopShellBroker && await this._hostIsElevated();
-    if (isCurrent && !isCurrent()) throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
+    const isCurrent =
+      typeof options.isCurrent === "function" ? options.isCurrent : null;
+    const elevated =
+      this.useDesktopShellBroker && (await this._hostIsElevated());
+    if (isCurrent && !isCurrent())
+      throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
     if (elevated) {
       return this._spawnControlViaDesktopShell(executable, args);
     }
@@ -3197,18 +4027,19 @@ class WallpaperEngineRuntime {
       const finish = (error) => {
         if (settled) return;
         settled = true;
-        if (error && error.code === 'WALLPAPER_ENGINE_START_SUPERSEDED') reject(error);
-        else if (error) reject(runtimeError('WALLPAPER_ENGINE_CONTROL_FAILED'));
+        if (error && error.code === "WALLPAPER_ENGINE_START_SUPERSEDED")
+          reject(error);
+        else if (error) reject(runtimeError("WALLPAPER_ENGINE_CONTROL_FAILED"));
         else resolve();
       };
       try {
         if (isCurrent && !isCurrent()) {
-          finish(runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED'));
+          finish(runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED"));
           return;
         }
         child = this.spawn(executable, args, {
           windowsHide: true,
-          stdio: 'ignore',
+          stdio: "ignore",
           detached: false,
           shell: false,
         });
@@ -3216,13 +4047,15 @@ class WallpaperEngineRuntime {
         finish(error);
         return;
       }
-      if (!child || typeof child.once !== 'function') {
-        finish(new Error('spawn failed'));
+      if (!child || typeof child.once !== "function") {
+        finish(new Error("spawn failed"));
         return;
       }
-      child.once('error', finish);
-      child.once('spawn', () => {
-        try { if (typeof child.unref === 'function') child.unref(); } catch (_) { }
+      child.once("error", finish);
+      child.once("spawn", () => {
+        try {
+          if (typeof child.unref === "function") child.unref();
+        } catch (_) {}
         finish();
       });
     });
@@ -3231,7 +4064,7 @@ class WallpaperEngineRuntime {
   async _hostIsElevated() {
     if (this.hostElevationCache !== null) return this.hostElevationCache;
     try {
-      this.hostElevationCache = await this.hostElevationProbe() !== false;
+      this.hostElevationCache = (await this.hostElevationProbe()) !== false;
     } catch (_) {
       this.hostElevationCache = true;
     }
@@ -3246,32 +4079,43 @@ class WallpaperEngineRuntime {
         if (settled) return;
         settled = true;
         if (error) {
-          const detail = String(stderr || error.message || error || '').trim().slice(0, 500);
-          if (detail) console.warn(`[Wallpaper Engine] desktop-token launch failed: ${detail}`);
-          reject(runtimeError('WALLPAPER_ENGINE_CONTROL_FAILED'));
-        }
-        else resolve();
+          const detail = String(stderr || error.message || error || "")
+            .trim()
+            .slice(0, 500);
+          if (detail)
+            console.warn(
+              `[Wallpaper Engine] desktop-token launch failed: ${detail}`,
+            );
+          reject(runtimeError("WALLPAPER_ENGINE_CONTROL_FAILED"));
+        } else resolve();
       };
       try {
-        this.controlExecFile(this.powerShellExecutable, [
-          '-NoLogo',
-          '-NoProfile',
-          '-NonInteractive',
-          '-EncodedCommand',
-          controlBrokerScript(),
-        ], {
-          encoding: 'utf8',
-          windowsHide: true,
-          timeout: 20000,
-          maxBuffer: 32 * 1024,
-          shell: false,
-          env: this._powerShellEnv({
-            MINERADIO_WE_CONTROL_TARGET: executable,
-            MINERADIO_WE_CONTROL_COMMAND_LINE: commandLine,
-            MINERADIO_WE_CONTROL_WAIT: options.waitForExit === true ? '1' : '0',
-            MINERADIO_WE_CONTROL_WAIT_TIMEOUT: options.waitForExit === true ? '10000' : '0',
-          }),
-        }, finish);
+        this.controlExecFile(
+          this.powerShellExecutable,
+          [
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-EncodedCommand",
+            controlBrokerScript(),
+          ],
+          {
+            encoding: "utf8",
+            windowsHide: true,
+            timeout: 20000,
+            maxBuffer: 32 * 1024,
+            shell: false,
+            env: this._powerShellEnv({
+              MINERADIO_WE_CONTROL_TARGET: executable,
+              MINERADIO_WE_CONTROL_COMMAND_LINE: commandLine,
+              MINERADIO_WE_CONTROL_WAIT:
+                options.waitForExit === true ? "1" : "0",
+              MINERADIO_WE_CONTROL_WAIT_TIMEOUT:
+                options.waitForExit === true ? "10000" : "0",
+            }),
+          },
+          finish,
+        );
       } catch (error) {
         finish(error);
       }
@@ -3280,7 +4124,9 @@ class WallpaperEngineRuntime {
 
   async _probeEngineProcess(expectedExecutable) {
     try {
-      return normalizeEngineProcessState(await this.engineProcessProbe(expectedExecutable));
+      return normalizeEngineProcessState(
+        await this.engineProcessProbe(expectedExecutable),
+      );
     } catch (_) {
       return normalizeEngineProcessState(null);
     }
@@ -3288,33 +4134,44 @@ class WallpaperEngineRuntime {
 
   async _waitForKnownEngineState(expectedExecutable, deadline) {
     while (this.wallNow() <= deadline) {
-      if (this.disposed) throw runtimeError('WALLPAPER_ENGINE_RUNTIME_DISPOSED');
+      if (this.disposed)
+        throw runtimeError("WALLPAPER_ENGINE_RUNTIME_DISPOSED");
       const state = await this._probeEngineProcess(expectedExecutable);
       if (state.ok) return state;
       if (this.wallNow() > deadline) break;
       await this.nativeSleep(ENGINE_PROCESS_POLL_MS);
     }
-    throw runtimeError('WALLPAPER_ENGINE_PROCESS_PROBE_FAILED');
+    throw runtimeError("WALLPAPER_ENGINE_PROCESS_PROBE_FAILED");
   }
 
   async _trustedRunningExecutable(requestedExecutable, state) {
     if (!state || state.matching !== true) {
-      throw runtimeError(state && state.running
-        ? 'WALLPAPER_ENGINE_PROCESS_PATH_MISMATCH'
-        : 'WALLPAPER_ENGINE_NOT_RUNNING');
+      throw runtimeError(
+        state && state.running
+          ? "WALLPAPER_ENGINE_PROCESS_PATH_MISMATCH"
+          : "WALLPAPER_ENGINE_NOT_RUNNING",
+      );
     }
     const requestedRoot = path.dirname(path.resolve(requestedExecutable));
-    const effectiveExecutable = path.resolve(String(state.executable || requestedExecutable));
-    if (path.dirname(effectiveExecutable).toLowerCase() !== requestedRoot.toLowerCase()) {
-      throw runtimeError('WALLPAPER_ENGINE_PROCESS_PATH_MISMATCH');
+    const effectiveExecutable = path.resolve(
+      String(state.executable || requestedExecutable),
+    );
+    if (
+      path.dirname(effectiveExecutable).toLowerCase() !==
+      requestedRoot.toLowerCase()
+    ) {
+      throw runtimeError("WALLPAPER_ENGINE_PROCESS_PATH_MISMATCH");
     }
     const name = path.basename(effectiveExecutable).toLowerCase();
-    if (name !== 'wallpaper32.exe' && name !== 'wallpaper64.exe') {
-      throw runtimeError('WALLPAPER_ENGINE_PROCESS_PATH_MISMATCH');
+    if (name !== "wallpaper32.exe" && name !== "wallpaper64.exe") {
+      throw runtimeError("WALLPAPER_ENGINE_PROCESS_PATH_MISMATCH");
     }
     const stat = await statFile(effectiveExecutable);
-    if (!stat || !await this._verifyExecutableSignature(effectiveExecutable, stat)) {
-      throw runtimeError('WALLPAPER_ENGINE_SIGNATURE_INVALID');
+    if (
+      !stat ||
+      !(await this._verifyExecutableSignature(effectiveExecutable, stat))
+    ) {
+      throw runtimeError("WALLPAPER_ENGINE_SIGNATURE_INVALID");
     }
     return effectiveExecutable;
   }
@@ -3322,15 +4179,16 @@ class WallpaperEngineRuntime {
   async _waitForEngineProcess(requestedExecutable, deadline) {
     let stableObservations = 0;
     let stableSince = 0;
-    let effectiveExecutable = '';
-    let stablePidsKey = '';
+    let effectiveExecutable = "";
+    let stablePidsKey = "";
     let observedKnownState = false;
     while (this.wallNow() <= deadline) {
-      if (this.disposed) throw runtimeError('WALLPAPER_ENGINE_RUNTIME_DISPOSED');
+      if (this.disposed)
+        throw runtimeError("WALLPAPER_ENGINE_RUNTIME_DISPOSED");
       const state = await this._probeEngineProcess(requestedExecutable);
       if (!state.ok) {
-        effectiveExecutable = '';
-        stablePidsKey = '';
+        effectiveExecutable = "";
+        stablePidsKey = "";
         stableObservations = 0;
         stableSince = 0;
         if (this.wallNow() > deadline) break;
@@ -3339,14 +4197,20 @@ class WallpaperEngineRuntime {
       }
       observedKnownState = true;
       if (state.running && !state.matching) {
-        throw runtimeError('WALLPAPER_ENGINE_PROCESS_PATH_MISMATCH');
+        throw runtimeError("WALLPAPER_ENGINE_PROCESS_PATH_MISMATCH");
       }
       if (state.matching) {
-        const currentExecutable = await this._trustedRunningExecutable(requestedExecutable, state);
+        const currentExecutable = await this._trustedRunningExecutable(
+          requestedExecutable,
+          state,
+        );
         const currentPidsKey = engineProcessPidKey(state);
-        if (effectiveExecutable
-          && currentExecutable.toLowerCase() === effectiveExecutable.toLowerCase()
-          && currentPidsKey === stablePidsKey) {
+        if (
+          effectiveExecutable &&
+          currentExecutable.toLowerCase() ===
+            effectiveExecutable.toLowerCase() &&
+          currentPidsKey === stablePidsKey
+        ) {
           effectiveExecutable = currentExecutable;
           stableObservations += 1;
         } else {
@@ -3355,42 +4219,48 @@ class WallpaperEngineRuntime {
           stableObservations = 1;
           stableSince = this.wallNow();
         }
-        if (stableObservations >= 2 && this.wallNow() - stableSince >= ENGINE_PROCESS_STABLE_MS) {
+        if (
+          stableObservations >= 2 &&
+          this.wallNow() - stableSince >= ENGINE_PROCESS_STABLE_MS
+        ) {
           return { executable: effectiveExecutable, state };
         }
       } else {
-        effectiveExecutable = '';
-        stablePidsKey = '';
+        effectiveExecutable = "";
+        stablePidsKey = "";
         stableObservations = 0;
         stableSince = 0;
       }
       if (this.wallNow() > deadline) break;
       await this.nativeSleep(ENGINE_PROCESS_POLL_MS);
     }
-    throw runtimeError(observedKnownState
-      ? 'WALLPAPER_ENGINE_BOOTSTRAP_TIMEOUT'
-      : 'WALLPAPER_ENGINE_PROCESS_PROBE_FAILED');
+    throw runtimeError(
+      observedKnownState
+        ? "WALLPAPER_ENGINE_BOOTSTRAP_TIMEOUT"
+        : "WALLPAPER_ENGINE_PROCESS_PROBE_FAILED",
+    );
   }
 
   async _waitForEngineControlReady(executable, deadline) {
     let consecutiveSuccesses = 0;
-    let readyPidsKey = '';
+    let readyPidsKey = "";
     while (this.wallNow() <= deadline) {
-      if (this.disposed) throw runtimeError('WALLPAPER_ENGINE_RUNTIME_DISPOSED');
+      if (this.disposed)
+        throw runtimeError("WALLPAPER_ENGINE_RUNTIME_DISPOSED");
       const state = await this._probeEngineProcess(executable);
       if (!state.ok) {
         consecutiveSuccesses = 0;
-        readyPidsKey = '';
+        readyPidsKey = "";
         if (this.wallNow() > deadline) break;
         await this.nativeSleep(ENGINE_READY_POLL_MS);
         continue;
       }
       if (state.running && !state.matching) {
-        throw runtimeError('WALLPAPER_ENGINE_PROCESS_PATH_MISMATCH');
+        throw runtimeError("WALLPAPER_ENGINE_PROCESS_PATH_MISMATCH");
       }
       if (!state.matching) {
         consecutiveSuccesses = 0;
-        readyPidsKey = '';
+        readyPidsKey = "";
       } else {
         const currentPidsKey = engineProcessPidKey(state);
         if (currentPidsKey !== readyPidsKey) {
@@ -3399,7 +4269,8 @@ class WallpaperEngineRuntime {
         }
         try {
           const acknowledged = await this.engineReadyProbe(executable);
-          consecutiveSuccesses = acknowledged === false ? 0 : consecutiveSuccesses + 1;
+          consecutiveSuccesses =
+            acknowledged === false ? 0 : consecutiveSuccesses + 1;
           if (consecutiveSuccesses >= ENGINE_READY_SUCCESS_COUNT) {
             this.engineReadyExecutable = path.resolve(executable);
             this.engineReadyAt = this.now();
@@ -3413,14 +4284,16 @@ class WallpaperEngineRuntime {
       if (this.wallNow() > deadline) break;
       await this.nativeSleep(ENGINE_READY_POLL_MS);
     }
-    throw runtimeError('WALLPAPER_ENGINE_CONTROL_NOT_READY');
+    throw runtimeError("WALLPAPER_ENGINE_CONTROL_NOT_READY");
   }
 
   async _ensureEngineReady(requestedExecutable) {
     const requested = path.resolve(requestedExecutable);
     if (this.engineBootstrapPromise) {
-      if (this.engineBootstrapExecutable.toLowerCase() !== requested.toLowerCase()) {
-        throw runtimeError('WALLPAPER_ENGINE_BOOTSTRAP_CONFLICT');
+      if (
+        this.engineBootstrapExecutable.toLowerCase() !== requested.toLowerCase()
+      ) {
+        throw runtimeError("WALLPAPER_ENGINE_BOOTSTRAP_CONFLICT");
       }
       return this.engineBootstrapPromise;
     }
@@ -3429,21 +4302,30 @@ class WallpaperEngineRuntime {
       const deadline = this.wallNow() + ENGINE_BOOTSTRAP_TIMEOUT_MS;
       let state = await this._waitForKnownEngineState(requested, deadline);
       if (state.running && !state.matching) {
-        throw runtimeError('WALLPAPER_ENGINE_PROCESS_PATH_MISMATCH');
+        throw runtimeError("WALLPAPER_ENGINE_PROCESS_PATH_MISMATCH");
       }
 
-      let effectiveExecutable = '';
+      let effectiveExecutable = "";
       let effectiveState = state;
       if (state.matching) {
-        effectiveExecutable = await this._trustedRunningExecutable(requested, state);
+        effectiveExecutable = await this._trustedRunningExecutable(
+          requested,
+          state,
+        );
       } else {
         const executableName = path.basename(requested).toLowerCase();
-        if (executableName !== 'wallpaper32.exe' && executableName !== 'wallpaper64.exe') {
-          throw runtimeError('WALLPAPER_ENGINE_EXECUTABLE_INVALID');
+        if (
+          executableName !== "wallpaper32.exe" &&
+          executableName !== "wallpaper64.exe"
+        ) {
+          throw runtimeError("WALLPAPER_ENGINE_EXECUTABLE_INVALID");
         }
         const executableStat = await statFile(requested);
-        if (!executableStat || !await this._verifyExecutableSignature(requested, executableStat)) {
-          throw runtimeError('WALLPAPER_ENGINE_SIGNATURE_INVALID');
+        if (
+          !executableStat ||
+          !(await this._verifyExecutableSignature(requested, executableStat))
+        ) {
+          throw runtimeError("WALLPAPER_ENGINE_SIGNATURE_INVALID");
         }
         // Wallpaper Engine explicitly supports launching the main executable
         // directly from its installation directory. This keeps the core quiet
@@ -3458,12 +4340,15 @@ class WallpaperEngineRuntime {
 
       const cacheAge = this.now() - Number(this.engineReadyAt || 0);
       const effectivePidsKey = engineProcessPidKey(effectiveState);
-      const cacheMatches = this.engineReadyExecutable
-        && this.engineReadyExecutable.toLowerCase() === effectiveExecutable.toLowerCase()
-        && this.engineReadyPidsKey === effectivePidsKey
-        && cacheAge >= 0
-        && cacheAge <= ENGINE_READY_CACHE_MS;
-      if (!cacheMatches) await this._waitForEngineControlReady(effectiveExecutable, deadline);
+      const cacheMatches =
+        this.engineReadyExecutable &&
+        this.engineReadyExecutable.toLowerCase() ===
+          effectiveExecutable.toLowerCase() &&
+        this.engineReadyPidsKey === effectivePidsKey &&
+        cacheAge >= 0 &&
+        cacheAge <= ENGINE_READY_CACHE_MS;
+      if (!cacheMatches)
+        await this._waitForEngineControlReady(effectiveExecutable, deadline);
       return effectiveExecutable;
     })();
 
@@ -3474,26 +4359,42 @@ class WallpaperEngineRuntime {
     } finally {
       if (this.engineBootstrapPromise === operation) {
         this.engineBootstrapPromise = null;
-        this.engineBootstrapExecutable = '';
+        this.engineBootstrapExecutable = "";
       }
     }
   }
 
-  async _findWindowSource(locationTitle, generation, options, constraints = {}) {
-    if (!this.desktopCapturer || typeof this.desktopCapturer.getSources !== 'function') {
-      throw runtimeError('WALLPAPER_ENGINE_CAPTURE_UNAVAILABLE');
+  async _findWindowSource(
+    locationTitle,
+    generation,
+    options,
+    constraints = {},
+  ) {
+    if (
+      !this.desktopCapturer ||
+      typeof this.desktopCapturer.getSources !== "function"
+    ) {
+      throw runtimeError("WALLPAPER_ENGINE_CAPTURE_UNAVAILABLE");
     }
     const exactTitleOnly = constraints.exactTitleOnly === true;
-    const isCurrent = typeof constraints.isCurrent === 'function'
-      ? constraints.isCurrent
-      : null;
-    const supersededCode = String(constraints.supersededCode || 'WALLPAPER_ENGINE_START_SUPERSEDED');
+    const isCurrent =
+      typeof constraints.isCurrent === "function"
+        ? constraints.isCurrent
+        : null;
+    const supersededCode = String(
+      constraints.supersededCode || "WALLPAPER_ENGINE_START_SUPERSEDED",
+    );
     const returnSource = constraints.returnSource === true;
-    const acceptSource = typeof constraints.acceptSource === 'function'
-      ? constraints.acceptSource
-      : null;
+    const acceptSource =
+      typeof constraints.acceptSource === "function"
+        ? constraints.acceptSource
+        : null;
     const assertCurrent = () => {
-      if (generation !== this.generation || this.disposed || (isCurrent && !isCurrent())) {
+      if (
+        generation !== this.generation ||
+        this.disposed ||
+        (isCurrent && !isCurrent())
+      ) {
         throw runtimeError(supersededCode);
       }
     };
@@ -3503,41 +4404,48 @@ class WallpaperEngineRuntime {
       let sources = [];
       try {
         sources = await this.desktopCapturer.getSources({
-          types: ['window'],
+          types: ["window"],
           thumbnailSize: { width: 0, height: 0 },
           fetchWindowIcons: false,
         });
-      } catch (_) { }
+      } catch (_) {}
       assertCurrent();
       if (!Array.isArray(sources)) sources = [];
-      const exact = sources.find((source) => String(source && source.name || '') === locationTitle
-        && (!acceptSource || acceptSource(source)));
+      const exact = sources.find(
+        (source) =>
+          String((source && source.name) || "") === locationTitle &&
+          (!acceptSource || acceptSource(source)),
+      );
       const matched = exactTitleOnly
         ? exact
-        : exact || sources.find((source) => String(source && source.name || '').includes(locationTitle)
-          && (!acceptSource || acceptSource(source)));
+        : exact ||
+          sources.find(
+            (source) =>
+              String((source && source.name) || "").includes(locationTitle) &&
+              (!acceptSource || acceptSource(source)),
+          );
       if (matched && matched.id) {
         return returnSource ? matched : String(matched.id);
       }
       assertCurrent();
       await this.sleep(options.sourcePollMs);
     }
-    throw runtimeError('WALLPAPER_ENGINE_WINDOW_TIMEOUT');
+    throw runtimeError("WALLPAPER_ENGINE_WINDOW_TIMEOUT");
   }
 
-  async refreshActiveSource(expectedSessionId = '', options = {}) {
-    if (expectedSessionId && typeof expectedSessionId === 'object') {
+  async refreshActiveSource(expectedSessionId = "", options = {}) {
+    if (expectedSessionId && typeof expectedSessionId === "object") {
       options = expectedSessionId;
-      expectedSessionId = options.sessionId || '';
+      expectedSessionId = options.sessionId || "";
     }
-    if (!options || typeof options !== 'object') options = {};
-    if (this.disposed) throw runtimeError('WALLPAPER_ENGINE_RUNTIME_DISPOSED');
+    if (!options || typeof options !== "object") options = {};
+    if (this.disposed) throw runtimeError("WALLPAPER_ENGINE_RUNTIME_DISPOSED");
 
     const session = this.active;
-    if (!session) throw runtimeError('WALLPAPER_ENGINE_NOT_ACTIVE');
-    expectedSessionId = String(expectedSessionId || '');
+    if (!session) throw runtimeError("WALLPAPER_ENGINE_NOT_ACTIVE");
+    expectedSessionId = String(expectedSessionId || "");
     if (expectedSessionId && session.sessionId !== expectedSessionId) {
-      throw runtimeError('WALLPAPER_ENGINE_SESSION_MISMATCH');
+      throw runtimeError("WALLPAPER_ENGINE_SESSION_MISMATCH");
     }
     this._stopSessionPointerRelay(session);
     this._stopSessionDwmSurface(session);
@@ -3549,18 +4457,25 @@ class WallpaperEngineRuntime {
     session.sourceRefreshToken = refreshToken;
     const runtimeOptions = safeRuntimeOptions({
       ...options,
-      sourceTimeoutMs: options.sourceTimeoutMs == null
-        ? (options.timeoutMs == null ? DEFAULT_REFRESH_SOURCE_TIMEOUT_MS : options.timeoutMs)
-        : options.sourceTimeoutMs,
-      sourcePollMs: options.sourcePollMs == null
-        ? (options.pollIntervalMs == null
-          ? (options.pollMs == null ? DEFAULT_REFRESH_SOURCE_POLL_MS : options.pollMs)
-          : options.pollIntervalMs)
-        : options.sourcePollMs,
+      sourceTimeoutMs:
+        options.sourceTimeoutMs == null
+          ? options.timeoutMs == null
+            ? DEFAULT_REFRESH_SOURCE_TIMEOUT_MS
+            : options.timeoutMs
+          : options.sourceTimeoutMs,
+      sourcePollMs:
+        options.sourcePollMs == null
+          ? options.pollIntervalMs == null
+            ? options.pollMs == null
+              ? DEFAULT_REFRESH_SOURCE_POLL_MS
+              : options.pollMs
+            : options.pollIntervalMs
+          : options.sourcePollMs,
     });
-    const isCurrent = () => this.active === session
-      && session.sessionId === sessionId
-      && session.sourceRefreshToken === refreshToken;
+    const isCurrent = () =>
+      this.active === session &&
+      session.sessionId === sessionId &&
+      session.sourceRefreshToken === refreshToken;
 
     const captureSource = await this._findWindowSource(
       locationTitle,
@@ -3570,15 +4485,18 @@ class WallpaperEngineRuntime {
         exactTitleOnly: true,
         returnSource: true,
         isCurrent,
-        supersededCode: 'WALLPAPER_ENGINE_REFRESH_SUPERSEDED',
-      }
+        supersededCode: "WALLPAPER_ENGINE_REFRESH_SUPERSEDED",
+      },
     );
     if (generation !== this.generation || this.disposed || !isCurrent()) {
-      throw runtimeError('WALLPAPER_ENGINE_REFRESH_SUPERSEDED');
+      throw runtimeError("WALLPAPER_ENGINE_REFRESH_SUPERSEDED");
     }
-    const refreshedSourceId = String(captureSource && captureSource.id || '');
-    const previousHandle = (/^window:(\d+):\d+$/.exec(String(session.sourceId || '')) || [])[1] || '';
-    const refreshedHandle = (/^window:(\d+):\d+$/.exec(refreshedSourceId) || [])[1] || '';
+    const refreshedSourceId = String((captureSource && captureSource.id) || "");
+    const previousHandle =
+      (/^window:(\d+):\d+$/.exec(String(session.sourceId || "")) || [])[1] ||
+      "";
+    const refreshedHandle =
+      (/^window:(\d+):\d+$/.exec(refreshedSourceId) || [])[1] || "";
     const sameWindow = !!previousHandle && previousHandle === refreshedHandle;
     session.sourceId = refreshedSourceId;
     session.windowSourceId = refreshedSourceId;
@@ -3592,44 +4510,106 @@ class WallpaperEngineRuntime {
     return result;
   }
 
-  async embedActiveWindow(expectedSessionId = '', host = {}) {
+  async embedActiveWindow(expectedSessionId = "", host = {}) {
     const session = this.active;
-    if (!session) throw runtimeError('WALLPAPER_ENGINE_NOT_ACTIVE');
-    expectedSessionId = String(expectedSessionId || '');
+    if (!session) throw runtimeError("WALLPAPER_ENGINE_NOT_ACTIVE");
+    expectedSessionId = String(expectedSessionId || "");
     if (expectedSessionId && session.sessionId !== expectedSessionId) {
-      throw runtimeError('WALLPAPER_ENGINE_SESSION_MISMATCH');
+      throw runtimeError("WALLPAPER_ENGINE_SESSION_MISMATCH");
     }
     if (session.embedPromise) return session.embedPromise;
     const generation = this.generation;
     const operation = (async () => {
-      let embedding = await this._controlSessionWindow('embed', session, String(session.sourceId || ''), host);
-      for (let attempt = 0; attempt < 3 && embedding.aligned !== true; attempt += 1) {
-        const hostWidth = Math.max(1, Number(embedding.hostRight) - Number(embedding.hostLeft));
-        const hostHeight = Math.max(1, Number(embedding.hostBottom) - Number(embedding.hostTop));
-        const sourceWidth = Math.max(1, Number(embedding.right) - Number(embedding.left));
-        const sourceHeight = Math.max(1, Number(embedding.bottom) - Number(embedding.top));
-        const scaleX = Math.max(0.5, Math.min(4, Number(session.width) / hostWidth));
-        const scaleY = Math.max(0.5, Math.min(4, Number(session.height) / hostHeight));
-        const correctedWidth = Math.round(Number(session.launchWidth) - (sourceWidth - hostWidth) * scaleX);
-        const correctedHeight = Math.round(Number(session.launchHeight) - (sourceHeight - hostHeight) * scaleY);
-        const correctedX = Math.round(Number(session.launchX) + (Number(embedding.hostLeft) - Number(embedding.left)) * scaleX);
-        const correctedY = Math.round(Number(session.launchY) + (Number(embedding.hostTop) - Number(embedding.top)) * scaleY);
-        if (correctedWidth === session.launchWidth
-          && correctedHeight === session.launchHeight
-          && correctedX === session.launchX
-          && correctedY === session.launchY) break;
-        await this._relaunchSessionWindow(session, correctedWidth, correctedHeight, correctedX, correctedY);
-        embedding = await this._controlSessionWindow('embed', session, String(session.sourceId || ''), host);
+      let embedding = await this._controlSessionWindow(
+        "embed",
+        session,
+        String(session.sourceId || ""),
+        host,
+      );
+      for (
+        let attempt = 0;
+        attempt < 3 && embedding.aligned !== true;
+        attempt += 1
+      ) {
+        const hostWidth = Math.max(
+          1,
+          Number(embedding.hostRight) - Number(embedding.hostLeft),
+        );
+        const hostHeight = Math.max(
+          1,
+          Number(embedding.hostBottom) - Number(embedding.hostTop),
+        );
+        const sourceWidth = Math.max(
+          1,
+          Number(embedding.right) - Number(embedding.left),
+        );
+        const sourceHeight = Math.max(
+          1,
+          Number(embedding.bottom) - Number(embedding.top),
+        );
+        const scaleX = Math.max(
+          0.5,
+          Math.min(4, Number(session.width) / hostWidth),
+        );
+        const scaleY = Math.max(
+          0.5,
+          Math.min(4, Number(session.height) / hostHeight),
+        );
+        const correctedWidth = Math.round(
+          Number(session.launchWidth) - (sourceWidth - hostWidth) * scaleX,
+        );
+        const correctedHeight = Math.round(
+          Number(session.launchHeight) - (sourceHeight - hostHeight) * scaleY,
+        );
+        const correctedX = Math.round(
+          Number(session.launchX) +
+            (Number(embedding.hostLeft) - Number(embedding.left)) * scaleX,
+        );
+        const correctedY = Math.round(
+          Number(session.launchY) +
+            (Number(embedding.hostTop) - Number(embedding.top)) * scaleY,
+        );
+        if (
+          correctedWidth === session.launchWidth &&
+          correctedHeight === session.launchHeight &&
+          correctedX === session.launchX &&
+          correctedY === session.launchY
+        )
+          break;
+        await this._relaunchSessionWindow(
+          session,
+          correctedWidth,
+          correctedHeight,
+          correctedX,
+          correctedY,
+        );
+        embedding = await this._controlSessionWindow(
+          "embed",
+          session,
+          String(session.sourceId || ""),
+          host,
+        );
       }
-      if (embedding.aligned !== true) throw runtimeError('WALLPAPER_ENGINE_WINDOW_ISOLATION_FAILED');
-      if (generation !== this.generation || this.disposed || this.active !== session || session.stopping === true) {
-        throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
+      if (embedding.aligned !== true)
+        throw runtimeError("WALLPAPER_ENGINE_WINDOW_ISOLATION_FAILED");
+      if (
+        generation !== this.generation ||
+        this.disposed ||
+        this.active !== session ||
+        session.stopping === true
+      ) {
+        throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
       }
-      session.parallaxPointerHostWindowId = String(host.hostWindowId || '');
-      session.parallaxPointerHostExecutable = String(host.hostExecutable || '');
-      session.dwmSurfaceHostWindowId = String(host.hostWindowId || '');
-      session.dwmSurfaceHostExecutable = String(host.hostExecutable || '');
-      session.dwmSurfaceHostCornerRadius = clampInteger(host.cornerRadius, 0, 512, 0);
+      session.parallaxPointerHostWindowId = String(host.hostWindowId || "");
+      session.parallaxPointerHostExecutable = String(host.hostExecutable || "");
+      session.dwmSurfaceHostWindowId = String(host.hostWindowId || "");
+      session.dwmSurfaceHostExecutable = String(host.hostExecutable || "");
+      session.dwmSurfaceHostCornerRadius = clampInteger(
+        host.cornerRadius,
+        0,
+        512,
+        0,
+      );
       session.dwmSurfaceDesktopIconLayering = host.desktopIconLayering === true;
       session.captureAttached = true;
       return this._publicSession(session);
@@ -3642,12 +4622,12 @@ class WallpaperEngineRuntime {
     }
   }
 
-  async parkActiveWindow(expectedSessionId = '') {
+  async parkActiveWindow(expectedSessionId = "") {
     const session = this.active;
-    if (!session) throw runtimeError('WALLPAPER_ENGINE_NOT_ACTIVE');
-    expectedSessionId = String(expectedSessionId || '');
+    if (!session) throw runtimeError("WALLPAPER_ENGINE_NOT_ACTIVE");
+    expectedSessionId = String(expectedSessionId || "");
     if (expectedSessionId && session.sessionId !== expectedSessionId) {
-      throw runtimeError('WALLPAPER_ENGINE_SESSION_MISMATCH');
+      throw runtimeError("WALLPAPER_ENGINE_SESSION_MISMATCH");
     }
     if (session.windowParking && session.windowParking.parked === true) {
       return this._publicSession(session);
@@ -3655,11 +4635,21 @@ class WallpaperEngineRuntime {
     if (session.parkPromise) return session.parkPromise;
     const generation = this.generation;
     const operation = (async () => {
-      const parking = await this._controlSessionWindow('park', session, String(session.sourceId || ''));
-      if (generation !== this.generation || this.disposed || this.active !== session || session.stopping === true) {
-        throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
+      const parking = await this._controlSessionWindow(
+        "park",
+        session,
+        String(session.sourceId || ""),
+      );
+      if (
+        generation !== this.generation ||
+        this.disposed ||
+        this.active !== session ||
+        session.stopping === true
+      ) {
+        throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
       }
-      if (!parking || parking.parked !== true) throw runtimeError('WALLPAPER_ENGINE_WINDOW_ISOLATION_FAILED');
+      if (!parking || parking.parked !== true)
+        throw runtimeError("WALLPAPER_ENGINE_WINDOW_ISOLATION_FAILED");
       return this._publicSession(session);
     })();
     session.parkPromise = operation;
@@ -3683,7 +4673,9 @@ class WallpaperEngineRuntime {
     if (session.closePromise) return session.closePromise;
     const operation = (async () => {
       if (session.initialOpenPromise) {
-        try { await session.initialOpenPromise; } catch (_) { }
+        try {
+          await session.initialOpenPromise;
+        } catch (_) {}
       }
       if (!session.launched) {
         this._stopSessionPointerRelay(session);
@@ -3694,42 +4686,57 @@ class WallpaperEngineRuntime {
         return false;
       }
       let closeRequested = false;
-      const sourceId = String(session.windowSourceId || session.sourceId || '');
+      const sourceId = String(session.windowSourceId || session.sourceId || "");
       let windowClosed = false;
       try {
         await this._spawnControl(session.executable, [
-          '-control',
-          'closeWallpaper',
-          '-location',
+          "-control",
+          "closeWallpaper",
+          "-location",
           session.locationTitle,
         ]);
         closeRequested = true;
-      } catch (_) { }
+      } catch (_) {}
       if (sourceId) {
         try {
-          const fallback = await this._controlSessionWindow('close', session, sourceId);
-          windowClosed = !!(fallback && (fallback.closed === true || fallback.missing === true));
-        } catch (_) { }
+          const fallback = await this._controlSessionWindow(
+            "close",
+            session,
+            sourceId,
+          );
+          windowClosed = !!(
+            fallback &&
+            (fallback.closed === true || fallback.missing === true)
+          );
+        } catch (_) {}
       }
       await this.nativeSleep(180);
-      if (!windowClosed && closeRequested && !sourceId && this.desktopCapturer
-        && typeof this.desktopCapturer.getSources === 'function') {
+      if (
+        !windowClosed &&
+        closeRequested &&
+        !sourceId &&
+        this.desktopCapturer &&
+        typeof this.desktopCapturer.getSources === "function"
+      ) {
         try {
           const sources = await this.desktopCapturer.getSources({
-            types: ['window'],
+            types: ["window"],
             thumbnailSize: { width: 0, height: 0 },
             fetchWindowIcons: false,
           });
-          windowClosed = !sources.some((source) => String(source && source.name || '') === session.locationTitle);
-        } catch (_) { }
+          windowClosed = !sources.some(
+            (source) =>
+              String((source && source.name) || "") === session.locationTitle,
+          );
+        } catch (_) {}
       }
       if (!windowClosed) return false;
       this._stopSessionPointerRelay(session);
       this._stopSessionDwmSurface(session);
       await this._waitForSessionDwmSurfaceStop(session);
       this._clearSessionMuteReassertions(session);
-      session.windowSourceId = '';
-      session.sourceId = '';
+      session.windowSourceId = "";
+      session.sourceId = "";
       session.windowEmbedding = null;
       session.windowParking = null;
       session.captureAttached = false;
@@ -3746,30 +4753,33 @@ class WallpaperEngineRuntime {
   }
 
   async start(id, options = {}) {
-    if (id && typeof id === 'object') {
+    if (id && typeof id === "object") {
       options = id;
       id = options.id;
     }
-    if (this.disposed) throw runtimeError('WALLPAPER_ENGINE_RUNTIME_DISPOSED');
-    if (!this.library || typeof this.library.getNativeSceneTarget !== 'function') {
-      throw runtimeError('WALLPAPER_ENGINE_LIBRARY_UNAVAILABLE');
+    if (this.disposed) throw runtimeError("WALLPAPER_ENGINE_RUNTIME_DISPOSED");
+    if (
+      !this.library ||
+      typeof this.library.getNativeSceneTarget !== "function"
+    ) {
+      throw runtimeError("WALLPAPER_ENGINE_LIBRARY_UNAVAILABLE");
     }
 
     const generation = ++this.generation;
     const runtimeOptions = safeRuntimeOptions(options);
-    const sessionId = crypto.randomBytes(12).toString('hex');
+    const sessionId = crypto.randomBytes(12).toString("hex");
     const session = {
-      id: String(id || '').toLowerCase(),
+      id: String(id || "").toLowerCase(),
       sessionId,
       locationTitle: `Mineradio Wallpaper ${sessionId}`,
-      sourceId: '',
-      windowSourceId: '',
+      sourceId: "",
+      windowSourceId: "",
       windowEmbedding: null,
       windowParking: null,
       width: runtimeOptions.width,
       height: runtimeOptions.height,
       fps: runtimeOptions.fps,
-      executable: '',
+      executable: "",
       launched: false,
       initialOpenIssued: false,
       initialOpenPromise: null,
@@ -3777,13 +4787,13 @@ class WallpaperEngineRuntime {
       audioMuted: false,
       audioPropertySuppressed: false,
       captureAttached: false,
-      launchFile: '',
-      stagedProjectRoot: '',
-      stagedProjectBaseRoot: '',
-      stagedProjectFile: '',
+      launchFile: "",
+      stagedProjectRoot: "",
+      stagedProjectBaseRoot: "",
+      stagedProjectFile: "",
       stagedAudioPropertyCount: 0,
       patchedSceneAudioObjectCount: 0,
-      mutedScenePackageCacheFile: '',
+      mutedScenePackageCacheFile: "",
       launchWidth: runtimeOptions.width,
       launchHeight: runtimeOptions.height,
       launchX: runtimeOptions.x,
@@ -3796,8 +4806,8 @@ class WallpaperEngineRuntime {
       muteApplyPromise: null,
       embedPromise: null,
       parkPromise: null,
-      dwmSurfaceHostWindowId: '',
-      dwmSurfaceHostExecutable: '',
+      dwmSurfaceHostWindowId: "",
+      dwmSurfaceHostExecutable: "",
       dwmSurfaceHostCornerRadius: 0,
       dwmSurfaceDesktopIconLayering: false,
       dwmSurfaceProcess: null,
@@ -3813,17 +4823,17 @@ class WallpaperEngineRuntime {
       dwmGlassSurfaceActive: false,
       dwmGlassSurfaceWindowId: 0,
       dwmGlassSurfaceGeometry: null,
-      dwmGlassSurfaceGeometryKey: '',
-      parallaxPointerHostWindowId: '',
-      parallaxPointerHostExecutable: '',
+      dwmGlassSurfaceGeometryKey: "",
+      parallaxPointerHostWindowId: "",
+      parallaxPointerHostExecutable: "",
       parallaxPointerRelayProcess: null,
       parallaxPointerRelayStartPromise: null,
       parallaxPointerRelayReady: false,
       parallaxPointerRelayActive: false,
       parallaxPointerRelayHelperPid: 0,
       parallaxPointerRelayTargetWindowId: 0,
-      parallaxPointerRelayTargetClass: '',
-      parallaxPointerRelayTargetTitle: '',
+      parallaxPointerRelayTargetClass: "",
+      parallaxPointerRelayTargetTitle: "",
       parallaxPointerRelayQueued: 0,
       parallaxPointerRelayCoalesced: 0,
       parallaxPointerRelayPosted: 0,
@@ -3841,63 +4851,102 @@ class WallpaperEngineRuntime {
       stopping: false,
     };
     this.pending = session;
-    let startStage = 'discover-target';
+    let startStage = "discover-target";
 
     try {
       const [installation, target] = await Promise.all([
         this._discoverExecutable(false),
         this.library.getNativeSceneTarget(session.id),
       ]);
-      if (generation !== this.generation || this.disposed) throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
+      if (generation !== this.generation || this.disposed)
+        throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
       if (!installation.available || !installation.executable) {
-        throw runtimeError(installation.reason || 'WALLPAPER_ENGINE_NOT_INSTALLED');
+        throw runtimeError(
+          installation.reason || "WALLPAPER_ENGINE_NOT_INSTALLED",
+        );
       }
       const projectFile = target && target.projectFile;
       const scenePackage = target && target.scenePackage;
-      const projectStat = projectFile && path.isAbsolute(projectFile) && path.extname(projectFile).toLowerCase() === '.json'
-        ? await statFile(projectFile)
-        : null;
-      const sceneExtension = path.extname(String(scenePackage || '')).toLowerCase();
-      const targetStat = scenePackage && path.isAbsolute(scenePackage) && (sceneExtension === '.pkg' || sceneExtension === '.pak')
-        ? await statFile(scenePackage)
-        : null;
-      if (!targetStat || !target || String(target.id || '').toLowerCase() !== session.id) {
-        throw runtimeError('WALLPAPER_SCENE_PACKAGE_INVALID');
+      const projectStat =
+        projectFile &&
+        path.isAbsolute(projectFile) &&
+        path.extname(projectFile).toLowerCase() === ".json"
+          ? await statFile(projectFile)
+          : null;
+      const sceneExtension = path
+        .extname(String(scenePackage || ""))
+        .toLowerCase();
+      const targetStat =
+        scenePackage &&
+        path.isAbsolute(scenePackage) &&
+        (sceneExtension === ".pkg" || sceneExtension === ".pak")
+          ? await statFile(scenePackage)
+          : null;
+      if (
+        !targetStat ||
+        !target ||
+        String(target.id || "").toLowerCase() !== session.id
+      ) {
+        throw runtimeError("WALLPAPER_SCENE_PACKAGE_INVALID");
       }
-      if (generation !== this.generation || this.disposed) throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
+      if (generation !== this.generation || this.disposed)
+        throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
 
-      startStage = 'ensure-engine-ready';
-      session.executable = await this._ensureEngineReady(installation.executable);
-      if (generation !== this.generation || this.disposed || this.pending !== session) {
-        throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
+      startStage = "ensure-engine-ready";
+      session.executable = await this._ensureEngineReady(
+        installation.executable,
+      );
+      if (
+        generation !== this.generation ||
+        this.disposed ||
+        this.pending !== session
+      ) {
+        throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
       }
-      session.muteProperties = sanitizeMuteProperties(target && target.muteProperties);
-      startStage = 'prepare-silent-project';
+      session.muteProperties = sanitizeMuteProperties(
+        target && target.muteProperties,
+      );
+      startStage = "prepare-silent-project";
       session.launchFile = projectStat
-        ? await this._prepareSilentLaunchFile(session, projectFile, scenePackage)
+        ? await this._prepareSilentLaunchFile(
+            session,
+            projectFile,
+            scenePackage,
+          )
         : scenePackage;
       const previous = this.active;
       if (previous && previous.sessionId !== session.sessionId) {
-        startStage = 'close-previous-window';
+        startStage = "close-previous-window";
         const stoppedPrevious = await this.stop(previous.sessionId);
         if (!stoppedPrevious || stoppedPrevious.stopped !== true) {
-          throw runtimeError(stoppedPrevious && stoppedPrevious.reason || 'WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED');
+          throw runtimeError(
+            (stoppedPrevious && stoppedPrevious.reason) ||
+              "WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED",
+          );
         }
-        if (generation !== this.generation || this.disposed || this.pending !== session) {
-          throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
+        if (
+          generation !== this.generation ||
+          this.disposed ||
+          this.pending !== session
+        ) {
+          throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
         }
       }
-      startStage = 'open-initial-window';
+      startStage = "open-initial-window";
       await this._openInitialSessionWindow(session, generation);
-      if (generation !== this.generation || this.disposed) throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
+      if (generation !== this.generation || this.disposed)
+        throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
       let earlyMuteError = null;
-      const earlyMutePromise = this._muteSession(session, session.muteProperties)
+      const earlyMutePromise = this._muteSession(
+        session,
+        session.muteProperties,
+      )
         .then(() => true)
         .catch((error) => {
           earlyMuteError = error;
           return false;
         });
-      startStage = 'find-initial-source';
+      startStage = "find-initial-source";
       const captureSource = await this._findWindowSource(
         session.locationTitle,
         generation,
@@ -3906,48 +4955,75 @@ class WallpaperEngineRuntime {
           exactTitleOnly: true,
           returnSource: true,
           isCurrent: () => this.pending === session,
-        }
+        },
       );
-      if (generation !== this.generation || this.disposed) throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
-      session.sourceId = String(captureSource && captureSource.id || '');
+      if (generation !== this.generation || this.disposed)
+        throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
+      session.sourceId = String((captureSource && captureSource.id) || "");
       session.windowSourceId = session.sourceId;
-      startStage = 'apply-location-audio-properties';
+      startStage = "apply-location-audio-properties";
       const mutedBeforeCapture = await earlyMutePromise;
       if (!mutedBeforeCapture) {
-        if (generation !== this.generation || this.disposed || this.pending !== session) {
-          throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
+        if (
+          generation !== this.generation ||
+          this.disposed ||
+          this.pending !== session
+        ) {
+          throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
         }
-        await this._muteSession(session, target && target.muteProperties).catch(() => { throw earlyMuteError; });
+        await this._muteSession(session, target && target.muteProperties).catch(
+          () => {
+            throw earlyMuteError;
+          },
+        );
       }
-      if (generation !== this.generation || this.disposed || this.pending !== session) {
-        throw runtimeError('WALLPAPER_ENGINE_START_SUPERSEDED');
+      if (
+        generation !== this.generation ||
+        this.disposed ||
+        this.pending !== session
+      ) {
+        throw runtimeError("WALLPAPER_ENGINE_START_SUPERSEDED");
       }
 
       this.active = session;
       if (this.pending === session) this.pending = null;
       return this._publicSession(session);
     } catch (error) {
-      console.warn(`[Wallpaper Engine] native Scene start failed at ${startStage}:`, error && (error.code || error.message) || error);
+      console.warn(
+        `[Wallpaper Engine] native Scene start failed at ${startStage}:`,
+        (error && (error.code || error.message)) || error,
+      );
       if (this.pending === session) this.pending = null;
-      if (session.launched && (!this.active || this.active.sessionId !== session.sessionId)) {
+      if (
+        session.launched &&
+        (!this.active || this.active.sessionId !== session.sessionId)
+      ) {
         await this._closeSession(session);
       } else if (!session.launched) {
         await this._cleanupStagedProject(session);
       }
       if (error && error.code) throw error;
-      throw runtimeError('WALLPAPER_ENGINE_START_FAILED');
+      throw runtimeError("WALLPAPER_ENGINE_START_FAILED");
     }
   }
 
-  async stop(expectedSessionId = '') {
-    if (expectedSessionId && typeof expectedSessionId === 'object') {
-      expectedSessionId = expectedSessionId.sessionId || '';
+  async stop(expectedSessionId = "") {
+    if (expectedSessionId && typeof expectedSessionId === "object") {
+      expectedSessionId = expectedSessionId.sessionId || "";
     }
-    expectedSessionId = String(expectedSessionId || '');
-    const matchesPending = !!(this.pending && this.pending.sessionId === expectedSessionId);
-    const matchesActive = !!(this.active && this.active.sessionId === expectedSessionId);
+    expectedSessionId = String(expectedSessionId || "");
+    const matchesPending = !!(
+      this.pending && this.pending.sessionId === expectedSessionId
+    );
+    const matchesActive = !!(
+      this.active && this.active.sessionId === expectedSessionId
+    );
     if (expectedSessionId && !matchesPending && !matchesActive) {
-      return { ok: true, stopped: false, reason: 'WALLPAPER_ENGINE_SESSION_MISMATCH' };
+      return {
+        ok: true,
+        stopped: false,
+        reason: "WALLPAPER_ENGINE_SESSION_MISMATCH",
+      };
     }
 
     const sessions = [];
@@ -3956,13 +5032,24 @@ class WallpaperEngineRuntime {
         sessions.push(this.pending);
       }
       if (matchesActive) {
-        if (!sessions.length || sessions[0].sessionId !== this.active.sessionId) sessions.push(this.active);
+        if (!sessions.length || sessions[0].sessionId !== this.active.sessionId)
+          sessions.push(this.active);
       }
     } else {
       if (this.pending) sessions.push(this.pending);
-      if (this.active && (!this.pending || this.active.sessionId !== this.pending.sessionId)) sessions.push(this.active);
+      if (
+        this.active &&
+        (!this.pending || this.active.sessionId !== this.pending.sessionId)
+      )
+        sessions.push(this.active);
     }
-    if (!sessions.length) return { ok: true, stopped: false, active: !!this.active, sessionId: this.active ? this.active.sessionId : '' };
+    if (!sessions.length)
+      return {
+        ok: true,
+        stopped: false,
+        active: !!this.active,
+        sessionId: this.active ? this.active.sessionId : "",
+      };
     // A targeted stop of the old active session must not supersede a newer
     // pending start. The per-session stopping flag is enough to cancel any
     // relaunch work for that active session. Pending/global cancellation still
@@ -3981,8 +5068,11 @@ class WallpaperEngineRuntime {
         session.stopping = false;
         if (this.active === session) {
           this._scheduleSessionMuteReassertions(session);
-          if (session.windowEmbedding && session.windowEmbedding.aligned === true
-            && (session.dwmSurfaceReady !== true || !session.dwmSurfaceProcess)) {
+          if (
+            session.windowEmbedding &&
+            session.windowEmbedding.aligned === true &&
+            (session.dwmSurfaceReady !== true || !session.dwmSurfaceProcess)
+          ) {
             this._scheduleSessionDwmSurfaceRetry(session);
           }
         }
@@ -3992,13 +5082,13 @@ class WallpaperEngineRuntime {
       ok: true,
       stopped: allStopped,
       active: !!this.active,
-      sessionId: this.active ? this.active.sessionId : '',
-      reason: allStopped ? '' : 'WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED',
+      sessionId: this.active ? this.active.sessionId : "",
+      reason: allStopped ? "" : "WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED",
     };
   }
 
   async dispose() {
-    if (this.platform !== 'win32') {
+    if (this.platform !== "win32") {
       this.disposed = true;
       this.pending = null;
       this.active = null;
@@ -4008,7 +5098,7 @@ class WallpaperEngineRuntime {
         ok: true,
         stopped: false,
         active: false,
-        sessionId: '',
+        sessionId: "",
       };
     }
     if (this.disposed) {
@@ -4016,8 +5106,11 @@ class WallpaperEngineRuntime {
         ok: !this.active && !this.pending,
         stopped: !this.active && !this.pending,
         active: !!this.active,
-        sessionId: this.active ? this.active.sessionId : '',
-        reason: this.active || this.pending ? 'WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED' : '',
+        sessionId: this.active ? this.active.sessionId : "",
+        reason:
+          this.active || this.pending
+            ? "WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED"
+            : "",
       };
     }
     this.disposed = true;
@@ -4029,7 +5122,11 @@ class WallpaperEngineRuntime {
     if (!result || result.stopped !== true) {
       const leftovers = [];
       if (this.pending) leftovers.push(this.pending);
-      if (this.active && (!this.pending || this.active.sessionId !== this.pending.sessionId)) leftovers.push(this.active);
+      if (
+        this.active &&
+        (!this.pending || this.active.sessionId !== this.pending.sessionId)
+      )
+        leftovers.push(this.active);
       for (const session of leftovers) {
         this._stopSessionPointerRelay(session);
         this._stopSessionDwmSurface(session);
@@ -4040,8 +5137,8 @@ class WallpaperEngineRuntime {
         ok: false,
         stopped: false,
         active: !!this.active,
-        sessionId: this.active ? this.active.sessionId : '',
-        reason: 'WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED',
+        sessionId: this.active ? this.active.sessionId : "",
+        reason: "WALLPAPER_ENGINE_WINDOW_CLOSE_FAILED",
       };
     } else {
       result = { ...result, ok: true };
