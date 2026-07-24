@@ -4,21 +4,21 @@
 
 Forked from <https://github.com/XxHuberrr/Mineradio>
 
-Mineradio 是一款沉浸式音乐播放器，把天气电台、搜索播放、歌词舞台、粒子视觉和 3D 歌单架组合成一个更接近现场感的私人音乐空间。
+Mineradio 是一款以电影镜头、粒子视觉和歌词舞台为核心的沉浸式音乐播放器。
 
-此修改版在原版的基础上更新了依赖并加入了对macOS和Linux的支持
+此修改版在原版的基础上保证功能与原版基本无异的前提下加入优化和更多操作系统支持。
 
 ## 📦 使用
 
 ### 下载
 
-本项目版本号从V2.0.0起步 为了跟原版V1.x.x区分
+本项目版本号从V0.0.1起步 为了跟原版区分
 [GitHub Release](https://github.com/moaeiou/Mineradio/releases)
 
 ### 安装
 
 - Windows使用`electron-builder-squirrel-windows`组建打包
-- MacOS打开`.dmg`拖拽即可
+- MacOS打开`.dmg`拖拽安装
 - Linux使用包管理器或者运行`.AppImage`文件
 
 ## 🚀 核心特性
@@ -105,30 +105,6 @@ MINERADIO_LISTEN_HOST=0.0.0.0 pnpm dev
 
 ```bash
 MINERADIO_BEAT_CACHE_DIR=/path/to/beatmaps pnpm dev
-```
-
-### ⚠️ 已弃用的依赖
-
-这只是一个警告 仅此而已
-
-这两个依赖归属于NeteaseCloudMusicApi 但他已经在两年前就停止维护了
-
-```
-overrides:
-  music-metadata: ">=11.12.2"
-  file-type: ">=21.3.1"
-```
-
-这个也停止维护了 用于windows打包
-
-```
-"rcedit": "^5.0.2"
-```
-
-这四个依赖属于electron-builder的一部分 他们随electron-builder一起更新 请不要单独更新
-
-```
-boolean@3.2.0, glob@7.2.3, inflight@1.0.6, rimraf@2.6.3
 ```
 
 ## 🙏 致谢
