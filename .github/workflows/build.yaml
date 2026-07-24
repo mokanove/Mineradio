@@ -60,7 +60,7 @@ jobs:
         shell: bash
         run: |
           pnpm install
-          pnpm build:${{ matrix.tag }}
+          pnpm build:${{ matrix.tag }} --publish never
 
       - name: Release
         uses: softprops/action-gh-release@master
