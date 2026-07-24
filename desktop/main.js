@@ -17,7 +17,7 @@ const http = require("http");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
-const { execFile, spawn } = require("child_process");
+const { execFile, execFileSync, spawn } = require("child_process");
 const systemMemory = require("./system-memory");
 const {
   WallpaperEngineLibrary,
@@ -608,13 +608,50 @@ try {
   console.warn("[CacheSettings] Chromium cache path fallback:", error.message);
 }
 
+function supportsVulkan() {
+  try {
+    if (process.platform === "win32") {
+      const sys32 = path.join(
+        process.env.WINDIR || "C:\\Windows",
+        "System32",
+        "vulkan-1.dll",
+      );
+      return fs.existsSync(sys32);
+    } else if (process.platform === "linux") {
+      try {
+        execFileSync("vulkaninfo", ["--summary"], { stdio: "ignore" });
+        return true;
+      } catch (_) {
+        return (
+          fs.existsSync("/usr/lib/libvulkan.so") ||
+          fs.existsSync("/usr/lib/libvulkan.so.1") ||
+          fs.existsSync("/usr/lib/x86_64-linux-gnu/libvulkan.so") ||
+          fs.existsSync("/usr/lib64/libvulkan.so") ||
+          fs.existsSync("/usr/lib64/libvulkan.so.1")
+        );
+      }
+    }
+  } catch (_) {
+    return false;
+  }
+  return false;
+}
+function resolveAngleBackend() {
+  if (process.platform === "win32") {
+    return supportsVulkan() ? "vulkan" : "d3d11";
+  }
+  if (process.platform === "linux") {
+    return supportsVulkan() ? "vulkan" : "gl";
+  }
+  return null; // macOS: 让 Chromium 自行选择 (Metal via ANGLE)，不强制后端
+}
 const CHROMIUM_SAFE_PERFORMANCE_SWITCHES = [
   ["autoplay-policy", "no-user-gesture-required"],
   ["enable-gpu-rasterization"],
   ["enable-oop-rasterization"],
   ["enable-zero-copy"],
   ["enable-accelerated-2d-canvas"],
-  ["use-angle", "d3d11"],
+  ...(resolveAngleBackend() ? [["use-angle", resolveAngleBackend()]] : []),
 ];
 const CHROMIUM_OPT_IN_PERFORMANCE_SWITCHES = [
   ["ignore-gpu-blocklist", null, "MINERADIO_IGNORE_GPU_BLOCKLIST"],
