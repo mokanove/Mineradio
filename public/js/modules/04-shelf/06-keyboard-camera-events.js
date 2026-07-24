@@ -1,11 +1,9 @@
 function isFreeCameraControlCode(code) {
-  return /^(KeyW|KeyA|KeyS|KeyD|KeyQ|KeyE|Space|ShiftLeft|ShiftRight|ControlLeft|ControlRight)$/.test(
-    code,
-  );
+  return /^(KeyW|KeyA|KeyS|KeyD|KeyQ|KeyE|Space|ShiftLeft|ShiftRight|ControlLeft|ControlRight)$/.test(code);
 }
 function consumeFreeCameraKeyEvent(e, isDown) {
   if (isTypingTarget(e.target)) return false;
-  if (isDown && e.code === "KeyR") {
+  if (isDown && e.code === 'KeyR') {
     e.preventDefault();
     e.stopImmediatePropagation();
     if (e.repeat) return true;
@@ -13,7 +11,7 @@ function consumeFreeCameraKeyEvent(e, isDown) {
     return true;
   }
   if (!freeCamera || !freeCamera.active) return false;
-  if (isDown && e.code === "KeyK") {
+  if (isDown && e.code === 'KeyK') {
     e.preventDefault();
     e.stopImmediatePropagation();
     resetFreeCameraToDefault();
@@ -24,13 +22,13 @@ function consumeFreeCameraKeyEvent(e, isDown) {
   e.stopImmediatePropagation();
   freeCamera.keys = freeCamera.keys || {};
   freeCamera.keys[e.code] = !!isDown;
-  markRenderInteraction("free-camera-key", 900);
+  markRenderInteraction('free-camera-key', 900);
   return true;
 }
 function isPlaybackSpaceKey(e) {
   return !!(
     e &&
-    e.code === "Space" &&
+    e.code === 'Space' &&
     !e.ctrlKey &&
     !e.altKey &&
     !e.shiftKey &&
@@ -39,46 +37,33 @@ function isPlaybackSpaceKey(e) {
     !isTypingTarget(e.target)
   );
 }
-document.addEventListener(
-  "keydown",
-  function (e) {
-    consumeFreeCameraKeyEvent(e, true);
-  },
-  true,
-);
-document.addEventListener(
-  "keyup",
-  function (e) {
-    consumeFreeCameraKeyEvent(e, false);
-  },
-  true,
-);
-document.addEventListener("keydown", function (e) {
+document.addEventListener('keydown', function (e) {
+  consumeFreeCameraKeyEvent(e, true);
+}, true);
+document.addEventListener('keyup', function (e) {
+  consumeFreeCameraKeyEvent(e, false);
+}, true);
+document.addEventListener('keydown', function (e) {
   if (isTypingTarget(e.target)) return;
   if (isPlaybackSpaceKey(e)) return;
-  markRenderInteraction("keyboard", 700);
-  if (e.code === "KeyK") {
+  markRenderInteraction('keyboard', 700);
+  if (e.code === 'KeyK') {
     e.preventDefault();
-    if (freeCamera && (freeCamera.active || freeCamera.locked))
-      resetFreeCameraToDefault();
+    if (freeCamera && (freeCamera.active || freeCamera.locked)) resetFreeCameraToDefault();
     else {
       recenterCamera();
-      showToast("镜头已回正");
+      showToast('镜头已回正');
     }
     return;
   }
-  if (e.code === "KeyR") {
+  if (e.code === 'KeyR') {
     if (e.repeat) return;
     e.preventDefault();
     toggleFreeCamera();
     return;
   }
   if (freeCamera && freeCamera.active) {
-    if (
-      /^(KeyW|KeyA|KeyS|KeyD|KeyQ|KeyE|Space|ShiftLeft|ShiftRight|ControlLeft|ControlRight)$/.test(
-        e.code,
-      )
-    ) {
+    if (/^(KeyW|KeyA|KeyS|KeyD|KeyQ|KeyE|Space|ShiftLeft|ShiftRight|ControlLeft|ControlRight)$/.test(e.code)) {
       e.preventDefault();
       e.stopImmediatePropagation();
       freeCamera.keys[e.code] = true;
@@ -86,20 +71,16 @@ document.addEventListener("keydown", function (e) {
     }
   }
   if (!shelfManager) return;
-  if (e.code === "BracketRight" || e.code === "PageDown") shelfManager.next();
-  else if (e.code === "BracketLeft" || e.code === "PageUp") shelfManager.prev();
+  if (e.code === 'BracketRight' || e.code === 'PageDown') shelfManager.next();
+  else if (e.code === 'BracketLeft' || e.code === 'PageUp') shelfManager.prev();
 });
-document.addEventListener("keyup", function (e) {
+document.addEventListener('keyup', function (e) {
   if (!freeCamera || !freeCamera.keys) return;
-  if (
-    /^(KeyW|KeyA|KeyS|KeyD|KeyQ|KeyE|Space|ShiftLeft|ShiftRight|ControlLeft|ControlRight)$/.test(
-      e.code,
-    )
-  ) {
+  if (/^(KeyW|KeyA|KeyS|KeyD|KeyQ|KeyE|Space|ShiftLeft|ShiftRight|ControlLeft|ControlRight)$/.test(e.code)) {
     freeCamera.keys[e.code] = false;
   }
 });
-window.addEventListener("blur", function () {
+window.addEventListener('blur', function () {
   if (freeCamera && freeCamera.keys) freeCamera.keys = {};
 });
 

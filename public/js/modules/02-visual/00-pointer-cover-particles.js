@@ -12,9 +12,8 @@ var particlePointerWorldHit = new THREE.Vector3();
 var particlePointerLocalHit = new THREE.Vector3();
 var particlePointerQuat = new THREE.Quaternion();
 var particlePointerFrame = { dirty: false, ndcX: 0, ndcY: 0 };
-var CLICK_THRESHOLD = 6; // 像素, 拖动 > 6px 视为 drag
-var UI_HIT_SELECTOR =
-  "#search-area,#upload-panel,#top-right,#fullscreen-diy-zone,#fx-panel,#fx-fab,#fx-fab-hide-btn,#playlist-panel,#bottom-bar,#thumb-wrap,#empty-home,#visual-guide,#trial-banner,#source-fallback-notice,.modal-mask,#toast,#ai-depth-chip,#beat-chip,#drop-overlay";
+var CLICK_THRESHOLD = 6;  // 像素, 拖动 > 6px 视为 drag
+var UI_HIT_SELECTOR = '#search-area,#upload-panel,#top-right,#fullscreen-diy-zone,#fx-panel,#fx-fab,#fx-fab-hide-btn,#playlist-panel,#bottom-bar,#thumb-wrap,#empty-home,#visual-guide,#trial-banner,#source-fallback-notice,.modal-mask,#toast,#ai-depth-chip,#beat-chip,#drop-overlay';
 
 function isPointerOverUi(e) {
   if (!e) return false;
@@ -29,51 +28,20 @@ function particleLocalPointFromNdc(ndcX, ndcY, out) {
     particles.updateMatrixWorld(true);
     particles.getWorldPosition(particlePointerPlanePoint);
     particles.getWorldQuaternion(particlePointerQuat);
-    particlePointerPlaneNormal
-      .set(0, 0, 1)
-      .applyQuaternion(particlePointerQuat)
-      .normalize();
-    if (
-      Math.abs(
-        particlePointerPlaneNormal.dot(particlePointerRay.ray.direction),
-      ) < 0.16
-    )
-      return false;
-    particlePointerPlane.setFromNormalAndCoplanarPoint(
-      particlePointerPlaneNormal,
-      particlePointerPlanePoint,
-    );
-    if (
-      particlePointerRay.ray.intersectPlane(
-        particlePointerPlane,
-        particlePointerWorldHit,
-      )
-    ) {
+    particlePointerPlaneNormal.set(0, 0, 1).applyQuaternion(particlePointerQuat).normalize();
+    if (Math.abs(particlePointerPlaneNormal.dot(particlePointerRay.ray.direction)) < 0.16) return false;
+    particlePointerPlane.setFromNormalAndCoplanarPoint(particlePointerPlaneNormal, particlePointerPlanePoint);
+    if (particlePointerRay.ray.intersectPlane(particlePointerPlane, particlePointerWorldHit)) {
       out.copy(particlePointerWorldHit);
       particles.worldToLocal(out);
-      return (
-        isFinite(out.x) &&
-        isFinite(out.y) &&
-        Math.abs(out.x) < 8.5 &&
-        Math.abs(out.y) < 8.5
-      );
+      return isFinite(out.x) && isFinite(out.y) && Math.abs(out.x) < 8.5 && Math.abs(out.y) < 8.5;
     }
   }
   particlePointerPlaneNormal.set(0, 0, 1);
   particlePointerPlane.set(particlePointerPlaneNormal, 0);
-  if (
-    particlePointerRay.ray.intersectPlane(
-      particlePointerPlane,
-      particlePointerWorldHit,
-    )
-  ) {
+  if (particlePointerRay.ray.intersectPlane(particlePointerPlane, particlePointerWorldHit)) {
     out.copy(particlePointerWorldHit);
-    return (
-      isFinite(out.x) &&
-      isFinite(out.y) &&
-      Math.abs(out.x) < 8.5 &&
-      Math.abs(out.y) < 8.5
-    );
+    return isFinite(out.x) && isFinite(out.y) && Math.abs(out.x) < 8.5 && Math.abs(out.y) < 8.5;
   }
   return false;
 }
@@ -81,8 +49,7 @@ function particleLocalPointFromNdc(ndcX, ndcY, out) {
 function queueParticlePointerFrame(clientX, clientY) {
   var mx = (clientX / innerWidth) * 2 - 1;
   var my = -(clientY / innerHeight) * 2 + 1;
-  pointerTarget.x = mx;
-  pointerTarget.y = my;
+  pointerTarget.x = mx; pointerTarget.y = my;
   particlePointerFrame.ndcX = mx;
   particlePointerFrame.ndcY = my;
   particlePointerFrame.dirty = true;
@@ -91,13 +58,7 @@ function queueParticlePointerFrame(clientX, clientY) {
 function updateParticlePointerFrame() {
   if (!particlePointerFrame.dirty) return;
   particlePointerFrame.dirty = false;
-  if (
-    particleLocalPointFromNdc(
-      particlePointerFrame.ndcX,
-      particlePointerFrame.ndcY,
-      particlePointerLocalHit,
-    )
-  ) {
+  if (particleLocalPointFromNdc(particlePointerFrame.ndcX, particlePointerFrame.ndcY, particlePointerLocalHit)) {
     mouseWorld.x = particlePointerLocalHit.x;
     mouseWorld.y = particlePointerLocalHit.y;
     mouseActive = true;
@@ -110,53 +71,40 @@ function updateParticlePointerFrame() {
 function beginParticlePointerDrag(e) {
   if (e.button === 2) return;
   if (isPointerOverUi(e)) return;
-  markRenderInteraction("canvas-drag", 1200);
+  markRenderInteraction('canvas-drag', 1200);
   idleGuidePointerDown(e);
-  orbit.rotating = true;
-  orbit.last.x = e.clientX;
-  orbit.last.y = e.clientY;
+  orbit.rotating = true; orbit.last.x = e.clientX; orbit.last.y = e.clientY;
   particlePointerSpin.active = true;
   particlePointerSpin.lastX = e.clientX;
   particlePointerSpin.lastY = e.clientY;
   particlePointerSpin.lastT = performance.now();
-  if (typeof particleSpin !== "undefined")
-    particleSpin.vx = particleSpin.vy = 0;
-  mouseDownAt.x = e.clientX;
-  mouseDownAt.y = e.clientY;
-  mouseDownAt.t = performance.now();
-  mouseDownAt.hadDrag = false;
+  if (typeof particleSpin !== 'undefined') particleSpin.vx = particleSpin.vy = 0;
+  mouseDownAt.x = e.clientX; mouseDownAt.y = e.clientY;
+  mouseDownAt.t = performance.now(); mouseDownAt.hadDrag = false;
 }
-renderer.domElement.addEventListener("mousedown", function (e) {
+renderer.domElement.addEventListener('mousedown', function (e) {
   if (freeCamera && freeCamera.active) {
-    if (typeof requestFreeCameraPointerLock === "function")
-      requestFreeCameraPointerLock("canvas-mousedown");
+    if (typeof requestFreeCameraPointerLock === 'function') requestFreeCameraPointerLock('canvas-mousedown');
     e.preventDefault();
     return;
   }
   beginParticlePointerDrag(e);
 });
-window.addEventListener(
-  "mousedown",
-  function (e) {
-    if (!(fx && fx.preset === SKULL_PRESET_INDEX)) return;
-    if (orbit.rotating || e.target === renderer.domElement) return;
-    beginParticlePointerDrag(e);
-  },
-  true,
-);
-window.addEventListener("mousemove", function (e) {
+window.addEventListener('mousedown', function (e) {
+  if (!(fx && fx.preset === SKULL_PRESET_INDEX)) return;
+  if (orbit.rotating || e.target === renderer.domElement) return;
+  beginParticlePointerDrag(e);
+}, true);
+window.addEventListener('mousemove', function (e) {
   updateControlsAutoHideFromPointer(e.clientX, e.clientY);
   idleGuidePointerMove(e);
   if (freeCamera && freeCamera.active) {
-    markRenderInteraction("free-camera", 900);
-    var pointerLocked =
-      typeof freeCameraPointerLockActive === "function" &&
-      freeCameraPointerLockActive();
-    if (!pointerLocked && typeof requestFreeCameraPointerLock === "function")
-      requestFreeCameraPointerLock("mousemove");
+    markRenderInteraction('free-camera', 900);
+    var pointerLocked = typeof freeCameraPointerLockActive === 'function' && freeCameraPointerLockActive();
+    if (!pointerLocked && typeof requestFreeCameraPointerLock === 'function') requestFreeCameraPointerLock('mousemove');
     var mdx = e.movementX || 0;
     var mdy = e.movementY || 0;
-    if (!pointerLocked && !mdx && !mdy && freeCameraPointer.seen) {
+    if (!pointerLocked && (!mdx && !mdy) && freeCameraPointer.seen) {
       mdx = e.clientX - freeCameraPointer.x;
       mdy = e.clientY - freeCameraPointer.y;
     }
@@ -164,54 +112,35 @@ window.addEventListener("mousemove", function (e) {
     freeCameraPointer.y = e.clientY;
     freeCameraPointer.seen = true;
     freeCamera.yaw -= mdx * 0.00125;
-    freeCamera.pitch = clampRange(
-      freeCamera.pitch - mdy * 0.00125,
-      -Math.PI * 0.49,
-      Math.PI * 0.49,
-    );
+    freeCamera.pitch = clampRange(freeCamera.pitch - mdy * 0.00125, -Math.PI * 0.49, Math.PI * 0.49);
     return;
   }
-  if (isPointerOverUi(e) && !orbit.rotating) {
-    mouseActive = false;
-    return;
-  }
+  if (isPointerOverUi(e) && !orbit.rotating) { mouseActive = false; return; }
   if (orbit.rotating) {
-    markRenderInteraction("canvas-drag", 900);
+    markRenderInteraction('canvas-drag', 900);
     unlockCenteredView();
-    var dx = e.clientX - orbit.last.x,
-      dy = e.clientY - orbit.last.y;
+    var dx = e.clientX - orbit.last.x, dy = e.clientY - orbit.last.y;
     if (particlePointerSpin.active) {
       var nowSpin = performance.now();
-      var spinDt = Math.max(
-        1 / 120,
-        Math.min(0.08, (nowSpin - particlePointerSpin.lastT) / 1000 || 1 / 60),
-      );
+      var spinDt = Math.max(1 / 120, Math.min(0.08, (nowSpin - particlePointerSpin.lastT) / 1000 || 1 / 60));
       applyParticleSpinDrag(dx, dy, spinDt);
       particlePointerSpin.lastX = e.clientX;
       particlePointerSpin.lastY = e.clientY;
       particlePointerSpin.lastT = nowSpin;
     }
-    orbit.last.x = e.clientX;
-    orbit.last.y = e.clientY;
+    orbit.last.x = e.clientX; orbit.last.y = e.clientY;
     // drag 距离判断
-    var totalDx = e.clientX - mouseDownAt.x,
-      totalDy = e.clientY - mouseDownAt.y;
-    if (Math.sqrt(totalDx * totalDx + totalDy * totalDy) > CLICK_THRESHOLD)
-      mouseDownAt.hadDrag = true;
+    var totalDx = e.clientX - mouseDownAt.x, totalDy = e.clientY - mouseDownAt.y;
+    if (Math.sqrt(totalDx * totalDx + totalDy * totalDy) > CLICK_THRESHOLD) mouseDownAt.hadDrag = true;
     if (orbit.recentering) orbit.recentering = false;
   }
   queueParticlePointerFrame(e.clientX, e.clientY);
 });
-window.addEventListener("mouseup", function (e) {
+window.addEventListener('mouseup', function (e) {
   orbit.rotating = false;
   particlePointerSpin.active = false;
   idleGuidePointerUp();
-  if (
-    window.MineradioSonicTopography &&
-    MineradioSonicTopography.isActive(fx) &&
-    !mouseDownAt.hadDrag &&
-    !isPointerOverUi(e)
-  ) {
+  if (window.MineradioSonicTopography && MineradioSonicTopography.isActive(fx) && !mouseDownAt.hadDrag && !isPointerOverUi(e)) {
     var pressMs = Math.max(0, performance.now() - (mouseDownAt.t || 0));
     var strength = Math.min(0.25 + (pressMs / 1000) * 2.6, 3.0);
     var nx = (e.clientX / Math.max(1, innerWidth) - 0.5) * 34;
@@ -219,59 +148,40 @@ window.addEventListener("mouseup", function (e) {
     MineradioSonicTopography.pointerRipple(nx, nz, strength);
   }
 });
-renderer.domElement.addEventListener("mouseleave", function () {
+renderer.domElement.addEventListener('mouseleave', function () {
   particlePointerFrame.dirty = false;
   mouseWorld.set(-999, -999, 0);
   mouseActive = false;
   idleGuidePointerLeave();
 });
-renderer.domElement.addEventListener(
-  "wheel",
-  function (e) {
-    if (isPointerOverUi(e)) return;
-    e.preventDefault();
-    markRenderInteraction("canvas-wheel", 900);
-    if (freeCamera && freeCamera.active) {
-      freeCamera.fov = clampRange(
-        (freeCamera.fov || BASE_FOV) + e.deltaY * 0.018,
-        26,
-        72,
-      );
-      saveFreeCameraState();
-      return;
-    }
-    if (
-      fx &&
-      fx.preset === SKULL_PRESET_INDEX &&
-      typeof skullWheelZoomTarget !== "undefined"
-    ) {
-      skullWheelZoomTarget = clampRange(
-        skullWheelZoomTarget + e.deltaY * 0.00155,
-        -0.95,
-        1.28,
-      );
-      return;
-    }
-    idleGuideWheel(e);
-    unlockCenteredView();
-    orbit.userRadius = Math.max(
-      orbit.minRadius,
-      Math.min(orbit.maxRadius, orbit.userRadius + e.deltaY * 0.005),
-    );
-    if (orbit.recentering) orbit.recentering = false;
-  },
-  { passive: false },
-);
+renderer.domElement.addEventListener('wheel', function (e) {
+  if (isPointerOverUi(e)) return;
+  e.preventDefault();
+  markRenderInteraction('canvas-wheel', 900);
+  if (freeCamera && freeCamera.active) {
+    freeCamera.fov = clampRange((freeCamera.fov || BASE_FOV) + e.deltaY * 0.018, 26, 72);
+    saveFreeCameraState();
+    return;
+  }
+  if (fx && fx.preset === SKULL_PRESET_INDEX && typeof skullWheelZoomTarget !== 'undefined') {
+    skullWheelZoomTarget = clampRange(skullWheelZoomTarget + e.deltaY * 0.00155, -0.95, 1.28);
+    return;
+  }
+  idleGuideWheel(e);
+  unlockCenteredView();
+  orbit.userRadius = Math.max(orbit.minRadius, Math.min(orbit.maxRadius, orbit.userRadius + e.deltaY * 0.005));
+  if (orbit.recentering) orbit.recentering = false;
+}, { passive: false });
 
 // 双击屏幕回正 — 不命中卡片时
-renderer.domElement.addEventListener("dblclick", function (e) {
+renderer.domElement.addEventListener('dblclick', function (e) {
   if (isPointerOverUi(e)) return;
   if (freeCamera && freeCamera.locked) {
     resetFreeCameraToDefault();
     resetSkullPresetView(false, { smooth: true, keepLyricLock: true });
     return;
   }
-  if (shelfManager && shelfManager.getMode() !== "off") {
+  if (shelfManager && shelfManager.getMode() !== 'off') {
     var mx = (e.clientX / innerWidth) * 2 - 1;
     var my = -(e.clientY / innerHeight) * 2 + 1;
     var rc = new THREE.Raycaster();
@@ -285,19 +195,17 @@ renderer.domElement.addEventListener("dblclick", function (e) {
 //  粒子点纹理 (干净圆点, 无 glow)
 // ============================================================
 function makeDotTexture() {
-  var cv = document.createElement("canvas");
-  cv.width = cv.height = 64;
-  var ctx = cv.getContext("2d");
+  var cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  var ctx = cv.getContext('2d');
   var g = ctx.createRadialGradient(32, 32, 0, 32, 32, 31);
-  g.addColorStop(0.0, "rgba(255,255,255,0.96)");
-  g.addColorStop(0.42, "rgba(255,255,255,0.78)");
-  g.addColorStop(0.72, "rgba(255,255,255,0.22)");
-  g.addColorStop(1.0, "rgba(255,255,255,0)");
+  g.addColorStop(0.00, 'rgba(255,255,255,0.96)');
+  g.addColorStop(0.42, 'rgba(255,255,255,0.78)');
+  g.addColorStop(0.72, 'rgba(255,255,255,0.22)');
+  g.addColorStop(1.00, 'rgba(255,255,255,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 64, 64);
   var tex = new THREE.CanvasTexture(cv);
-  tex.minFilter = THREE.LinearFilter;
-  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter;
   return tex;
 }
 var dotTexture = makeDotTexture();
@@ -310,12 +218,9 @@ var dotTexture = makeDotTexture();
 var PLANE_SIZE = 4.8;
 var RIPPLE_MAX = 12;
 
-var GRID_X = coverParticleGridForResolution(fx.coverResolution),
-  GRID_Y = GRID_X;
+var GRID_X = coverParticleGridForResolution(fx.coverResolution), GRID_Y = GRID_X;
 var PCOUNT = GRID_X * GRID_Y;
-var positions = null,
-  uvs = null,
-  aRand = null;
+var positions = null, uvs = null, aRand = null;
 var coverResolutionReloadTimer = null;
 var currentCoverSource = null;
 var coverPickerCanvas = null;
@@ -329,12 +234,9 @@ function buildCoverParticleGeometry(grid) {
   var nextRand = new Float32Array(count);
   var texelStep = 1 / grid;
   for (var i = 0; i < count; i++) {
-    var gx = i % grid,
-      gy = Math.floor(i / grid);
-    var u = (gx + 0.5) * texelStep,
-      v = (gy + 0.5) * texelStep;
-    var px = gx / (grid - 1),
-      py = gy / (grid - 1);
+    var gx = i % grid, gy = Math.floor(i / grid);
+    var u = (gx + 0.5) * texelStep, v = (gy + 0.5) * texelStep;
+    var px = gx / (grid - 1), py = gy / (grid - 1);
     nextPositions[i * 3] = (px - 0.5) * PLANE_SIZE;
     nextPositions[i * 3 + 1] = (py - 0.5) * PLANE_SIZE;
     nextPositions[i * 3 + 2] = 0;
@@ -342,9 +244,9 @@ function buildCoverParticleGeometry(grid) {
     nextUvs[i * 2 + 1] = v;
     nextRand[i] = Math.random();
   }
-  nextGeo.setAttribute("position", new THREE.BufferAttribute(nextPositions, 3));
-  nextGeo.setAttribute("aUv", new THREE.BufferAttribute(nextUvs, 2));
-  nextGeo.setAttribute("aRand", new THREE.BufferAttribute(nextRand, 1));
+  nextGeo.setAttribute('position', new THREE.BufferAttribute(nextPositions, 3));
+  nextGeo.setAttribute('aUv', new THREE.BufferAttribute(nextUvs, 2));
+  nextGeo.setAttribute('aRand', new THREE.BufferAttribute(nextRand, 1));
   nextGeo.userData.grid = grid;
   nextGeo.userData.count = count;
   positions = nextPositions;
@@ -359,8 +261,7 @@ function applyCoverParticleResolution(value, opts) {
   opts = opts || {};
   fx.coverResolution = normalizeCoverResolution(value);
   var grid = coverParticleGridForResolution(fx.coverResolution);
-  if (grid === GRID_X && geo && geo.userData && geo.userData.grid === grid)
-    return;
+  if (grid === GRID_X && geo && geo.userData && geo.userData.grid === grid) return;
   var oldGeo = geo;
   var nextGeo = buildCoverParticleGeometry(grid);
   geo = nextGeo;
@@ -379,76 +280,46 @@ function scheduleCoverResolutionReload() {
   coverResolutionReloadTimer = setTimeout(function () {
     coverResolutionReloadTimer = null;
     if (!currentCoverSource || !currentCoverSource.src) return;
-    if (currentCoverSource.kind === "url") {
-      loadCoverFromUrl(currentCoverSource.src, {
-        trackToken: trackSwitchToken,
-        fromResolutionChange: true,
-      });
-    } else if (currentCoverSource.kind === "data") {
-      applyCoverDataUrl(currentCoverSource.src, {
-        trackToken: trackSwitchToken,
-        fromResolutionChange: true,
-      });
+    if (currentCoverSource.kind === 'url') {
+      loadCoverFromUrl(currentCoverSource.src, { trackToken: trackSwitchToken, fromResolutionChange: true });
+    } else if (currentCoverSource.kind === 'data') {
+      applyCoverDataUrl(currentCoverSource.src, { trackToken: trackSwitchToken, fromResolutionChange: true });
     }
   }, 260);
 }
 
 // 涟漪数据纹理 (1×N, RGBA: x, y, age, str)
 var rippleData = new Float32Array(RIPPLE_MAX * 4);
-var rippleTex = new THREE.DataTexture(
-  rippleData,
-  1,
-  RIPPLE_MAX,
-  THREE.RGBAFormat,
-  THREE.FloatType,
-);
-rippleTex.magFilter = THREE.NearestFilter;
-rippleTex.minFilter = THREE.NearestFilter;
+var rippleTex = new THREE.DataTexture(rippleData, 1, RIPPLE_MAX, THREE.RGBAFormat, THREE.FloatType);
+rippleTex.magFilter = THREE.NearestFilter; rippleTex.minFilter = THREE.NearestFilter;
 var ripples = [];
-for (var ri = 0; ri < RIPPLE_MAX; ri++)
-  ripples.push({ x: 0, y: 0, age: -10, str: 0 });
+for (var ri = 0; ri < RIPPLE_MAX; ri++) ripples.push({ x: 0, y: 0, age: -10, str: 0 });
 
 // 封面纹理 + 边缘/深度纹理
 var coverTex = new THREE.Texture();
-coverTex.minFilter = THREE.LinearFilter;
-coverTex.magFilter = THREE.LinearFilter;
-coverTex.wrapS = THREE.ClampToEdgeWrapping;
-coverTex.wrapT = THREE.ClampToEdgeWrapping;
+coverTex.minFilter = THREE.LinearFilter; coverTex.magFilter = THREE.LinearFilter;
+coverTex.wrapS = THREE.ClampToEdgeWrapping; coverTex.wrapT = THREE.ClampToEdgeWrapping;
 
-var coverEdgeTex = new THREE.Texture(); // R=depth, G=edge, B=fg-mask, A=lum
-coverEdgeTex.minFilter = THREE.LinearFilter;
-coverEdgeTex.magFilter = THREE.LinearFilter;
+var coverEdgeTex = new THREE.Texture();  // R=depth, G=edge, B=fg-mask, A=lum
+coverEdgeTex.minFilter = THREE.LinearFilter; coverEdgeTex.magFilter = THREE.LinearFilter;
 
 // 初始 1×1 像素
 (function () {
-  var c = document.createElement("canvas");
-  c.width = c.height = 4;
-  var x = c.getContext("2d");
-  x.fillStyle = "#1c1c28";
-  x.fillRect(0, 0, 4, 4);
-  coverTex.image = c;
-  coverTex.needsUpdate = true;
-  var d = document.createElement("canvas");
-  d.width = d.height = 4;
-  var dx = d.getContext("2d");
-  dx.fillStyle = "rgba(128,0,0,255)";
-  dx.fillRect(0, 0, 4, 4);
-  coverEdgeTex.image = d;
-  coverEdgeTex.needsUpdate = true;
+  var c = document.createElement('canvas'); c.width = c.height = 4;
+  var x = c.getContext('2d'); x.fillStyle = '#1c1c28'; x.fillRect(0, 0, 4, 4);
+  coverTex.image = c; coverTex.needsUpdate = true;
+  var d = document.createElement('canvas'); d.width = d.height = 4;
+  var dx = d.getContext('2d'); dx.fillStyle = 'rgba(128,0,0,255)'; dx.fillRect(0, 0, 4, 4);
+  coverEdgeTex.image = d; coverEdgeTex.needsUpdate = true;
 })();
 
 // 前一首封面纹理 (用于切歌渐变)
 var prevCoverTex = new THREE.Texture();
-prevCoverTex.minFilter = THREE.LinearFilter;
-prevCoverTex.magFilter = THREE.LinearFilter;
+prevCoverTex.minFilter = THREE.LinearFilter; prevCoverTex.magFilter = THREE.LinearFilter;
 (function () {
-  var c = document.createElement("canvas");
-  c.width = c.height = 4;
-  var x = c.getContext("2d");
-  x.fillStyle = "#1c1c28";
-  x.fillRect(0, 0, 4, 4);
-  prevCoverTex.image = c;
-  prevCoverTex.needsUpdate = true;
+  var c = document.createElement('canvas'); c.width = c.height = 4;
+  var x = c.getContext('2d'); x.fillStyle = '#1c1c28'; x.fillRect(0, 0, 4, 4);
+  prevCoverTex.image = c; prevCoverTex.needsUpdate = true;
 })();
 
 var uniforms = {
@@ -458,7 +329,7 @@ var uniforms = {
   uTreble: { value: 0 },
   uBeat: { value: 0 },
   uEnergy: { value: 0 },
-  uBurstAmt: { value: 0 }, // 通用预设切换脉冲 0..1
+  uBurstAmt: { value: 0 },          // 通用预设切换脉冲 0..1
   uVinylSpin: { value: 0 },
   uPreset: { value: 0 },
   uIntensity: { value: 0.85 },
@@ -469,14 +340,14 @@ var uniforms = {
   uColorBoost: { value: 1.1 },
   uScatter: { value: 0 },
   uCoverRes: { value: 1.0 },
-  uBgFade: { value: 0.2 },
+  uBgFade: { value: 0.20 },
   uBloomStrength: { value: 0.62 },
   uBloomSize: { value: 2.65 },
-  uTintColor: { value: new THREE.Color("#9db8cf") },
+  uTintColor: { value: new THREE.Color('#9db8cf') },
   uTintStrength: { value: 0 },
   uCoverTex: { value: coverTex },
   uPrevCoverTex: { value: prevCoverTex },
-  uColorMixT: { value: 1.0 }, // 0=显示旧封面 → 1=显示新封面
+  uColorMixT: { value: 1.0 },        // 0=显示旧封面 → 1=显示新封面
   uEdgeTex: { value: coverEdgeTex },
   uRippleTex: { value: rippleTex },
   uRippleCount: { value: 0 },
@@ -484,17 +355,17 @@ var uniforms = {
   uHasCover: { value: 0 },
   uHasDepth: { value: 0 },
   uEdgeEnabled: { value: 1 },
-  uAiBoost: { value: 0 }, // AI 深度增益, 当 AI 接管时升至 1
+  uAiBoost: { value: 0 },          // AI 深度增益, 当 AI 接管时升至 1
   uMouseXY: { value: new THREE.Vector2(-999, -999) },
   uMouseActive: { value: 0 },
   uHandXY: { value: new THREE.Vector2(-999, -999) },
   uHandActive: { value: 0 },
   uGestureGrip: { value: 0 },
   uPixel: { value: renderer.getPixelRatio() },
-  uAlpha: { value: 0 }, // 整体粒子透明度 (启动 fade-in)
-  uParticleDim: { value: 1 }, // 覆盖层打开时只压低粒子背景, 不影响 3D 卡片
-  uFloatAlpha: { value: 0 }, // 空场/浮空粒子透明度
-  uLoading: { value: 0 }, // 加载动画混合度 0..1 (1 = 完全聚成圆环)
+  uAlpha: { value: 0 },          // 整体粒子透明度 (启动 fade-in)
+  uParticleDim: { value: 1 },          // 覆盖层打开时只压低粒子背景, 不影响 3D 卡片
+  uFloatAlpha: { value: 0 },          // 空场/浮空粒子透明度
+  uLoading: { value: 0 },          // 加载动画混合度 0..1 (1 = 完全聚成圆环)
 };
 installRenderPowerHooks();
 applyRendererPowerMode();
@@ -1003,23 +874,13 @@ void main(){
 `;
 
 var material = new THREE.ShaderMaterial({
-  uniforms: uniforms,
-  vertexShader: vs,
-  fragmentShader: fs,
-  transparent: true,
-  depthWrite: false,
-  blending: THREE.NormalBlending,
+  uniforms: uniforms, vertexShader: vs, fragmentShader: fs,
+  transparent: true, depthWrite: false, blending: THREE.NormalBlending,
 });
 
 var bloomVs = vs
-  .replace(
-    "uniform float uMouseActive, uPixel, uColorMixT, uLoading;",
-    "uniform float uMouseActive, uPixel, uColorMixT, uLoading, uBloomSize;",
-  )
-  .replace(
-    "gl_PointSize = sz * uPixel * uPointScale;",
-    "gl_PointSize = sz * uPixel * uPointScale * uBloomSize;",
-  );
+  .replace('uniform float uMouseActive, uPixel, uColorMixT, uLoading;', 'uniform float uMouseActive, uPixel, uColorMixT, uLoading, uBloomSize;')
+  .replace('gl_PointSize = sz * uPixel * uPointScale;', 'gl_PointSize = sz * uPixel * uPointScale * uBloomSize;');
 var bloomFs = `
 precision highp float;
 uniform sampler2D uDotTex;
@@ -1041,13 +902,8 @@ void main(){
 }
 `;
 var bloomMaterial = new THREE.ShaderMaterial({
-  uniforms: uniforms,
-  vertexShader: bloomVs,
-  fragmentShader: bloomFs,
-  transparent: true,
-  depthWrite: false,
-  depthTest: false,
-  blending: THREE.AdditiveBlending,
+  uniforms: uniforms, vertexShader: bloomVs, fragmentShader: bloomFs,
+  transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending,
 });
 var bloomParticles = new THREE.Points(geo, bloomMaterial);
 bloomParticles.frustumCulled = false;
@@ -1070,9 +926,9 @@ function buildBackgroundStarRiverGeometry(count) {
     lanes[i] = Math.random();
     depths[i] = Math.random();
   }
-  bgGeo.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
-  bgGeo.setAttribute("aLane", new THREE.BufferAttribute(lanes, 1));
-  bgGeo.setAttribute("aDepthSeed", new THREE.BufferAttribute(depths, 1));
+  bgGeo.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
+  bgGeo.setAttribute('aLane', new THREE.BufferAttribute(lanes, 1));
+  bgGeo.setAttribute('aDepthSeed', new THREE.BufferAttribute(depths, 1));
   return bgGeo;
 }
 
@@ -1087,7 +943,7 @@ var backgroundStarRiverUniforms = {
   uPointScale: uniforms.uPointScale,
   uParticleDim: uniforms.uParticleDim,
   uTintColor: uniforms.uTintColor,
-  uAlpha: { value: 0 },
+  uAlpha: { value: 0 }
 };
 
 var backgroundStarRiverVs = `
@@ -1154,12 +1010,9 @@ var backgroundStarRiverMaterial = new THREE.ShaderMaterial({
   transparent: true,
   depthWrite: false,
   depthTest: false,
-  blending: THREE.AdditiveBlending,
+  blending: THREE.AdditiveBlending
 });
-var backgroundStarRiverParticles = new THREE.Points(
-  buildBackgroundStarRiverGeometry(BACKGROUND_STAR_RIVER_COUNT),
-  backgroundStarRiverMaterial,
-);
+var backgroundStarRiverParticles = new THREE.Points(buildBackgroundStarRiverGeometry(BACKGROUND_STAR_RIVER_COUNT), backgroundStarRiverMaterial);
 backgroundStarRiverParticles.frustumCulled = false;
 backgroundStarRiverParticles.renderOrder = -2;
 scene.add(backgroundStarRiverParticles);
@@ -1167,16 +1020,8 @@ scene.add(backgroundStarRiverParticles);
 function backgroundStarRiverTargetAlpha() {
   if (!fx || fx.backgroundStarRiver === false) return 0;
   if (Number(fx.preset) === 5) return 0;
-  if (
-    typeof SONIC_PRESET_INDEX !== "undefined" &&
-    Number(fx.preset) === SONIC_PRESET_INDEX
-  )
-    return 0;
-  if (
-    typeof SKULL_PRESET_INDEX !== "undefined" &&
-    Number(fx.preset) === SKULL_PRESET_INDEX
-  )
-    return 0.38;
+  if (typeof SONIC_PRESET_INDEX !== 'undefined' && Number(fx.preset) === SONIC_PRESET_INDEX) return 0;
+  if (typeof SKULL_PRESET_INDEX !== 'undefined' && Number(fx.preset) === SKULL_PRESET_INDEX) return 0.38;
   return 0.34;
 }
 
@@ -1187,14 +1032,11 @@ function updateBackgroundStarRiverState(dt, immediate) {
     backgroundStarRiverUniforms.uAlpha.value = target;
   } else {
     var ease = target > backgroundStarRiverUniforms.uAlpha.value ? 0.085 : 0.16;
-    backgroundStarRiverUniforms.uAlpha.value +=
-      (target - backgroundStarRiverUniforms.uAlpha.value) *
-      Math.min(1, ease * Math.max(1, (dt || 0.016) * 60));
+    backgroundStarRiverUniforms.uAlpha.value += (target - backgroundStarRiverUniforms.uAlpha.value) * Math.min(1, ease * Math.max(1, (dt || 0.016) * 60));
   }
-  backgroundStarRiverParticles.visible =
-    backgroundStarRiverUniforms.uAlpha.value > 0.006;
+  backgroundStarRiverParticles.visible = backgroundStarRiverUniforms.uAlpha.value > 0.006;
 }
-console.log("v7 shell loaded, JS pending");
+console.log('v7 shell loaded, JS pending');
 
 // ============================================================
 //  浮空粒子层 (独立 Points)

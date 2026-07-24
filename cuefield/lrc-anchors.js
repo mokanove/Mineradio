@@ -1,38 +1,34 @@
 function toSeconds(mm, ss, frac) {
-  return Number(mm) * 60 + Number(ss) + Number(`0.${frac || "0"}`);
+  return Number(mm) * 60 + Number(ss) + Number(`0.${frac || '0'}`);
 }
 
 function cleanText(text) {
-  return String(text || "")
-    .replace(/\s+/g, " ")
+  return String(text || '')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
 function normalizeText(text) {
   return cleanText(text)
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .replace(/\s+/g, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
 function parseLrc(text) {
   const lines = [];
-  String(text || "")
-    .split(/\n/)
-    .forEach((raw) => {
-      const match = raw.match(
-        /^\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]\s*(.*)$/,
-      );
-      if (!match) return;
-      const lyric = cleanText(match[4]);
-      if (!lyric) return;
-      lines.push({
-        time: toSeconds(match[1], match[2], match[3]),
-        text: lyric,
-        normalized: normalizeText(lyric),
-      });
+  String(text || '').split(/\n/).forEach((raw) => {
+    const match = raw.match(/^\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]\s*(.*)$/);
+    if (!match) return;
+    const lyric = cleanText(match[4]);
+    if (!lyric) return;
+    lines.push({
+      time: toSeconds(match[1], match[2], match[3]),
+      text: lyric,
+      normalized: normalizeText(lyric),
     });
+  });
   return lines.sort((a, b) => a.time - b.time);
 }
 
@@ -52,36 +48,26 @@ function findSectionEntry(lines, opts = {}) {
 }
 
 function findSectionEntries(lines, opts = {}) {
-  const preferAfter = Number.isFinite(Number(opts.preferAfter))
-    ? Number(opts.preferAfter)
-    : 30;
+  const preferAfter = Number.isFinite(Number(opts.preferAfter)) ? Number(opts.preferAfter) : 30;
   const repeated = repeatedGroups(lines)
-    .flatMap((group) =>
-      group.map((line) => ({
-        kind: "section-entry",
-        sectionType: "repeated-vocal",
-        time: line.time,
-        text: line.text,
-        repeats: group.length,
-        score:
-          group.length * 10 +
-          (line.time >= preferAfter ? 3 : 0) +
-          Math.min(4, line.normalized.split(" ").length),
-      })),
-    )
+    .flatMap((group) => group.map((line) => ({
+      kind: 'section-entry',
+      sectionType: 'repeated-vocal',
+      time: line.time,
+      text: line.text,
+      repeats: group.length,
+      score: group.length * 10 + (line.time >= preferAfter ? 3 : 0) + Math.min(4, line.normalized.split(' ').length),
+    })))
     .filter((candidate) => candidate.time >= preferAfter);
 
   const preSections = repeated
     .map((candidate) => {
-      const before = lines.filter(
-        (line) =>
-          line.time < candidate.time && line.time >= candidate.time - 16,
-      );
+      const before = lines.filter((line) => line.time < candidate.time && line.time >= candidate.time - 16);
       const anchor = before[before.length - 1];
       if (!anchor) return null;
       return {
-        kind: "section-entry",
-        sectionType: "pre-section",
+        kind: 'section-entry',
+        sectionType: 'pre-section',
         time: anchor.time,
         text: anchor.text,
         repeats: candidate.repeats,
@@ -103,16 +89,14 @@ function findSectionEntries(lines, opts = {}) {
 
   const fallback = lines.find((line) => line.time >= preferAfter) || lines[0];
   if (!fallback) return [];
-  return [
-    {
-      kind: "section-candidate",
-      sectionType: "timed-entry",
-      time: fallback.time,
-      text: fallback.text,
-      repeats: 1,
-      score: 0,
-    },
-  ];
+  return [{
+    kind: 'section-candidate',
+    sectionType: 'timed-entry',
+    time: fallback.time,
+    text: fallback.text,
+    repeats: 1,
+    score: 0,
+  }];
 }
 
 function findHookEntry(lines, opts = {}) {
@@ -120,26 +104,18 @@ function findHookEntry(lines, opts = {}) {
   if (!entry) return null;
   return {
     ...entry,
-    kind: entry.kind === "section-entry" ? "hook" : "hook-candidate",
+    kind: entry.kind === 'section-entry' ? 'hook' : 'hook-candidate',
   };
 }
 
 function findOutgoingPhrase(lines, opts = {}) {
-  const before = Number.isFinite(Number(opts.before))
-    ? Number(opts.before)
-    : Infinity;
-  const maxLookback = Number.isFinite(Number(opts.maxLookback))
-    ? Number(opts.maxLookback)
-    : 24;
-  const candidates = lines.filter(
-    (line) => line.time <= before && line.time >= before - maxLookback,
-  );
-  const chosen =
-    candidates[candidates.length - 1] ||
-    lines.filter((line) => line.time <= before).at(-1);
+  const before = Number.isFinite(Number(opts.before)) ? Number(opts.before) : Infinity;
+  const maxLookback = Number.isFinite(Number(opts.maxLookback)) ? Number(opts.maxLookback) : 24;
+  const candidates = lines.filter((line) => line.time <= before && line.time >= before - maxLookback);
+  const chosen = candidates[candidates.length - 1] || lines.filter((line) => line.time <= before).at(-1);
   if (!chosen) return null;
   return {
-    kind: "outgoing-phrase",
+    kind: 'outgoing-phrase',
     time: chosen.time,
     text: chosen.text,
   };

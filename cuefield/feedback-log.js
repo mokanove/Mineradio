@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
 
 function roundNumber(value, digits = 3) {
   const n = Number(value);
@@ -9,24 +9,21 @@ function roundNumber(value, digits = 3) {
 }
 
 function compactString(value, maxLength = 160) {
-  const text = String(value == null ? "" : value).trim();
+  const text = String(value == null ? '' : value).trim();
   return text.length > maxLength ? text.slice(0, maxLength) : text;
 }
 
 function compactList(value, maxItems = 8) {
   return Array.isArray(value)
-    ? value
-        .slice(0, maxItems)
-        .map((item) => compactString(item, 80))
-        .filter(Boolean)
+    ? value.slice(0, maxItems).map((item) => compactString(item, 80)).filter(Boolean)
     : [];
 }
 
 function normalizeRating(value) {
   const rating = Number(value);
   if (rating !== 1 && rating !== 2 && rating !== 3) {
-    const err = new Error("RATING_MUST_BE_1_2_OR_3");
-    err.code = "RATING_MUST_BE_1_2_OR_3";
+    const err = new Error('RATING_MUST_BE_1_2_OR_3');
+    err.code = 'RATING_MUST_BE_1_2_OR_3';
     throw err;
   }
   return rating;
@@ -70,7 +67,7 @@ function emptyBucket(key) {
 }
 
 function addToBucket(map, key, rating) {
-  const bucketKey = compactString(key || "unknown", 120) || "unknown";
+  const bucketKey = compactString(key || 'unknown', 120) || 'unknown';
   if (!map.has(bucketKey)) map.set(bucketKey, emptyBucket(bucketKey));
   const bucket = map.get(bucketKey);
   bucket.total += 1;
@@ -85,10 +82,7 @@ function finalizeBuckets(map) {
       ...bucket,
       passRate: roundNumber(bucket.total ? bucket.passed / bucket.total : 0),
     }))
-    .sort(
-      (a, b) =>
-        b.total - a.total || b.failed - a.failed || a.key.localeCompare(b.key),
-    );
+    .sort((a, b) => b.total - a.total || b.failed - a.failed || a.key.localeCompare(b.key));
 }
 
 function buildCuefieldFeedbackRecord(input = {}, now = new Date()) {
@@ -104,7 +98,7 @@ function buildCuefieldFeedbackRecord(input = {}, now = new Date()) {
 function appendCuefieldFeedback(filePath, input = {}, now = new Date()) {
   const record = buildCuefieldFeedbackRecord(input, now);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.appendFileSync(filePath, JSON.stringify(record) + "\n");
+  fs.appendFileSync(filePath, JSON.stringify(record) + '\n');
   return record;
 }
 
@@ -115,38 +109,24 @@ function readCuefieldFeedbackStats(filePath) {
   const byPair = new Map();
   const ratingCounts = { 1: 0, 2: 0, 3: 0 };
   const failedSamples = [];
-  const raw = fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
-  const records = raw
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map(safeParseJsonLine)
-    .filter(Boolean);
+  const raw = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+  const records = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map(safeParseJsonLine).filter(Boolean);
 
   records.forEach((record) => {
     const rating = Number(record.rating);
     if (rating !== 1 && rating !== 2 && rating !== 3) return;
     const pair = record.pair || {};
     const transition = record.transition || {};
-    const recipe =
-      transition.transitionRecipe ||
-      transition.recipe ||
-      transition.executionMode ||
-      "unknown";
-    const tier = transition.tier || "unknown";
-    const pairKey = [
-      pair.fromTitle || pair.fromKey || "A",
-      pair.toTitle || pair.toKey || "B",
-    ].join(" -> ");
+    const recipe = transition.transitionRecipe || transition.recipe || transition.executionMode || 'unknown';
+    const tier = transition.tier || 'unknown';
+    const pairKey = [pair.fromTitle || pair.fromKey || 'A', pair.toTitle || pair.toKey || 'B'].join(' -> ');
 
     ratingCounts[rating] += 1;
     addToBucket(byRecipe, recipe, rating);
     addToBucket(byTier, tier, rating);
     addToBucket(byPair, pairKey, rating);
-    (Array.isArray(transition.risks) && transition.risks.length
-      ? transition.risks
-      : ["none"]
-    ).forEach((risk) => addToBucket(byRisk, risk, rating));
+    (Array.isArray(transition.risks) && transition.risks.length ? transition.risks : ['none'])
+      .forEach((risk) => addToBucket(byRisk, risk, rating));
 
     if (rating !== 1) {
       failedSamples.push({
@@ -169,11 +149,7 @@ function readCuefieldFeedbackStats(filePath) {
     byRisk: finalizeBuckets(byRisk),
     byPair: finalizeBuckets(byPair).slice(0, 20),
     failedSamples: failedSamples
-      .sort(
-        (a, b) =>
-          a.rating - b.rating ||
-          String(b.createdAt).localeCompare(String(a.createdAt)),
-      )
+      .sort((a, b) => a.rating - b.rating || String(b.createdAt).localeCompare(String(a.createdAt)))
       .slice(0, 20),
   };
 }

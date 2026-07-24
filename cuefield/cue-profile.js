@@ -55,7 +55,7 @@ function inferGridStep(map, beats) {
 function isDownbeat(beat, index, hasExplicitMeter) {
   if (!beat) return false;
   if (beat.downbeat === true || beat.phrase === true) return true;
-  if (String(beat.combo || "").toLowerCase() === "downbeat") return true;
+  if (String(beat.combo || '').toLowerCase() === 'downbeat') return true;
   return !hasExplicitMeter && index % 4 === 0;
 }
 
@@ -68,11 +68,7 @@ function buildBars(beats, downbeats, gridStep, duration) {
     const next = downbeats[index + 1];
     const start = downbeat.time;
     const end = Math.min(duration, next ? next.time : start + gridStep * 4);
-    const window = beatsInRange(
-      beats,
-      start,
-      end > start ? end : start + gridStep * 4,
-    );
+    const window = beatsInRange(beats, start, end > start ? end : start + gridStep * 4);
     return {
       index,
       start: round(start),
@@ -81,12 +77,7 @@ function buildBars(beats, downbeats, gridStep, duration) {
       lowDensity: round(average(window.map((beat) => beat.low))),
       bodyDensity: round(average(window.map((beat) => beat.body))),
       snapDensity: round(average(window.map((beat) => beat.snap))),
-      beatStability: round(
-        window.length
-          ? window.filter((beat) => beat.confidence >= 0.75).length /
-              window.length
-          : 0,
-      ),
+      beatStability: round(window.length ? window.filter((beat) => beat.confidence >= 0.75).length / window.length : 0),
     };
   });
 }
@@ -109,14 +100,11 @@ function buildPhrases(bars, duration) {
 }
 
 function lyricActivityAt(windows, start, end) {
-  const overlap = (Array.isArray(windows) ? windows : []).reduce(
-    (sum, window) => {
-      const left = Math.max(start, toNumber(window && window.start));
-      const right = Math.min(end, toNumber(window && window.end));
-      return sum + Math.max(0, right - left);
-    },
-    0,
-  );
+  const overlap = (Array.isArray(windows) ? windows : []).reduce((sum, window) => {
+    const left = Math.max(start, toNumber(window && window.start));
+    const right = Math.min(end, toNumber(window && window.end));
+    return sum + Math.max(0, right - left);
+  }, 0);
   return end > start ? Math.max(0, Math.min(1, overlap / (end - start))) : 0;
 }
 
@@ -127,81 +115,39 @@ function buildWindows(beats, duration, vocalWindows, size = 8) {
   for (let start = 0; start < duration; start += size) {
     const end = Math.min(duration, start + size);
     const window = beatsInRange(beats, start, end);
-    energy.push({
-      start: round(start),
-      end: round(end),
-      value: round(average(window.map(beatEnergy))),
-    });
-    bass.push({
-      start: round(start),
-      end: round(end),
-      value: round(average(window.map((beat) => beat.low))),
-    });
-    vocal.push({
-      start: round(start),
-      end: round(end),
-      value: round(lyricActivityAt(vocalWindows, start, end)),
-    });
+    energy.push({ start: round(start), end: round(end), value: round(average(window.map(beatEnergy))) });
+    bass.push({ start: round(start), end: round(end), value: round(average(window.map((beat) => beat.low))) });
+    vocal.push({ start: round(start), end: round(end), value: round(lyricActivityAt(vocalWindows, start, end)) });
   }
   return { energy, bass, vocal };
 }
 
 function bestCandidate(candidates, predicate, fallback = null) {
-  return (
-    (candidates || [])
-      .filter(
-        (candidate) =>
-          candidate &&
-          Number.isFinite(toNumber(candidate.time, NaN)) &&
-          predicate(candidate),
-      )
-      .sort(
-        (a, b) =>
-          toNumber(b.confidence) - toNumber(a.confidence) ||
-          toNumber(a.time) - toNumber(b.time),
-      )[0] || fallback
-  );
+  return (candidates || [])
+    .filter((candidate) => candidate && Number.isFinite(toNumber(candidate.time, NaN)) && predicate(candidate))
+    .sort((a, b) => toNumber(b.confidence) - toNumber(a.confidence) || toNumber(a.time) - toNumber(b.time))[0] || fallback;
 }
 
 function buildCuePoints(candidates, downbeats, bars, duration) {
-  const intro =
-    bestCandidate(
-      candidates,
-      (candidate) =>
-        candidate.role === "entry" &&
-        (candidate.type === "intro" || candidate.time <= 24),
-    ) || bestCandidate(candidates, (candidate) => candidate.role === "entry");
-  const outro =
-    bestCandidate(
-      candidates,
-      (candidate) =>
-        candidate.role === "exit" &&
-        (candidate.type === "outro" || candidate.type === "release"),
-    ) || bestCandidate(candidates, (candidate) => candidate.role === "exit");
+  const intro = bestCandidate(candidates, (candidate) => (
+    candidate.role === 'entry' && (candidate.type === 'intro' || candidate.time <= 24)
+  )) || bestCandidate(candidates, (candidate) => candidate.role === 'entry');
+  const outro = bestCandidate(candidates, (candidate) => (
+    candidate.role === 'exit' && (candidate.type === 'outro' || candidate.type === 'release')
+  )) || bestCandidate(candidates, (candidate) => candidate.role === 'exit');
   const averageEnergy = average(bars.map((bar) => bar.energy));
-  const firstStrong =
-    bars.find((bar) => bar.energy >= averageEnergy * 0.95) || bars[0];
+  const firstStrong = bars.find((bar) => bar.energy >= averageEnergy * 0.95) || bars[0];
   const lastExit = (candidates || [])
-    .filter((candidate) => candidate && candidate.role === "exit")
+    .filter((candidate) => candidate && candidate.role === 'exit')
     .sort((a, b) => toNumber(b.time) - toNumber(a.time))[0];
 
   return {
-    introStart: round(
-      intro ? intro.time : downbeats[0] ? downbeats[0].time : 0,
-    ),
-    introEnd: round(
-      firstStrong
-        ? Math.max(firstStrong.start, intro ? intro.time : 0)
-        : Math.min(16, duration),
-    ),
-    firstStrongDownbeat: round(
-      firstStrong ? firstStrong.start : downbeats[0] ? downbeats[0].time : 0,
-    ),
+    introStart: round(intro ? intro.time : (downbeats[0] ? downbeats[0].time : 0)),
+    introEnd: round(firstStrong ? Math.max(firstStrong.start, intro ? intro.time : 0) : Math.min(16, duration)),
+    firstStrongDownbeat: round(firstStrong ? firstStrong.start : (downbeats[0] ? downbeats[0].time : 0)),
     outroStart: round(outro ? outro.time : Math.max(0, duration - 16)),
     outroEnd: round(duration),
-    lastSafePhraseEnd: round(
-      lastExit ? lastExit.time : Math.max(0, duration - 8),
-    ),
+    lastSafePhraseEnd: round(lastExit ? lastExit.time : Math.max(0, duration - 8)),
   };
 }
 
@@ -210,26 +156,15 @@ function buildCueProfile(input = {}) {
   const track = input.track || {};
   const beats = normalizeBeats(map.beats || map.cameraBeats || []);
   const gridStep = inferGridStep(map, beats);
-  const duration = round(
-    Math.max(
-      toNumber(track.duration),
-      toNumber(map.duration),
-      beats.length ? beats[beats.length - 1].time + gridStep : 0,
-    ),
-  );
-  const hasExplicitMeter = beats.some(
-    (beat) =>
-      beat.downbeat === true ||
-      beat.phrase === true ||
-      !!String(beat.combo || ""),
-  );
+  const duration = round(Math.max(
+    toNumber(track.duration),
+    toNumber(map.duration),
+    beats.length ? beats[beats.length - 1].time + gridStep : 0,
+  ));
+  const hasExplicitMeter = beats.some((beat) => beat.downbeat === true || beat.phrase === true || !!String(beat.combo || ''));
   const downbeats = beats
     .filter((beat, index) => isDownbeat(beat, index, hasExplicitMeter))
-    .map((beat) => ({
-      time: beat.time,
-      confidence: beat.confidence,
-      energy: round(beatEnergy(beat)),
-    }));
+    .map((beat) => ({ time: beat.time, confidence: beat.confidence, energy: round(beatEnergy(beat)) }));
   const bars = buildBars(beats, downbeats, gridStep, duration);
 
   return {
@@ -241,17 +176,8 @@ function buildCueProfile(input = {}) {
     downbeats,
     bars,
     phrases: buildPhrases(bars, duration),
-    cuePoints: buildCuePoints(
-      input.candidates || [],
-      downbeats,
-      bars,
-      duration,
-    ),
-    windows: buildWindows(
-      beats,
-      duration,
-      input.vocalWindows || map.vocalWindows,
-    ),
+    cuePoints: buildCuePoints(input.candidates || [], downbeats, bars, duration),
+    windows: buildWindows(beats, duration, input.vocalWindows || map.vocalWindows),
     candidates: Array.isArray(input.candidates) ? input.candidates.slice() : [],
     tempoStability: toNumber(map.tempoStability, 0),
     beatConfidence: toNumber(map.beatConfidence, 0),

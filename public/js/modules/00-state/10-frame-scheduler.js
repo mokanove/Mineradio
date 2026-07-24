@@ -1,6 +1,6 @@
 function createFrameGate(name, defaultFps) {
   return {
-    name: String(name || "frame-gate"),
+    name: String(name || 'frame-gate'),
     defaultFps: Math.max(0, Number(defaultFps) || 0),
     targetFps: Math.max(0, Number(defaultFps) || 0),
     lastRunAt: 0,
@@ -8,7 +8,7 @@ function createFrameGate(name, defaultFps) {
     runs: 0,
     skips: 0,
     lastDt: 0,
-    lastReason: "",
+    lastReason: ''
   };
 }
 
@@ -20,7 +20,7 @@ function consumeFrameGate(gate, now, dt, fps, force, reason) {
   if (!isFinite(targetFps) || targetFps < 0) targetFps = gate.defaultFps;
   gate.targetFps = targetFps;
   gate.pendingDt += dt;
-  gate.lastReason = reason || gate.lastReason || "";
+  gate.lastReason = reason || gate.lastReason || '';
   if (!targetFps || force) {
     return runFrameGate(gate, now, dt);
   }
@@ -28,7 +28,7 @@ function consumeFrameGate(gate, now, dt, fps, force, reason) {
   if (gate.lastRunAt && now - gate.lastRunAt < minGap) {
     gate.skips += 1;
     if (window.__mineradioPerf && window.__mineradioPerf.count) {
-      window.__mineradioPerf.count("frameGate." + gate.name + ".skipped");
+      window.__mineradioPerf.count('frameGate.' + gate.name + '.skipped');
     }
     return 0;
   }
@@ -42,7 +42,7 @@ function runFrameGate(gate, now, fallbackDt) {
   gate.lastDt = Math.min(stepDt, 0.18);
   gate.runs += 1;
   if (window.__mineradioPerf && window.__mineradioPerf.count) {
-    window.__mineradioPerf.count("frameGate." + gate.name + ".runs");
+    window.__mineradioPerf.count('frameGate.' + gate.name + '.runs');
   }
   return gate.lastDt;
 }
@@ -52,7 +52,7 @@ function resetFrameGate(gate, now) {
   gate.lastRunAt = Number(now) || performance.now();
   gate.pendingDt = 0;
   gate.lastDt = 0;
-  gate.lastReason = "reset";
+  gate.lastReason = 'reset';
 }
 
 function collectFrameGateSnapshot(gates) {
@@ -67,7 +67,7 @@ function collectFrameGateSnapshot(gates) {
       skips: gate.skips,
       lastDt: Math.round((gate.lastDt || 0) * 10000) / 10000,
       pendingDt: Math.round((gate.pendingDt || 0) * 10000) / 10000,
-      lastReason: gate.lastReason,
+      lastReason: gate.lastReason
     };
   });
   return out;

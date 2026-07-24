@@ -1,22 +1,20 @@
-"use strict";
+'use strict';
 
-const { execFile } = require("child_process");
+const { execFile } = require('child_process');
 const {
   attachWallpaperWindowToDesktop,
   nativeWindowHandleDecimal,
-} = require("./wallpaper-mode-runtime");
+} = require('./wallpaper-mode-runtime');
 const {
   applyDesktopIconShape,
   clearDesktopIconShape,
   physicalIconRectsToDisplayDip,
   probeDesktopIcons,
-} = require("./desktop-icon-shape-runtime");
-const {
-  startNativeDesktopIconLayer,
-} = require("./desktop-native-icon-layer-runtime");
+} = require('./desktop-icon-shape-runtime');
+const { startNativeDesktopIconLayer } = require('./desktop-native-icon-layer-runtime');
 
 function normalizeBounds(value, fallback = {}) {
-  const source = value && typeof value === "object" ? value : fallback;
+  const source = value && typeof value === 'object' ? value : fallback;
   return {
     x: Math.round(Number(source.x) || 0),
     y: Math.round(Number(source.y) || 0),
@@ -31,28 +29,24 @@ function workAreaSafeInsets(boundsValue, workAreaValue) {
   return {
     top: Math.max(0, workArea.y - bounds.y),
     right: Math.max(0, bounds.x + bounds.width - workArea.x - workArea.width),
-    bottom: Math.max(
-      0,
-      bounds.y + bounds.height - workArea.y - workArea.height,
-    ),
+    bottom: Math.max(0, bounds.y + bounds.height - workArea.y - workArea.height),
     left: Math.max(0, workArea.x - bounds.x),
   };
 }
 
 function safeCall(target, method, fallback, ...args) {
-  if (!target || typeof target[method] !== "function") return fallback;
+  if (!target || typeof target[method] !== 'function') return fallback;
   try {
     const value = target[method](...args);
-    return typeof value === "undefined" ? fallback : value;
+    return typeof value === 'undefined' ? fallback : value;
   } catch (_) {
     return fallback;
   }
 }
 
 function desktopWindowDetachScript(input = {}) {
-  const hwnd = String(input.hwnd || "");
-  if (!/^\d+$/.test(hwnd))
-    throw new Error("FULL_DESKTOP_NATIVE_HANDLE_INVALID");
+  const hwnd = String(input.hwnd || '');
+  if (!/^\d+$/.test(hwnd)) throw new Error('FULL_DESKTOP_NATIVE_HANDLE_INVALID');
   const x = Math.round(Number(input.x) || 0);
   const y = Math.round(Number(input.y) || 0);
   const width = Math.max(1, Math.round(Number(input.width) || 1));
@@ -128,9 +122,8 @@ try {
 }
 
 function desktopWindowCoexistAttachScript(input = {}) {
-  const hwnd = String(input.hwnd || "");
-  if (!/^\d+$/.test(hwnd))
-    throw new Error("FULL_DESKTOP_NATIVE_HANDLE_INVALID");
+  const hwnd = String(input.hwnd || '');
+  if (!/^\d+$/.test(hwnd)) throw new Error('FULL_DESKTOP_NATIVE_HANDLE_INVALID');
   const x = Math.round(Number(input.x) || 0);
   const y = Math.round(Number(input.y) || 0);
   const width = Math.max(1, Math.round(Number(input.width) || 1));
@@ -249,76 +242,48 @@ try {
 }
 
 function parseDesktopCoexistAck(stdout) {
-  const lines = String(stdout || "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const lines = String(stdout || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   for (let index = lines.length - 1; index >= 0; index -= 1) {
     try {
       const value = JSON.parse(lines[index]);
       const actual = value && value.actualBounds;
-      if (
-        value &&
-        value.ok === true &&
-        value.coexist === true &&
-        /^\d+$/.test(String(value.parentWindowId || "")) &&
-        String(value.parentWindowId) !== "0" &&
-        /^\d+$/.test(String(value.desktopViewWindowId || "")) &&
-        String(value.desktopViewWindowId) !== "0" &&
-        /^\d+$/.test(String(value.desktopListWindowId || "")) &&
-        /^\d+$/.test(String(value.topLevelHostWindowId || "")) &&
-        String(value.topLevelHostWindowId) !== "0" &&
-        value.child === true &&
-        value.popup === false &&
-        actual &&
-        Number(actual.width) > 0 &&
-        Number(actual.height) > 0
-      )
-        return value;
-    } catch (_) {}
+      if (value && value.ok === true && value.coexist === true
+        && /^\d+$/.test(String(value.parentWindowId || '')) && String(value.parentWindowId) !== '0'
+        && /^\d+$/.test(String(value.desktopViewWindowId || '')) && String(value.desktopViewWindowId) !== '0'
+        && /^\d+$/.test(String(value.desktopListWindowId || ''))
+        && /^\d+$/.test(String(value.topLevelHostWindowId || '')) && String(value.topLevelHostWindowId) !== '0'
+        && value.child === true && value.popup === false
+        && actual && Number(actual.width) > 0 && Number(actual.height) > 0) return value;
+    } catch (_) { }
   }
-  throw new Error("FULL_DESKTOP_ICON_HOST_ACK_INVALID");
+  throw new Error('FULL_DESKTOP_ICON_HOST_ACK_INVALID');
 }
 
 function parseDesktopNativeAck(stdout) {
-  const lines = String(stdout || "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const lines = String(stdout || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   for (let index = lines.length - 1; index >= 0; index -= 1) {
     try {
       const value = JSON.parse(lines[index]);
       const actual = value && value.actualBounds;
-      if (
-        value &&
-        value.ok === true &&
-        String(value.parentWindowId) === "0" &&
-        value.child === false &&
-        value.popup === true &&
-        actual &&
-        Number(actual.width) > 0 &&
-        Number(actual.height) > 0
-      )
-        return value;
-    } catch (_) {}
+      if (value && value.ok === true && String(value.parentWindowId) === '0'
+        && value.child === false && value.popup === true
+        && actual && Number(actual.width) > 0 && Number(actual.height) > 0) return value;
+    } catch (_) { }
   }
-  throw new Error("FULL_DESKTOP_DETACH_ACK_INVALID");
+  throw new Error('FULL_DESKTOP_DETACH_ACK_INVALID');
 }
 
 function nativeFailureCode(error, stderr, fallback) {
-  const diagnostic = String(stderr || (error && error.message) || fallback);
+  const diagnostic = String(stderr || error && error.message || fallback);
   const code = diagnostic.match(/(?:FULL_DESKTOP|WALLPAPER)_[A-Z0-9_]+/);
   if (code) return code[0];
-  const processCode = String((error && error.code) || "");
-  return /^(?:FULL_DESKTOP|WALLPAPER)_[A-Z0-9_]+$/.test(processCode)
-    ? processCode
-    : String(fallback);
+  const processCode = String(error && error.code || '');
+  return /^(?:FULL_DESKTOP|WALLPAPER)_[A-Z0-9_]+$/.test(processCode) ? processCode : String(fallback);
 }
 
 function attachDesktopWindowForCoexistence(options = {}) {
   const execFileImpl = options.execFileImpl;
-  if (typeof execFileImpl !== "function")
-    return Promise.reject(new Error("FULL_DESKTOP_EXEC_UNAVAILABLE"));
+  if (typeof execFileImpl !== 'function') return Promise.reject(new Error('FULL_DESKTOP_EXEC_UNAVAILABLE'));
   let script;
   try {
     script = desktopWindowCoexistAttachScript(options);
@@ -326,7 +291,7 @@ function attachDesktopWindowForCoexistence(options = {}) {
     return Promise.reject(error);
   }
   const env = { ...process.env };
-  const nativeTempPath = String(options.nativeTempPath || "").trim();
+  const nativeTempPath = String(options.nativeTempPath || '').trim();
   if (nativeTempPath) {
     env.TEMP = nativeTempPath;
     env.TMP = nativeTempPath;
@@ -336,8 +301,7 @@ function attachDesktopWindowForCoexistence(options = {}) {
     let child = null;
     let settled = false;
     const cleanup = () => {
-      if (signal && typeof signal.removeEventListener === "function")
-        signal.removeEventListener("abort", handleAbort);
+      if (signal && typeof signal.removeEventListener === 'function') signal.removeEventListener('abort', handleAbort);
     };
     const fail = (error) => {
       if (settled) return;
@@ -347,55 +311,37 @@ function attachDesktopWindowForCoexistence(options = {}) {
     };
     const handleAbort = () => {
       if (settled) return;
-      try {
-        if (child && typeof child.kill === "function") child.kill();
-      } catch (_) {}
-      const error = new Error("FULL_DESKTOP_ICON_HOST_ATTACH_ABORTED");
+      try { if (child && typeof child.kill === 'function') child.kill(); } catch (_) { }
+      const error = new Error('FULL_DESKTOP_ICON_HOST_ATTACH_ABORTED');
       error.code = error.message;
       fail(error);
     };
     if (signal && signal.aborted) return handleAbort();
-    if (signal && typeof signal.addEventListener === "function")
-      signal.addEventListener("abort", handleAbort, { once: true });
+    if (signal && typeof signal.addEventListener === 'function') signal.addEventListener('abort', handleAbort, { once: true });
     try {
-      child = execFileImpl(
-        "powershell.exe",
-        ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
-        {
-          windowsHide: true,
-          timeout: Math.max(
-            1000,
-            Math.min(15000, Number(options.timeoutMs) || 5000),
-          ),
-          maxBuffer: 128 * 1024,
-          env,
-        },
-        (error, stdout, stderr) => {
-          if (settled) return;
-          if (error) {
-            const failure = new Error(
-              nativeFailureCode(
-                error,
-                stderr,
-                "FULL_DESKTOP_ICON_HOST_ATTACH_FAILED",
-              ),
-            );
-            failure.code = failure.message;
-            fail(failure);
-            return;
-          }
-          try {
-            const ack = parseDesktopCoexistAck(stdout);
-            if (String(ack.targetWindowId) !== String(options.hwnd))
-              throw new Error("FULL_DESKTOP_ICON_HOST_ACK_INVALID");
-            settled = true;
-            cleanup();
-            resolve(ack);
-          } catch (parseError) {
-            fail(parseError);
-          }
-        },
-      );
+      child = execFileImpl('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script], {
+        windowsHide: true,
+        timeout: Math.max(1000, Math.min(15000, Number(options.timeoutMs) || 5000)),
+        maxBuffer: 128 * 1024,
+        env,
+      }, (error, stdout, stderr) => {
+        if (settled) return;
+        if (error) {
+          const failure = new Error(nativeFailureCode(error, stderr, 'FULL_DESKTOP_ICON_HOST_ATTACH_FAILED'));
+          failure.code = failure.message;
+          fail(failure);
+          return;
+        }
+        try {
+          const ack = parseDesktopCoexistAck(stdout);
+          if (String(ack.targetWindowId) !== String(options.hwnd)) throw new Error('FULL_DESKTOP_ICON_HOST_ACK_INVALID');
+          settled = true;
+          cleanup();
+          resolve(ack);
+        } catch (parseError) {
+          fail(parseError);
+        }
+      });
     } catch (error) {
       fail(error);
     }
@@ -404,8 +350,7 @@ function attachDesktopWindowForCoexistence(options = {}) {
 
 function detachDesktopWindowToTopLevel(options = {}) {
   const execFileImpl = options.execFileImpl;
-  if (typeof execFileImpl !== "function")
-    return Promise.reject(new Error("FULL_DESKTOP_EXEC_UNAVAILABLE"));
+  if (typeof execFileImpl !== 'function') return Promise.reject(new Error('FULL_DESKTOP_EXEC_UNAVAILABLE'));
   let script;
   try {
     script = desktopWindowDetachScript(options);
@@ -413,7 +358,7 @@ function detachDesktopWindowToTopLevel(options = {}) {
     return Promise.reject(error);
   }
   const env = { ...process.env };
-  const nativeTempPath = String(options.nativeTempPath || "").trim();
+  const nativeTempPath = String(options.nativeTempPath || '').trim();
   if (nativeTempPath) {
     env.TEMP = nativeTempPath;
     env.TMP = nativeTempPath;
@@ -423,8 +368,7 @@ function detachDesktopWindowToTopLevel(options = {}) {
     let child = null;
     let settled = false;
     const cleanup = () => {
-      if (signal && typeof signal.removeEventListener === "function")
-        signal.removeEventListener("abort", handleAbort);
+      if (signal && typeof signal.removeEventListener === 'function') signal.removeEventListener('abort', handleAbort);
     };
     const fail = (error) => {
       if (settled) return;
@@ -434,51 +378,37 @@ function detachDesktopWindowToTopLevel(options = {}) {
     };
     const handleAbort = () => {
       if (settled) return;
-      try {
-        if (child && typeof child.kill === "function") child.kill();
-      } catch (_) {}
-      const error = new Error("FULL_DESKTOP_NATIVE_DETACH_ABORTED");
+      try { if (child && typeof child.kill === 'function') child.kill(); } catch (_) { }
+      const error = new Error('FULL_DESKTOP_NATIVE_DETACH_ABORTED');
       error.code = error.message;
       fail(error);
     };
     if (signal && signal.aborted) return handleAbort();
-    if (signal && typeof signal.addEventListener === "function")
-      signal.addEventListener("abort", handleAbort, { once: true });
+    if (signal && typeof signal.addEventListener === 'function') signal.addEventListener('abort', handleAbort, { once: true });
     try {
-      child = execFileImpl(
-        "powershell.exe",
-        ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
-        {
-          windowsHide: true,
-          timeout: Math.max(
-            1000,
-            Math.min(15000, Number(options.timeoutMs) || 5000),
-          ),
-          maxBuffer: 128 * 1024,
-          env,
-        },
-        (error, stdout, stderr) => {
-          if (settled) return;
-          if (error) {
-            const failure = new Error(
-              nativeFailureCode(error, stderr, "FULL_DESKTOP_DETACH_FAILED"),
-            );
-            failure.code = failure.message;
-            fail(failure);
-            return;
-          }
-          try {
-            const ack = parseDesktopNativeAck(stdout);
-            if (String(ack.targetWindowId) !== String(options.hwnd))
-              throw new Error("FULL_DESKTOP_DETACH_ACK_INVALID");
-            settled = true;
-            cleanup();
-            resolve(ack);
-          } catch (parseError) {
-            fail(parseError);
-          }
-        },
-      );
+      child = execFileImpl('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script], {
+        windowsHide: true,
+        timeout: Math.max(1000, Math.min(15000, Number(options.timeoutMs) || 5000)),
+        maxBuffer: 128 * 1024,
+        env,
+      }, (error, stdout, stderr) => {
+        if (settled) return;
+        if (error) {
+          const failure = new Error(nativeFailureCode(error, stderr, 'FULL_DESKTOP_DETACH_FAILED'));
+          failure.code = failure.message;
+          fail(failure);
+          return;
+        }
+        try {
+          const ack = parseDesktopNativeAck(stdout);
+          if (String(ack.targetWindowId) !== String(options.hwnd)) throw new Error('FULL_DESKTOP_DETACH_ACK_INVALID');
+          settled = true;
+          cleanup();
+          resolve(ack);
+        } catch (parseError) {
+          fail(parseError);
+        }
+      });
     } catch (error) {
       fail(error);
     }
@@ -486,136 +416,110 @@ function detachDesktopWindowToTopLevel(options = {}) {
 }
 
 function captureBrowserWindowState(win, screen) {
-  const rawBounds = normalizeBounds(safeCall(win, "getBounds", null));
-  const normalValue = safeCall(win, "getNormalBounds", null);
-  const bounds =
-    normalValue &&
-    Number(normalValue.width) > 0 &&
-    Number(normalValue.height) > 0
-      ? normalizeBounds(normalValue, rawBounds)
-      : rawBounds;
+  const rawBounds = normalizeBounds(safeCall(win, 'getBounds', null));
+  const normalValue = safeCall(win, 'getNormalBounds', null);
+  const bounds = normalValue && Number(normalValue.width) > 0 && Number(normalValue.height) > 0
+    ? normalizeBounds(normalValue, rawBounds)
+    : rawBounds;
   let display = null;
   try {
-    if (screen && typeof screen.getDisplayMatching === "function")
-      display = screen.getDisplayMatching(bounds);
-    if (!display && screen && typeof screen.getPrimaryDisplay === "function")
-      display = screen.getPrimaryDisplay();
-  } catch (_) {}
+    if (screen && typeof screen.getDisplayMatching === 'function') display = screen.getDisplayMatching(bounds);
+    if (!display && screen && typeof screen.getPrimaryDisplay === 'function') display = screen.getPrimaryDisplay();
+  } catch (_) { }
   let physicalBounds = { ...bounds };
   try {
-    if (screen && typeof screen.dipToScreenRect === "function")
-      physicalBounds = normalizeBounds(
-        screen.dipToScreenRect(null, bounds),
-        bounds,
-      );
-  } catch (_) {}
+    if (screen && typeof screen.dipToScreenRect === 'function') physicalBounds = normalizeBounds(screen.dipToScreenRect(null, bounds), bounds);
+  } catch (_) { }
   return {
     bounds,
     rawBounds,
     physicalBounds,
-    displayId: String(display && display.id != null ? display.id : ""),
-    maximized: safeCall(win, "isMaximized", false) === true,
-    fullScreen: safeCall(win, "isFullScreen", false) === true,
-    minimized: safeCall(win, "isMinimized", false) === true,
-    visible: safeCall(win, "isVisible", true) !== false,
-    focused: safeCall(win, "isFocused", false) === true,
-    resizable: safeCall(win, "isResizable", true) !== false,
-    movable: safeCall(win, "isMovable", true) !== false,
-    focusable: safeCall(win, "isFocusable", true) !== false,
-    hasShadow: safeCall(win, "hasShadow", true) !== false,
-    backgroundThrottling:
-      safeCall(win && win.webContents, "getBackgroundThrottling", true) !==
-      false,
-    minimumSize: safeCall(win, "getMinimumSize", null),
-    maximumSize: safeCall(win, "getMaximumSize", null),
+    displayId: String(display && display.id != null ? display.id : ''),
+    maximized: safeCall(win, 'isMaximized', false) === true,
+    fullScreen: safeCall(win, 'isFullScreen', false) === true,
+    minimized: safeCall(win, 'isMinimized', false) === true,
+    visible: safeCall(win, 'isVisible', true) !== false,
+    focused: safeCall(win, 'isFocused', false) === true,
+    resizable: safeCall(win, 'isResizable', true) !== false,
+    movable: safeCall(win, 'isMovable', true) !== false,
+    focusable: safeCall(win, 'isFocusable', true) !== false,
+    hasShadow: safeCall(win, 'hasShadow', true) !== false,
+    backgroundThrottling: safeCall(win && win.webContents, 'getBackgroundThrottling', true) !== false,
+    minimumSize: safeCall(win, 'getMinimumSize', null),
+    maximumSize: safeCall(win, 'getMaximumSize', null),
   };
 }
 
 class FullDesktopModeRuntime {
   constructor(options = {}) {
-    if (!options.screen) throw new Error("FULL_DESKTOP_SCREEN_REQUIRED");
+    if (!options.screen) throw new Error('FULL_DESKTOP_SCREEN_REQUIRED');
     this.screen = options.screen;
     this.platform = options.platform || process.platform;
     this.execFileImpl = options.execFileImpl || execFile;
-    this.nativeTempPath = String(options.nativeTempPath || "");
+    this.nativeTempPath = String(options.nativeTempPath || '');
     this.attachTimeoutMs = options.attachTimeoutMs;
     this.detachTimeoutMs = options.detachTimeoutMs;
-    this.attachNative =
-      typeof options.attachNative === "function"
-        ? options.attachNative
-        : (input) =>
-            attachWallpaperWindowToDesktop({
-              ...input,
-              execFileImpl: this.execFileImpl,
-              nativeTempPath: this.nativeTempPath,
-              timeoutMs: this.attachTimeoutMs,
-            });
-    this.attachCoexistNative =
-      typeof options.attachCoexistNative === "function"
-        ? options.attachCoexistNative
-        : (input) =>
-            attachDesktopWindowForCoexistence({
-              ...input,
-              execFileImpl: this.execFileImpl,
-              nativeTempPath: this.nativeTempPath,
-              timeoutMs: this.attachTimeoutMs,
-            });
-    this.detachNative =
-      typeof options.detachNative === "function"
-        ? options.detachNative
-        : (input) =>
-            detachDesktopWindowToTopLevel({
-              ...input,
-              execFileImpl: this.execFileImpl,
-              nativeTempPath: this.nativeTempPath,
-              timeoutMs: this.detachTimeoutMs,
-            });
-    this.beforePassive =
-      typeof options.beforePassive === "function"
-        ? options.beforePassive
-        : null;
-    this.requestReconcile =
-      typeof options.requestReconcile === "function"
-        ? options.requestReconcile
-        : null;
-    this.probeDesktopIconsImpl =
-      typeof options.probeDesktopIcons === "function"
-        ? options.probeDesktopIcons
-        : (input) =>
-            probeDesktopIcons({
-              ...input,
-              execFileImpl: this.execFileImpl,
-              nativeTempPath: this.nativeTempPath,
-            });
-    this.startDesktopIconWatcherImpl =
-      typeof options.startDesktopIconWatcher === "function"
-        ? options.startDesktopIconWatcher
-        : (input) =>
-            startNativeDesktopIconLayer({
-              ...input,
-              nativeTempPath: this.nativeTempPath,
-            });
-    this.applyDesktopIconShapeImpl =
-      typeof options.applyDesktopIconShape === "function"
-        ? options.applyDesktopIconShape
-        : applyDesktopIconShape;
-    this.clearDesktopIconShapeImpl =
-      typeof options.clearDesktopIconShape === "function"
-        ? options.clearDesktopIconShape
-        : clearDesktopIconShape;
+    this.attachNative = typeof options.attachNative === 'function'
+      ? options.attachNative
+      : (input) => attachWallpaperWindowToDesktop({
+        ...input,
+        execFileImpl: this.execFileImpl,
+        nativeTempPath: this.nativeTempPath,
+        timeoutMs: this.attachTimeoutMs,
+      });
+    this.attachCoexistNative = typeof options.attachCoexistNative === 'function'
+      ? options.attachCoexistNative
+      : (input) => attachDesktopWindowForCoexistence({
+        ...input,
+        execFileImpl: this.execFileImpl,
+        nativeTempPath: this.nativeTempPath,
+        timeoutMs: this.attachTimeoutMs,
+      });
+    this.detachNative = typeof options.detachNative === 'function'
+      ? options.detachNative
+      : (input) => detachDesktopWindowToTopLevel({
+        ...input,
+        execFileImpl: this.execFileImpl,
+        nativeTempPath: this.nativeTempPath,
+        timeoutMs: this.detachTimeoutMs,
+      });
+    this.beforePassive = typeof options.beforePassive === 'function'
+      ? options.beforePassive
+      : null;
+    this.requestReconcile = typeof options.requestReconcile === 'function'
+      ? options.requestReconcile
+      : null;
+    this.probeDesktopIconsImpl = typeof options.probeDesktopIcons === 'function'
+      ? options.probeDesktopIcons
+      : (input) => probeDesktopIcons({
+        ...input,
+        execFileImpl: this.execFileImpl,
+        nativeTempPath: this.nativeTempPath,
+      });
+    this.startDesktopIconWatcherImpl = typeof options.startDesktopIconWatcher === 'function'
+      ? options.startDesktopIconWatcher
+      : (input) => startNativeDesktopIconLayer({
+        ...input,
+        nativeTempPath: this.nativeTempPath,
+      });
+    this.applyDesktopIconShapeImpl = typeof options.applyDesktopIconShape === 'function'
+      ? options.applyDesktopIconShape
+      : applyDesktopIconShape;
+    this.clearDesktopIconShapeImpl = typeof options.clearDesktopIconShape === 'function'
+      ? options.clearDesktopIconShape
+      : clearDesktopIconShape;
     this.listeners = new Set();
-    if (typeof options.onStatus === "function")
-      this.listeners.add(options.onStatus);
+    if (typeof options.onStatus === 'function') this.listeners.add(options.onStatus);
     this.window = null;
-    this.nativeWindowId = "";
+    this.nativeWindowId = '';
     this.snapshot = null;
     this.attachment = null;
     this.enabled = false;
     this.interactive = false;
     this.disposed = false;
     this.busy = false;
-    this.phase = "disabled";
-    this.lastError = "";
+    this.phase = 'disabled';
+    this.lastError = '';
     this.generation = 0;
     this.disposeRequested = false;
     this.queue = Promise.resolve();
@@ -623,11 +527,11 @@ class FullDesktopModeRuntime {
     this.iconShapeActive = false;
     this.iconShapeCount = 0;
     this.iconShapeRectCount = 0;
-    this.iconShapeError = "";
+    this.iconShapeError = '';
     this.iconShapeLayout = null;
     this.iconRevealRects = [];
-    this.iconLayerMode = "";
-    this.iconShieldWindowId = "0";
+    this.iconLayerMode = '';
+    this.iconShieldWindowId = '0';
     this.iconShapeShields = [];
     this.iconShapeShieldViewport = null;
     this.iconShapeWatcher = null;
@@ -638,7 +542,7 @@ class FullDesktopModeRuntime {
     this.iconShapeReconcileTimer = null;
     this.softwareInteractionLocked = false;
     this.iconInteractionLocked = false;
-    this.iconInteractionLockError = "";
+    this.iconInteractionLockError = '';
     this.desktopIconsVisible = true;
     this.desktopIconsVisibilityExplicit = false;
     this.pointerRoute = {
@@ -649,7 +553,7 @@ class FullDesktopModeRuntime {
   }
 
   isSupported() {
-    return this.platform === "win32";
+    return this.platform === 'win32';
   }
 
   isEnabled() {
@@ -661,93 +565,67 @@ class FullDesktopModeRuntime {
   }
 
   isWindowAlive(win = this.window) {
-    return !!(
-      win &&
-      (typeof win.isDestroyed !== "function" || !win.isDestroyed())
-    );
+    return !!(win && (typeof win.isDestroyed !== 'function' || !win.isDestroyed()));
   }
 
   onStatus(listener) {
-    if (typeof listener !== "function") return () => {};
+    if (typeof listener !== 'function') return () => {};
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
 
-  getStatus(reason = "") {
+  getStatus(reason = '') {
     return {
       ok: !this.lastError,
       supported: this.isSupported(),
       enabled: this.enabled === true,
       active: this.enabled === true && this.isWindowAlive(),
-      embedded:
-        this.enabled === true && this.interactive !== true && !!this.attachment,
-      coexisting:
-        this.enabled === true &&
-        this.interactive === true &&
-        !!this.attachment &&
-        this.attachment.kind === "icon-host",
+      embedded: this.enabled === true && this.interactive !== true && !!this.attachment,
+      coexisting: this.enabled === true && this.interactive === true
+        && !!this.attachment && this.attachment.kind === 'icon-host',
       interactive: this.enabled === true && this.interactive === true,
-      nativeStateKnown:
-        this.phase !== "error-unknown-native-state" &&
-        this.iconLayerRestoreUnconfirmed !== true,
+      nativeStateKnown: this.phase !== 'error-unknown-native-state'
+        && this.iconLayerRestoreUnconfirmed !== true,
       busy: this.busy,
-      attaching:
-        this.phase === "enabling" ||
-        this.phase === "attaching" ||
-        this.phase === "detaching" ||
-        this.phase === "disabling",
+      attaching: this.phase === 'enabling' || this.phase === 'attaching'
+        || this.phase === 'detaching' || this.phase === 'disabling',
       phase: this.phase,
       generation: this.generation,
-      windowId:
-        this.window && typeof this.window.id !== "undefined"
-          ? this.window.id
-          : null,
-      nativeWindowId:
-        this.nativeWindowId ||
-        (this.attachment && this.attachment.targetWindowId) ||
-        "",
-      parentWindowId: (this.attachment && this.attachment.parentWindowId) || "",
-      parentClassName:
-        (this.attachment && this.attachment.parentClassName) || "",
-      displayId:
-        (this.attachment && this.attachment.displayId) ||
-        (this.snapshot && this.snapshot.displayId) ||
-        "",
-      bounds: (this.attachment && this.attachment.bounds) || null,
-      physicalBounds:
-        (this.attachment && this.attachment.physicalBounds) || null,
-      workArea: (this.attachment && this.attachment.workArea) || null,
-      safeInsets: (this.attachment && this.attachment.safeInsets) || null,
-      desktopViewWindowId:
-        (this.attachment && this.attachment.desktopViewWindowId) || "",
-      desktopListWindowId:
-        (this.attachment && this.attachment.desktopListWindowId) || "",
-      iconLayerMode: this.iconLayerMode || "",
-      iconShieldWindowId: this.iconShieldWindowId || "0",
+      windowId: this.window && typeof this.window.id !== 'undefined' ? this.window.id : null,
+      nativeWindowId: this.nativeWindowId || this.attachment && this.attachment.targetWindowId || '',
+      parentWindowId: this.attachment && this.attachment.parentWindowId || '',
+      parentClassName: this.attachment && this.attachment.parentClassName || '',
+      displayId: this.attachment && this.attachment.displayId || this.snapshot && this.snapshot.displayId || '',
+      bounds: this.attachment && this.attachment.bounds || null,
+      physicalBounds: this.attachment && this.attachment.physicalBounds || null,
+      workArea: this.attachment && this.attachment.workArea || null,
+      safeInsets: this.attachment && this.attachment.safeInsets || null,
+      desktopViewWindowId: this.attachment && this.attachment.desktopViewWindowId || '',
+      desktopListWindowId: this.attachment && this.attachment.desktopListWindowId || '',
+      iconLayerMode: this.iconLayerMode || '',
+      iconShieldWindowId: this.iconShieldWindowId || '0',
       iconShapeActive: this.iconShapeActive === true,
       iconCount: Math.max(0, Number(this.iconShapeCount) || 0),
       iconShapeRectCount: Math.max(0, Number(this.iconShapeRectCount) || 0),
-      iconShapeError: String(this.iconShapeError || ""),
+      iconShapeError: String(this.iconShapeError || ''),
       iconLayerRestoreUnconfirmed: this.iconLayerRestoreUnconfirmed === true,
       softwareInteractionLocked: this.softwareInteractionLocked === true,
       iconInteractionLocked: this.softwareInteractionLocked === true,
-      iconInteractionLockError: String(this.iconInteractionLockError || ""),
-      softwareInteractionLockError: String(this.iconInteractionLockError || ""),
+      iconInteractionLockError: String(this.iconInteractionLockError || ''),
+      softwareInteractionLockError: String(this.iconInteractionLockError || ''),
       desktopIconsVisible: this.desktopIconsVisible !== false,
       ignoreMouseEvents: this.pointerIgnoreMouseEvents === true,
       pointerRoute: { ...this.pointerRoute },
       iconRevealRects: this.iconRevealRects.map((rect) => ({ ...rect })),
       lastError: this.lastError,
-      reason: String(reason || ""),
+      reason: String(reason || ''),
     };
   }
 
   emitStatus(reason) {
     const status = this.getStatus(reason);
     for (const listener of this.listeners) {
-      try {
-        listener(status);
-      } catch (_) {}
+      try { listener(status); } catch (_) { }
     }
     return status;
   }
@@ -758,17 +636,9 @@ class FullDesktopModeRuntime {
       try {
         return await job();
       } catch (error) {
-        this.lastError = String(
-          (error && error.message) || "FULL_DESKTOP_OPERATION_FAILED",
-        );
-        this.phase = "error";
-        return {
-          ok: false,
-          enabled: this.enabled,
-          interactive: this.interactive,
-          error: this.lastError,
-          status: this.emitStatus(label + "-failed"),
-        };
+        this.lastError = String(error && error.message || 'FULL_DESKTOP_OPERATION_FAILED');
+        this.phase = 'error';
+        return { ok: false, enabled: this.enabled, interactive: this.interactive, error: this.lastError, status: this.emitStatus(label + '-failed') };
       } finally {
         this.busy = false;
       }
@@ -780,20 +650,16 @@ class FullDesktopModeRuntime {
 
   abortNative() {
     const controller = this.nativeAbortController;
-    if (controller && typeof controller.abort === "function") {
-      try {
-        controller.abort();
-      } catch (_) {}
+    if (controller && typeof controller.abort === 'function') {
+      try { controller.abort(); } catch (_) { }
     }
   }
 
   abortIconShapeProbe() {
     const controller = this.iconShapeProbeAbortController;
     this.iconShapeProbeAbortController = null;
-    if (controller && typeof controller.abort === "function") {
-      try {
-        controller.abort();
-      } catch (_) {}
+    if (controller && typeof controller.abort === 'function') {
+      try { controller.abort(); } catch (_) { }
     }
   }
 
@@ -803,38 +669,32 @@ class FullDesktopModeRuntime {
     // visibility restore immediately so Escape is not trapped behind the full
     // ready timeout.
     const watcher = this.iconShapeWatcher;
-    if (watcher && typeof watcher.stop === "function") {
+    if (watcher && typeof watcher.stop === 'function') {
       this.iconShapeStopRequested.add(watcher);
       try {
         Promise.resolve(watcher.stop(2200)).catch(() => {});
-      } catch (_) {}
+      } catch (_) { }
     }
   }
 
   clearIconShapeState(win = this.window, options = {}) {
     const shouldClearWindow = options.clearWindow !== false;
-    const needsNativeClear =
-      shouldClearWindow &&
-      this.isWindowAlive(win) &&
-      (this.iconShapeActive === true || options.forceWindow === true);
+    const needsNativeClear = shouldClearWindow && this.isWindowAlive(win)
+      && (this.iconShapeActive === true || options.forceWindow === true);
     const result = needsNativeClear
       ? this.clearDesktopIconShapeImpl(win)
       : { ok: true, cleared: false };
     if (!result || result.ok !== true) {
-      this.iconShapeError = String(
-        (result && result.error) || "DESKTOP_ICON_SHAPE_CLEAR_FAILED",
-      );
-      return (
-        result || { ok: false, cleared: false, error: this.iconShapeError }
-      );
+      this.iconShapeError = String(result && result.error || 'DESKTOP_ICON_SHAPE_CLEAR_FAILED');
+      return result || { ok: false, cleared: false, error: this.iconShapeError };
     }
     this.iconShapeActive = false;
     this.iconShapeCount = 0;
     this.iconShapeRectCount = 0;
     this.iconShapeLayout = null;
     this.iconRevealRects = [];
-    this.iconLayerMode = "";
-    this.iconShieldWindowId = "0";
+    this.iconLayerMode = '';
+    this.iconShieldWindowId = '0';
     if (options.preserveShields !== true) {
       this.iconShapeShields = [];
       this.iconShapeShieldViewport = null;
@@ -843,8 +703,7 @@ class FullDesktopModeRuntime {
       this.desktopIconsVisible = true;
       this.desktopIconsVisibilityExplicit = false;
     }
-    if (options.keepError !== true && !this.iconLayerRestoreUnconfirmed)
-      this.iconShapeError = "";
+    if (options.keepError !== true && !this.iconLayerRestoreUnconfirmed) this.iconShapeError = '';
     return result;
   }
 
@@ -854,22 +713,17 @@ class FullDesktopModeRuntime {
     const watcher = this.iconShapeWatcher;
     if (!watcher) {
       if (this.iconLayerRestoreUnconfirmed) {
-        throw new Error("DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED");
+        throw new Error('DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED');
       }
       return { ok: true, stopped: false, restored: true };
     }
     this.iconShapeStopRequested.add(watcher);
     try {
-      const result =
-        typeof watcher.stop === "function"
-          ? await watcher.stop(2200)
-          : typeof watcher.dispose === "function"
-            ? await watcher.dispose(2200)
-            : null;
+      const result = typeof watcher.stop === 'function'
+        ? await watcher.stop(2200)
+        : (typeof watcher.dispose === 'function' ? await watcher.dispose(2200) : null);
       if (!result || result.ok !== true || result.restored !== true) {
-        const error = String(
-          (result && result.error) || "DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED",
-        );
+        const error = String(result && result.error || 'DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED');
         this.markIconLayerRestoreUnconfirmed(error);
         throw new Error(error);
       }
@@ -879,55 +733,42 @@ class FullDesktopModeRuntime {
       return result;
     } catch (error) {
       if (!this.iconShapeWatcher) this.iconShapeWatcher = watcher;
-      const code = String(
-        (error && error.message) ||
-          error ||
-          "DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED",
-      );
+      const code = String(error && error.message || error || 'DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED');
       this.markIconLayerRestoreUnconfirmed(code);
       throw new Error(code);
     }
   }
 
   cancelIconHostReconcile() {
-    if (this.iconShapeReconcileTimer)
-      clearTimeout(this.iconShapeReconcileTimer);
+    if (this.iconShapeReconcileTimer) clearTimeout(this.iconShapeReconcileTimer);
     this.iconShapeReconcileTimer = null;
     this.iconShapeReconcileQueued = false;
   }
 
   clearIconLayerRestoreUnconfirmed() {
     const wasUnconfirmed = this.iconLayerRestoreUnconfirmed === true;
-    const restoreError = String(this.iconShapeError || "");
+    const restoreError = String(this.iconShapeError || '');
     this.iconLayerRestoreUnconfirmed = false;
     if (wasUnconfirmed) {
-      this.iconShapeError = "";
-      if (this.lastError === restoreError) this.lastError = "";
-      if (this.phase === "error-unknown-native-state") {
-        this.phase = this.enabled
-          ? this.interactive
-            ? "interactive"
-            : "passive"
-          : "disabled";
+      this.iconShapeError = '';
+      if (this.lastError === restoreError) this.lastError = '';
+      if (this.phase === 'error-unknown-native-state') {
+        this.phase = this.enabled ? (this.interactive ? 'interactive' : 'passive') : 'disabled';
       }
     }
   }
 
-  markIconLayerRestoreUnconfirmed(
-    value = "DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED",
-  ) {
-    const code = String(value || "DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED");
+  markIconLayerRestoreUnconfirmed(value = 'DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED') {
+    const code = String(value || 'DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED');
     this.cancelIconHostReconcile();
     this.iconLayerRestoreUnconfirmed = true;
     this.iconShapeError = code;
     this.lastError = code;
-    this.phase = "error-unknown-native-state";
+    this.phase = 'error-unknown-native-state';
     if (this.isWindowAlive()) {
-      safeCall(this.window, "hide", null);
-      safeCall(this.window, "setIgnoreMouseEvents", null, true, {
-        forward: false,
-      });
-      safeCall(this.window, "setFocusable", null, false);
+      safeCall(this.window, 'hide', null);
+      safeCall(this.window, 'setIgnoreMouseEvents', null, true, { forward: false });
+      safeCall(this.window, 'setFocusable', null, false);
     }
   }
 
@@ -937,8 +778,8 @@ class FullDesktopModeRuntime {
     this.iconShapeRectCount = 0;
     this.iconShapeLayout = null;
     this.iconRevealRects = [];
-    this.iconLayerMode = "";
-    this.iconShieldWindowId = "0";
+    this.iconLayerMode = '';
+    this.iconShieldWindowId = '0';
     if (options.preserveShields !== true) {
       this.iconShapeShields = [];
       this.iconShapeShieldViewport = null;
@@ -950,95 +791,56 @@ class FullDesktopModeRuntime {
   }
 
   shapeDisplayForWindow(win = this.window) {
-    try {
-      return this.displaySnapshot(win);
-    } catch (_) {
-      return null;
-    }
+    try { return this.displaySnapshot(win); } catch (_) { return null; }
   }
 
   physicalIconShieldsForDisplay(display) {
     if (!display || !display.bounds || !display.physicalBounds) return [];
     const viewport = this.iconShapeShieldViewport || display.bounds;
-    const viewportWidth = Math.max(
-      1,
-      Number(viewport.width) || display.bounds.width,
-    );
-    const viewportHeight = Math.max(
-      1,
-      Number(viewport.height) || display.bounds.height,
-    );
+    const viewportWidth = Math.max(1, Number(viewport.width) || display.bounds.width);
+    const viewportHeight = Math.max(1, Number(viewport.height) || display.bounds.height);
     const dipScaleX = display.bounds.width / viewportWidth;
     const dipScaleY = display.bounds.height / viewportHeight;
-    const physicalScaleX =
-      display.physicalBounds.width / Math.max(1, display.bounds.width);
-    const physicalScaleY =
-      display.physicalBounds.height / Math.max(1, display.bounds.height);
-    return this.iconShapeShields
-      .map((shield) => {
-        const dipLeft = display.bounds.x + shield.x * dipScaleX;
-        const dipTop = display.bounds.y + shield.y * dipScaleY;
-        const dipRight = dipLeft + shield.width * dipScaleX;
-        const dipBottom = dipTop + shield.height * dipScaleY;
-        const left = Math.floor(
-          display.physicalBounds.x +
-            (dipLeft - display.bounds.x) * physicalScaleX,
-        );
-        const top = Math.floor(
-          display.physicalBounds.y +
-            (dipTop - display.bounds.y) * physicalScaleY,
-        );
-        const right = Math.ceil(
-          display.physicalBounds.x +
-            (dipRight - display.bounds.x) * physicalScaleX,
-        );
-        const bottom = Math.ceil(
-          display.physicalBounds.y +
-            (dipBottom - display.bounds.y) * physicalScaleY,
-        );
-        if (right <= left || bottom <= top) return null;
-        return { x: left, y: top, width: right - left, height: bottom - top };
-      })
-      .filter(Boolean);
+    const physicalScaleX = display.physicalBounds.width / Math.max(1, display.bounds.width);
+    const physicalScaleY = display.physicalBounds.height / Math.max(1, display.bounds.height);
+    return this.iconShapeShields.map((shield) => {
+      const dipLeft = display.bounds.x + shield.x * dipScaleX;
+      const dipTop = display.bounds.y + shield.y * dipScaleY;
+      const dipRight = dipLeft + shield.width * dipScaleX;
+      const dipBottom = dipTop + shield.height * dipScaleY;
+      const left = Math.floor(display.physicalBounds.x + (dipLeft - display.bounds.x) * physicalScaleX);
+      const top = Math.floor(display.physicalBounds.y + (dipTop - display.bounds.y) * physicalScaleY);
+      const right = Math.ceil(display.physicalBounds.x + (dipRight - display.bounds.x) * physicalScaleX);
+      const bottom = Math.ceil(display.physicalBounds.y + (dipBottom - display.bounds.y) * physicalScaleY);
+      if (right <= left || bottom <= top) return null;
+      return { x: left, y: top, width: right - left, height: bottom - top };
+    }).filter(Boolean);
   }
 
-  applyIconShapeLayout(
-    win,
-    display,
-    layout,
-    reason = "icon-layout",
-    strict = false,
-  ) {
+  applyIconShapeLayout(win, display, layout, reason = 'icon-layout', strict = false) {
     if (this.iconLayerRestoreUnconfirmed) {
-      const error = "DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED";
+      const error = 'DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED';
       this.iconShapeError = error;
       if (strict) throw new Error(error);
       return { ok: false, applied: false, error };
     }
     if (!this.isWindowAlive(win) || !display || !layout || layout.ok !== true) {
-      const error = "DESKTOP_ICON_LAYOUT_INVALID";
+      const error = 'DESKTOP_ICON_LAYOUT_INVALID';
       this.iconShapeError = error;
       if (strict) throw new Error(error);
       return { ok: false, applied: false, error };
     }
     const attachment = this.attachment;
-    const expectedHost = String(
-      (attachment && attachment.topLevelHostWindowId) || "",
-    );
-    const actualHost = String(layout.topLevelHostWindowId || "");
-    const expectedList = String(
-      (attachment && attachment.desktopListWindowId) || "",
-    );
-    const actualList = String(layout.listViewWindowId || "");
-    if (
-      !expectedHost ||
-      layout.nativeLayerApplied !== true ||
-      layout.nativeBackgroundKeyApplied !== true ||
-      layout.compositionMode !== "layered-color-key" ||
-      (actualHost && actualHost !== expectedHost) ||
-      (expectedList && actualList && actualList !== expectedList)
-    ) {
-      const error = "DESKTOP_ICON_HOST_CHANGED";
+    const expectedHost = String(attachment && attachment.topLevelHostWindowId || '');
+    const actualHost = String(layout.topLevelHostWindowId || '');
+    const expectedList = String(attachment && attachment.desktopListWindowId || '');
+    const actualList = String(layout.listViewWindowId || '');
+    if (!expectedHost || layout.nativeLayerApplied !== true
+      || layout.nativeBackgroundKeyApplied !== true
+      || layout.compositionMode !== 'layered-color-key'
+      || (actualHost && actualHost !== expectedHost)
+      || (expectedList && actualList && actualList !== expectedList)) {
+      const error = 'DESKTOP_ICON_HOST_CHANGED';
       this.iconShapeError = error;
       if (strict) throw new Error(error);
       return { ok: false, applied: false, rebind: true, error };
@@ -1049,12 +851,10 @@ class FullDesktopModeRuntime {
         bounds: display.bounds,
         physicalBounds: display.physicalBounds,
         paddingDip: 0,
-        rounding: "inward",
+        rounding: 'inward',
       });
     } catch (error) {
-      const code = String(
-        (error && error.message) || error || "DESKTOP_ICON_SCALE_FAILED",
-      );
+      const code = String(error && error.message || error || 'DESKTOP_ICON_SCALE_FAILED');
       this.iconShapeError = code;
       if (strict) throw error;
       return { ok: false, applied: false, error: code };
@@ -1069,43 +869,31 @@ class FullDesktopModeRuntime {
     this.iconShapeActive = true;
     this.iconShapeCount = iconRects.length;
     this.iconShapeRectCount = iconRects.length;
-    this.iconLayerMode = "explorer-layered-colorkey";
-    this.iconShieldWindowId = String(layout.shieldWindowId || "0");
-    if (typeof layout.desktopIconsVisible === "boolean") {
+    this.iconLayerMode = 'explorer-layered-colorkey';
+    this.iconShieldWindowId = String(layout.shieldWindowId || '0');
+    if (typeof layout.desktopIconsVisible === 'boolean') {
       this.desktopIconsVisible = layout.desktopIconsVisible;
-    } else if (typeof layout.iconsVisible === "boolean") {
+    } else if (typeof layout.iconsVisible === 'boolean') {
       this.desktopIconsVisible = layout.iconsVisible;
     }
-    this.iconShapeError = "";
+    this.iconShapeError = '';
     return {
       ok: true,
       applied: true,
       iconCount: this.iconShapeCount,
       rectCount: this.iconShapeRectCount,
-      reason: String(reason || ""),
+      reason: String(reason || ''),
     };
   }
 
-  scheduleIconHostReconcile(reason = "desktop-icon-host-changed") {
-    if (
-      this.iconShapeReconcileQueued ||
-      this.iconLayerRestoreUnconfirmed ||
-      !this.enabled ||
-      !this.interactive ||
-      this.disposeRequested
-    )
-      return;
+  scheduleIconHostReconcile(reason = 'desktop-icon-host-changed') {
+    if (this.iconShapeReconcileQueued || this.iconLayerRestoreUnconfirmed
+      || !this.enabled || !this.interactive || this.disposeRequested) return;
     this.iconShapeReconcileQueued = true;
     this.iconShapeReconcileTimer = setTimeout(() => {
       this.iconShapeReconcileTimer = null;
       this.iconShapeReconcileQueued = false;
-      if (
-        this.iconLayerRestoreUnconfirmed ||
-        !this.enabled ||
-        !this.interactive ||
-        this.disposeRequested
-      )
-        return;
+      if (this.iconLayerRestoreUnconfirmed || !this.enabled || !this.interactive || this.disposeRequested) return;
       const operation = this.requestReconcile
         ? this.requestReconcile(reason)
         : this.reconcile(reason);
@@ -1114,45 +902,27 @@ class FullDesktopModeRuntime {
   }
 
   handleWatchedIconLayout(layout) {
-    if (
-      this.iconLayerRestoreUnconfirmed ||
-      !this.enabled ||
-      !this.interactive ||
-      !this.isWindowAlive()
-    )
-      return;
+    if (this.iconLayerRestoreUnconfirmed || !this.enabled || !this.interactive || !this.isWindowAlive()) return;
     const display = this.shapeDisplayForWindow();
-    const result = this.applyIconShapeLayout(
-      this.window,
-      display,
-      layout,
-      "desktop-icons-changed",
-      false,
-    );
+    const result = this.applyIconShapeLayout(this.window, display, layout, 'desktop-icons-changed', false);
     if (result && result.rebind === true) {
       return;
     }
     if (result && result.ok === true) {
       this.generation += 1;
-      this.emitStatus("desktop-icons-changed");
+      this.emitStatus('desktop-icons-changed');
     }
   }
 
   startIconShapeWatcher(display = this.shapeDisplayForWindow()) {
     if (this.iconLayerRestoreUnconfirmed) {
-      throw new Error("DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED");
+      throw new Error('DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED');
     }
-    if (this.iconShapeWatcher || !this.enabled || !this.interactive)
-      return this.iconShapeWatcher;
-    if (
-      !display ||
-      !this.attachment ||
-      !this.attachment.desktopViewWindowId ||
-      !this.attachment.desktopListWindowId
-    )
-      return null;
+    if (this.iconShapeWatcher || !this.enabled || !this.interactive) return this.iconShapeWatcher;
+    if (!display || !this.attachment || !this.attachment.desktopViewWindowId
+      || !this.attachment.desktopListWindowId) return null;
     let watcher = null;
-    let watcherFailureCode = "";
+    let watcherFailureCode = '';
     watcher = this.startDesktopIconWatcherImpl({
       debounceMs: 140,
       rebindMs: 2000,
@@ -1160,30 +930,24 @@ class FullDesktopModeRuntime {
       physicalBounds: display.physicalBounds,
       iconHostWindowId: this.attachment.desktopViewWindowId,
       listViewWindowId: this.attachment.desktopListWindowId,
-      mainWindowId:
-        this.nativeWindowId || nativeWindowHandleDecimal(this.window),
+      mainWindowId: this.nativeWindowId || nativeWindowHandleDecimal(this.window),
       onLayout: (layout) => {
         if (this.iconShapeWatcher !== watcher) return;
         this.handleWatchedIconLayout(layout);
       },
       onError: (error) => {
         if (this.iconShapeWatcher !== watcher) return;
-        this.iconShapeError = String(
-          (error && error.message) || error || "DESKTOP_ICON_WATCHER_FAILED",
-        );
-        if (/DESKTOP_ICON_HOST_CHANGED/.test(this.iconShapeError))
-          watcherFailureCode = "DESKTOP_ICON_HOST_CHANGED";
+        this.iconShapeError = String(error && error.message || error || 'DESKTOP_ICON_WATCHER_FAILED');
+        if (/DESKTOP_ICON_HOST_CHANGED/.test(this.iconShapeError)) watcherFailureCode = 'DESKTOP_ICON_HOST_CHANGED';
       },
       onExit: (details = {}) => {
         if (this.iconShapeWatcher !== watcher) return;
         const stopRequested = this.iconShapeStopRequested.has(watcher);
         if (details.restored !== true) {
           this.iconShapeStopRequested.delete(watcher);
-          this.markIconLayerRestoreUnconfirmed(
-            "DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED",
-          );
+          this.markIconLayerRestoreUnconfirmed('DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED');
           this.generation += 1;
-          this.emitStatus("desktop-icon-layer-restore-unconfirmed");
+          this.emitStatus('desktop-icon-layer-restore-unconfirmed');
           return;
         }
         this.iconShapeWatcher = null;
@@ -1202,20 +966,18 @@ class FullDesktopModeRuntime {
         }
         if (!this.enabled || !this.interactive || this.disposeRequested) return;
         if (shouldRebind) {
-          const recoveryReason =
-            watcherFailureCode === "DESKTOP_ICON_HOST_CHANGED"
-              ? "desktop-icon-host-changed"
-              : "desktop-icon-watcher-restarted";
-          this.iconShapeError =
-            watcherFailureCode || "DESKTOP_ICON_WATCHER_EXITED";
+          const recoveryReason = watcherFailureCode === 'DESKTOP_ICON_HOST_CHANGED'
+            ? 'desktop-icon-host-changed'
+            : 'desktop-icon-watcher-restarted';
+          this.iconShapeError = watcherFailureCode || 'DESKTOP_ICON_WATCHER_EXITED';
           this.lastError = this.iconShapeError;
-          this.phase = "recovering-icon-layer";
+          this.phase = 'recovering-icon-layer';
           // Do not leave enabled=true/interative=true paired with a hidden
           // Mineradio HWND. Explorer has confirmed restoration, so keep the
           // existing renderer visible while the serialized rebind is queued.
-          if (this.isWindowAlive()) safeCall(this.window, "showInactive", null);
+          if (this.isWindowAlive()) safeCall(this.window, 'showInactive', null);
           this.generation += 1;
-          this.emitStatus(recoveryReason + "-queued");
+          this.emitStatus(recoveryReason + '-queued');
           this.scheduleIconHostReconcile(recoveryReason);
           return;
         }
@@ -1225,14 +987,8 @@ class FullDesktopModeRuntime {
     return watcher;
   }
 
-  async enableIconShape(
-    win,
-    display,
-    reason = "desktop-coexist",
-    options = {},
-  ) {
-    if (!win || typeof win.setShape !== "function")
-      throw new Error("DESKTOP_ICON_LAYER_UNAVAILABLE");
+  async enableIconShape(win, display, reason = 'desktop-coexist', options = {}) {
+    if (!win || typeof win.setShape !== 'function') throw new Error('DESKTOP_ICON_LAYER_UNAVAILABLE');
     await this.stopIconShapeWatcher();
     // prepareWindow() clears the legacy BrowserWindow shape before SetParent.
     // Calling setShape([]) again after the HWND is already a DefView child can
@@ -1243,75 +999,44 @@ class FullDesktopModeRuntime {
       preserveDesktopIconsVisible: options.preserveDesktopIconsVisible === true,
       clearWindow: false,
     });
-    if (!cleared || cleared.ok !== true)
-      throw new Error(
-        String((cleared && cleared.error) || "DESKTOP_ICON_SHAPE_CLEAR_FAILED"),
-      );
+    if (!cleared || cleared.ok !== true) throw new Error(String(cleared && cleared.error || 'DESKTOP_ICON_SHAPE_CLEAR_FAILED'));
     const watcher = this.startIconShapeWatcher(display);
-    if (
-      !watcher ||
-      !watcher.ready ||
-      typeof watcher.ready.then !== "function"
-    ) {
-      throw new Error("DESKTOP_ICON_LAYER_WATCHER_UNAVAILABLE");
+    if (!watcher || !watcher.ready || typeof watcher.ready.then !== 'function') {
+      throw new Error('DESKTOP_ICON_LAYER_WATCHER_UNAVAILABLE');
     }
     let layout = await watcher.ready;
-    if (
-      this.disposeRequested ||
-      !this.isWindowAlive(win) ||
-      this.iconShapeWatcher !== watcher
-    ) {
-      throw new Error("DESKTOP_ICON_LAYER_SUPERSEDED");
+    if (this.disposeRequested || !this.isWindowAlive(win) || this.iconShapeWatcher !== watcher) {
+      throw new Error('DESKTOP_ICON_LAYER_SUPERSEDED');
     }
-    if (typeof watcher.setIconsVisible !== "function") {
-      throw new Error("DESKTOP_ICON_VISIBILITY_CONTROL_UNAVAILABLE");
+    if (typeof watcher.setIconsVisible !== 'function') {
+      throw new Error('DESKTOP_ICON_VISIBILITY_CONTROL_UNAVAILABLE');
     }
-    const initiallyVisible =
-      layout && typeof layout.desktopIconsVisible === "boolean"
-        ? layout.desktopIconsVisible
-        : layout && typeof layout.iconsVisible === "boolean"
-          ? layout.iconsVisible
-          : true;
-    if (this.desktopIconsVisibilityExplicit !== true)
-      this.desktopIconsVisible = initiallyVisible;
+    const initiallyVisible = layout && typeof layout.desktopIconsVisible === 'boolean'
+      ? layout.desktopIconsVisible
+      : (layout && typeof layout.iconsVisible === 'boolean' ? layout.iconsVisible : true);
+    if (this.desktopIconsVisibilityExplicit !== true) this.desktopIconsVisible = initiallyVisible;
     const desiredIconsVisible = this.desktopIconsVisible !== false;
-    if (initiallyVisible !== desiredIconsVisible)
-      layout = await watcher.setIconsVisible(desiredIconsVisible);
-    const acknowledgedIconsVisible =
-      layout && typeof layout.desktopIconsVisible === "boolean"
-        ? layout.desktopIconsVisible
-        : layout && typeof layout.iconsVisible === "boolean"
-          ? layout.iconsVisible
-          : desiredIconsVisible;
+    if (initiallyVisible !== desiredIconsVisible) layout = await watcher.setIconsVisible(desiredIconsVisible);
+    const acknowledgedIconsVisible = layout && typeof layout.desktopIconsVisible === 'boolean'
+      ? layout.desktopIconsVisible
+      : (layout && typeof layout.iconsVisible === 'boolean' ? layout.iconsVisible : desiredIconsVisible);
     if (acknowledgedIconsVisible !== desiredIconsVisible) {
-      throw new Error("DESKTOP_ICON_VISIBILITY_ACK_INVALID");
+      throw new Error('DESKTOP_ICON_VISIBILITY_ACK_INVALID');
     }
-    return this.applyIconShapeLayout(
-      win,
-      display,
-      layout || watcher.getLastLayout(),
-      reason,
-      true,
-    );
+    return this.applyIconShapeLayout(win, display, layout || watcher.getLastLayout(), reason, true);
   }
 
   async ensureIconLayerOrder() {
     if (this.iconLayerRestoreUnconfirmed) {
-      throw new Error("DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED");
+      throw new Error('DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED');
     }
     const watcher = this.iconShapeWatcher;
-    if (!watcher || typeof watcher.ensureOrder !== "function") {
-      throw new Error("DESKTOP_ICON_LAYER_ZORDER_UNAVAILABLE");
+    if (!watcher || typeof watcher.ensureOrder !== 'function') {
+      throw new Error('DESKTOP_ICON_LAYER_ZORDER_UNAVAILABLE');
     }
     const layout = await watcher.ensureOrder();
     const display = this.shapeDisplayForWindow();
-    const result = this.applyIconShapeLayout(
-      this.window,
-      display,
-      layout,
-      "icon-layer-zorder",
-      true,
-    );
+    const result = this.applyIconShapeLayout(this.window, display, layout, 'icon-layer-zorder', true);
     return result;
   }
 
@@ -1320,108 +1045,45 @@ class FullDesktopModeRuntime {
       return {
         ok: false,
         applied: false,
-        error: "DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED",
-        status: this.getStatus("icon-shields-restore-unconfirmed"),
+        error: 'DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED',
+        status: this.getStatus('icon-shields-restore-unconfirmed'),
       };
     }
-    if (
-      !this.enabled ||
-      !this.interactive ||
-      !this.isWindowAlive() ||
-      !this.attachment ||
-      this.attachment.kind !== "icon-host"
-    ) {
+    if (!this.enabled || !this.interactive || !this.isWindowAlive()
+      || !this.attachment || this.attachment.kind !== 'icon-host') {
       this.iconShapeShields = [];
       this.iconShapeShieldViewport = null;
-      return {
-        ok: true,
-        applied: false,
-        status: this.getStatus("icon-shields-inactive"),
-      };
+      return { ok: true, applied: false, status: this.getStatus('icon-shields-inactive') };
     }
     const display = this.shapeDisplayForWindow();
-    if (!display)
+    if (!display) return { ok: false, applied: false, error: 'DESKTOP_ICON_DISPLAY_UNAVAILABLE' };
+    const viewportWidth = Math.max(1, Number(viewport && viewport.width) || display.bounds.width);
+    const viewportHeight = Math.max(1, Number(viewport && viewport.height) || display.bounds.height);
+    this.iconShapeShields = (Array.isArray(rects) ? rects : []).slice(0, 64).map((value) => {
+      const x = Math.max(0, Math.min(viewportWidth, Number(value && value.x) || 0));
+      const y = Math.max(0, Math.min(viewportHeight, Number(value && value.y) || 0));
+      const right = Math.max(x, Math.min(viewportWidth, x + Math.max(0, Number(value && value.width) || 0)));
+      const bottom = Math.max(y, Math.min(viewportHeight, y + Math.max(0, Number(value && value.height) || 0)));
+      if (right <= x || bottom <= y) return null;
       return {
-        ok: false,
-        applied: false,
-        error: "DESKTOP_ICON_DISPLAY_UNAVAILABLE",
+        x,
+        y,
+        width: right - x,
+        height: bottom - y,
       };
-    const viewportWidth = Math.max(
-      1,
-      Number(viewport && viewport.width) || display.bounds.width,
-    );
-    const viewportHeight = Math.max(
-      1,
-      Number(viewport && viewport.height) || display.bounds.height,
-    );
-    this.iconShapeShields = (Array.isArray(rects) ? rects : [])
-      .slice(0, 64)
-      .map((value) => {
-        const x = Math.max(
-          0,
-          Math.min(viewportWidth, Number(value && value.x) || 0),
-        );
-        const y = Math.max(
-          0,
-          Math.min(viewportHeight, Number(value && value.y) || 0),
-        );
-        const right = Math.max(
-          x,
-          Math.min(
-            viewportWidth,
-            x + Math.max(0, Number(value && value.width) || 0),
-          ),
-        );
-        const bottom = Math.max(
-          y,
-          Math.min(
-            viewportHeight,
-            y + Math.max(0, Number(value && value.height) || 0),
-          ),
-        );
-        if (right <= x || bottom <= y) return null;
-        return {
-          x,
-          y,
-          width: right - x,
-          height: bottom - y,
-        };
-      })
-      .filter(Boolean);
-    this.iconShapeShieldViewport = {
-      width: viewportWidth,
-      height: viewportHeight,
-    };
+    }).filter(Boolean);
+    this.iconShapeShieldViewport = { width: viewportWidth, height: viewportHeight };
     const watcher = this.iconShapeWatcher;
-    if (
-      !this.iconShapeLayout ||
-      !watcher ||
-      typeof watcher.updateShields !== "function"
-    ) {
-      return {
-        ok: true,
-        applied: false,
-        status: this.getStatus("icon-shields-cached"),
-      };
+    if (!this.iconShapeLayout || !watcher || typeof watcher.updateShields !== 'function') {
+      return { ok: true, applied: false, status: this.getStatus('icon-shields-cached') };
     }
-    Promise.resolve(
-      watcher.updateShields(this.physicalIconShieldsForDisplay(display)),
-    ).catch((error) => {
+    Promise.resolve(watcher.updateShields(this.physicalIconShieldsForDisplay(display))).catch((error) => {
       if (this.iconShapeWatcher !== watcher) return;
-      this.iconShapeError = String(
-        (error && error.message) ||
-          error ||
-          "DESKTOP_ICON_LAYER_SHIELDS_FAILED",
-      );
+      this.iconShapeError = String(error && error.message || error || 'DESKTOP_ICON_LAYER_SHIELDS_FAILED');
       this.generation += 1;
-      this.emitStatus("icon-shields-failed");
+      this.emitStatus('icon-shields-failed');
     });
-    return {
-      ok: true,
-      applied: true,
-      pending: true,
-      status: this.getStatus("icon-shields-updated"),
-    };
+    return { ok: true, applied: true, pending: true, status: this.getStatus('icon-shields-updated') };
   }
 
   applyInteractivePointerRoute(win = this.window, options = {}) {
@@ -1431,36 +1093,24 @@ class FullDesktopModeRuntime {
     // right-top controller is the permanent recovery island: entering its
     // reveal corridor immediately restores native input so the same switch can
     // always unlock the software again.
-    const ignoreMouseEvents =
-      this.softwareInteractionLocked === true &&
-      this.pointerRoute.overDesktopControls !== true;
-    if (
-      options.force === true ||
-      this.pointerIgnoreMouseEvents !== ignoreMouseEvents
-    ) {
-      if (ignoreMouseEvents)
-        safeCall(win, "setIgnoreMouseEvents", null, true, { forward: true });
-      else safeCall(win, "setIgnoreMouseEvents", null, false);
+    const ignoreMouseEvents = this.softwareInteractionLocked === true
+      && this.pointerRoute.overDesktopControls !== true;
+    if (options.force === true || this.pointerIgnoreMouseEvents !== ignoreMouseEvents) {
+      if (ignoreMouseEvents) safeCall(win, 'setIgnoreMouseEvents', null, true, { forward: true });
+      else safeCall(win, 'setIgnoreMouseEvents', null, false);
       this.pointerIgnoreMouseEvents = ignoreMouseEvents;
     }
     return ignoreMouseEvents;
   }
 
-  updatePointerRoute(route = {}, reason = "desktop-pointer-route") {
+  updatePointerRoute(route = {}, reason = 'desktop-pointer-route') {
     this.pointerRoute = {
       overSoftwareUi: route && route.overSoftwareUi === true,
       overDesktopControls: route && route.overDesktopControls === true,
     };
-    const active =
-      this.enabled &&
-      this.interactive &&
-      !this.iconLayerRestoreUnconfirmed &&
-      this.isWindowAlive() &&
-      this.attachment &&
-      this.attachment.kind === "icon-host";
-    const ignoreMouseEvents = active
-      ? this.applyInteractivePointerRoute(this.window)
-      : null;
+    const active = this.enabled && this.interactive && !this.iconLayerRestoreUnconfirmed
+      && this.isWindowAlive() && this.attachment && this.attachment.kind === 'icon-host';
+    const ignoreMouseEvents = active ? this.applyInteractivePointerRoute(this.window) : null;
     return {
       ok: true,
       applied: active,
@@ -1470,57 +1120,45 @@ class FullDesktopModeRuntime {
     };
   }
 
-  requestKeyboardFocus(reason = "desktop-keyboard-focus") {
+  requestKeyboardFocus(reason = 'desktop-keyboard-focus') {
     const win = this.window;
     const webContents = win && win.webContents;
-    const active =
-      this.enabled === true &&
-      this.interactive === true &&
-      this.softwareInteractionLocked !== true &&
-      this.pointerIgnoreMouseEvents !== true &&
-      !this.iconLayerRestoreUnconfirmed &&
-      this.isWindowAlive(win) &&
-      this.attachment &&
-      this.attachment.kind === "icon-host";
-    if (!active || !webContents || typeof webContents.focus !== "function") {
+    const active = this.enabled === true && this.interactive === true
+      && this.softwareInteractionLocked !== true
+      && this.pointerIgnoreMouseEvents !== true
+      && !this.iconLayerRestoreUnconfirmed
+      && this.isWindowAlive(win)
+      && this.attachment && this.attachment.kind === 'icon-host';
+    if (!active || !webContents || typeof webContents.focus !== 'function') {
       return {
         ok: false,
         focused: false,
-        error:
-          this.softwareInteractionLocked === true
-            ? "DESKTOP_SOFTWARE_LOCKED"
-            : "DESKTOP_KEYBOARD_FOCUS_INACTIVE",
-        status: this.getStatus(reason + "-rejected"),
+        error: this.softwareInteractionLocked === true
+          ? 'DESKTOP_SOFTWARE_LOCKED'
+          : 'DESKTOP_KEYBOARD_FOCUS_INACTIVE',
+        status: this.getStatus(reason + '-rejected'),
       };
     }
 
     // This HWND is a DefView child. BrowserWindow.focus()/show()/moveTop()
     // can disturb Explorer/ListView/DWM ordering, so a real renderer click may
     // only restore Chromium's web-content focus here.
-    safeCall(win, "setFocusable", null, true);
-    safeCall(webContents, "focus", null);
+    safeCall(win, 'setFocusable', null, true);
+    safeCall(webContents, 'focus', null);
     return {
       ok: true,
-      focused: safeCall(webContents, "isFocused", true) !== false,
-      error: "",
+      focused: safeCall(webContents, 'isFocused', true) !== false,
+      error: '',
       status: this.getStatus(reason),
     };
   }
 
-  setSoftwareInteractionLocked(
-    value,
-    reason = "desktop-software-lock-changed",
-  ) {
-    return this.enqueue("set-software-interaction-lock", async () => {
+  setSoftwareInteractionLocked(value, reason = 'desktop-software-lock-changed') {
+    return this.enqueue('set-software-interaction-lock', async () => {
       const desired = value === true;
-      if (
-        !this.enabled ||
-        !this.interactive ||
-        !this.isWindowAlive() ||
-        !this.attachment ||
-        this.attachment.kind !== "icon-host" ||
-        this.iconLayerRestoreUnconfirmed
-      ) {
+      if (!this.enabled || !this.interactive || !this.isWindowAlive()
+        || !this.attachment || this.attachment.kind !== 'icon-host'
+        || this.iconLayerRestoreUnconfirmed) {
         return {
           ok: false,
           enabled: this.enabled,
@@ -1528,25 +1166,23 @@ class FullDesktopModeRuntime {
           locked: this.softwareInteractionLocked === true,
           softwareInteractionLocked: this.softwareInteractionLocked === true,
           ignoreMouseEvents: this.pointerIgnoreMouseEvents === true,
-          error: "DESKTOP_SOFTWARE_LOCK_INACTIVE",
-          status: this.getStatus(reason + "-inactive"),
+          error: 'DESKTOP_SOFTWARE_LOCK_INACTIVE',
+          status: this.getStatus(reason + '-inactive'),
         };
       }
       this.softwareInteractionLocked = desired;
       this.iconInteractionLocked = desired;
-      this.iconInteractionLockError = "";
+      this.iconInteractionLockError = '';
       if (desired) {
-        safeCall(this.window && this.window.webContents, "blur", null);
-        safeCall(this.window, "blur", null);
-        safeCall(this.window, "setFocusable", null, false);
+        safeCall(this.window && this.window.webContents, 'blur', null);
+        safeCall(this.window, 'blur', null);
+        safeCall(this.window, 'setFocusable', null, false);
       } else {
         // Unlock only makes the child eligible for focus. A subsequent real
         // pointerdown restores web-content focus without stealing it here.
-        safeCall(this.window, "setFocusable", null, true);
+        safeCall(this.window, 'setFocusable', null, true);
       }
-      const ignoreMouseEvents = this.applyInteractivePointerRoute(this.window, {
-        force: true,
-      });
+      const ignoreMouseEvents = this.applyInteractivePointerRoute(this.window, { force: true });
       this.generation += 1;
       return {
         ok: true,
@@ -1555,77 +1191,57 @@ class FullDesktopModeRuntime {
         locked: desired,
         softwareInteractionLocked: desired,
         ignoreMouseEvents,
-        error: "",
+        error: '',
         status: this.emitStatus(reason),
       };
     });
   }
 
-  setIconInteractionLocked(value, reason = "desktop-icons-lock-changed") {
+  setIconInteractionLocked(value, reason = 'desktop-icons-lock-changed') {
     return this.setSoftwareInteractionLocked(value, reason);
   }
 
-  setDesktopIconsVisible(value, reason = "desktop-icons-visibility-changed") {
-    return this.enqueue("set-desktop-icons-visible", async () => {
+  setDesktopIconsVisible(value, reason = 'desktop-icons-visibility-changed') {
+    return this.enqueue('set-desktop-icons-visible', async () => {
       const desired = value !== false;
       if (this.iconLayerRestoreUnconfirmed) {
-        throw new Error("DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED");
+        throw new Error('DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED');
       }
-      if (
-        !this.enabled ||
-        !this.interactive ||
-        !this.isWindowAlive() ||
-        !this.attachment ||
-        this.attachment.kind !== "icon-host" ||
-        !this.iconShapeLayout
-      ) {
+      if (!this.enabled || !this.interactive || !this.isWindowAlive()
+        || !this.attachment || this.attachment.kind !== 'icon-host'
+        || !this.iconShapeLayout) {
         return {
           ok: false,
           enabled: this.enabled,
           interactive: this.interactive,
           desktopIconsVisible: this.desktopIconsVisible,
-          error: "DESKTOP_ICON_VISIBILITY_INACTIVE",
-          status: this.getStatus(reason + "-inactive"),
+          error: 'DESKTOP_ICON_VISIBILITY_INACTIVE',
+          status: this.getStatus(reason + '-inactive'),
         };
       }
       const previous = this.desktopIconsVisible !== false;
       const previousExplicit = this.desktopIconsVisibilityExplicit === true;
       const watcher = this.iconShapeWatcher;
-      if (!watcher || typeof watcher.setIconsVisible !== "function") {
+      if (!watcher || typeof watcher.setIconsVisible !== 'function') {
         return {
           ok: false,
           enabled: true,
           interactive: true,
           desktopIconsVisible: previous,
-          error: "DESKTOP_ICON_VISIBILITY_CONTROL_UNAVAILABLE",
-          status: this.emitStatus(reason + "-failed"),
+          error: 'DESKTOP_ICON_VISIBILITY_CONTROL_UNAVAILABLE',
+          status: this.emitStatus(reason + '-failed'),
         };
       }
       const display = this.shapeDisplayForWindow();
       let failure = null;
       try {
         const layout = await watcher.setIconsVisible(desired);
-        if (this.iconShapeWatcher !== watcher)
-          throw new Error("DESKTOP_ICON_LAYER_SUPERSEDED");
+        if (this.iconShapeWatcher !== watcher) throw new Error('DESKTOP_ICON_LAYER_SUPERSEDED');
         this.desktopIconsVisible = desired;
         this.desktopIconsVisibilityExplicit = true;
-        const result = this.applyIconShapeLayout(
-          this.window,
-          display,
-          layout,
-          reason,
-          false,
-        );
-        if (
-          !result ||
-          result.ok !== true ||
-          this.desktopIconsVisible !== desired
-        ) {
-          throw new Error(
-            String(
-              (result && result.error) || "DESKTOP_ICON_VISIBILITY_ACK_INVALID",
-            ),
-          );
+        const result = this.applyIconShapeLayout(this.window, display, layout, reason, false);
+        if (!result || result.ok !== true || this.desktopIconsVisible !== desired) {
+          throw new Error(String(result && result.error || 'DESKTOP_ICON_VISIBILITY_ACK_INVALID'));
         }
       } catch (error) {
         failure = error;
@@ -1636,22 +1252,12 @@ class FullDesktopModeRuntime {
         if (this.iconShapeWatcher === watcher) {
           try {
             const rollbackLayout = await watcher.setIconsVisible(previous);
-            this.applyIconShapeLayout(
-              this.window,
-              display,
-              rollbackLayout,
-              reason + "-rollback",
-              false,
-            );
-          } catch (_) {}
+            this.applyIconShapeLayout(this.window, display, rollbackLayout, reason + '-rollback', false);
+          } catch (_) { }
         }
         this.desktopIconsVisible = previous;
         this.desktopIconsVisibilityExplicit = previousExplicit;
-        this.iconShapeError = String(
-          (failure && failure.message) ||
-            failure ||
-            "DESKTOP_ICON_VISIBILITY_FAILED",
-        );
+        this.iconShapeError = String(failure && failure.message || failure || 'DESKTOP_ICON_VISIBILITY_FAILED');
         this.generation += 1;
         return {
           ok: false,
@@ -1659,10 +1265,10 @@ class FullDesktopModeRuntime {
           interactive: true,
           desktopIconsVisible: previous,
           error: this.iconShapeError,
-          status: this.emitStatus(reason + "-failed"),
+          status: this.emitStatus(reason + '-failed'),
         };
       }
-      this.iconShapeError = "";
+      this.iconShapeError = '';
       this.generation += 1;
       return {
         ok: true,
@@ -1676,48 +1282,28 @@ class FullDesktopModeRuntime {
 
   displaySnapshot(win = this.window) {
     let display = null;
-    const canEnumerateDisplays = !!(
-      this.screen && typeof this.screen.getAllDisplays === "function"
-    );
-    const displays = canEnumerateDisplays
-      ? safeCall(this.screen, "getAllDisplays", []) || []
-      : [];
+    const canEnumerateDisplays = !!(this.screen && typeof this.screen.getAllDisplays === 'function');
+    const displays = canEnumerateDisplays ? (safeCall(this.screen, 'getAllDisplays', []) || []) : [];
     let savedDisplayMissing = false;
     if (this.snapshot && this.snapshot.displayId) {
-      display =
-        displays.find(
-          (entry) =>
-            String(entry && entry.id) === String(this.snapshot.displayId),
-        ) || null;
-      savedDisplayMissing =
-        canEnumerateDisplays && displays.length > 0 && !display;
+      display = displays.find((entry) => String(entry && entry.id) === String(this.snapshot.displayId)) || null;
+      savedDisplayMissing = canEnumerateDisplays && displays.length > 0 && !display;
     }
     if (!display) {
-      const current = normalizeBounds(
-        safeCall(win, "getBounds", this.snapshot && this.snapshot.bounds),
-      );
-      display = safeCall(this.screen, "getDisplayMatching", null, current);
+      const current = normalizeBounds(safeCall(win, 'getBounds', this.snapshot && this.snapshot.bounds));
+      display = safeCall(this.screen, 'getDisplayMatching', null, current);
     }
-    if (!display) display = safeCall(this.screen, "getPrimaryDisplay", null);
-    if (!display) throw new Error("FULL_DESKTOP_DISPLAY_UNAVAILABLE");
+    if (!display) display = safeCall(this.screen, 'getPrimaryDisplay', null);
+    if (!display) throw new Error('FULL_DESKTOP_DISPLAY_UNAVAILABLE');
     const bounds = normalizeBounds(display.bounds);
     let physicalBounds = { ...bounds };
-    if (this.platform === "win32") {
-      const converted = safeCall(
-        this.screen,
-        "dipToScreenRect",
-        null,
-        null,
-        bounds,
-      );
+    if (this.platform === 'win32') {
+      const converted = safeCall(this.screen, 'dipToScreenRect', null, null, bounds);
       if (converted) physicalBounds = normalizeBounds(converted, bounds);
     }
-    const workArea = normalizeBounds(
-      display.workArea || display.bounds,
-      bounds,
-    );
+    const workArea = normalizeBounds(display.workArea || display.bounds, bounds);
     const result = {
-      displayId: String(display.id != null ? display.id : ""),
+      displayId: String(display.id != null ? display.id : ''),
       bounds,
       physicalBounds,
       workArea,
@@ -1730,10 +1316,7 @@ class FullDesktopModeRuntime {
   rebaseRestoreSnapshot(display) {
     if (!this.snapshot || !display) return null;
     const original = normalizeBounds(this.snapshot.bounds);
-    const area = normalizeBounds(
-      display.workArea || display.bounds,
-      display.bounds,
-    );
+    const area = normalizeBounds(display.workArea || display.bounds, display.bounds);
     const width = Math.max(1, Math.min(original.width, area.width));
     const height = Math.max(1, Math.min(original.height, area.height));
     const bounds = {
@@ -1743,14 +1326,8 @@ class FullDesktopModeRuntime {
       height,
     };
     let physicalBounds = { ...bounds };
-    if (this.platform === "win32") {
-      const converted = safeCall(
-        this.screen,
-        "dipToScreenRect",
-        null,
-        null,
-        bounds,
-      );
+    if (this.platform === 'win32') {
+      const converted = safeCall(this.screen, 'dipToScreenRect', null, null, bounds);
       if (converted) physicalBounds = normalizeBounds(converted, bounds);
     }
     this.snapshot = {
@@ -1758,7 +1335,7 @@ class FullDesktopModeRuntime {
       bounds,
       rawBounds: { ...bounds },
       physicalBounds,
-      displayId: String(display.displayId || ""),
+      displayId: String(display.displayId || ''),
     };
     return this.snapshot;
   }
@@ -1769,8 +1346,7 @@ class FullDesktopModeRuntime {
     try {
       return await handler({ ...payload, signal: controller.signal });
     } finally {
-      if (this.nativeAbortController === controller)
-        this.nativeAbortController = null;
+      if (this.nativeAbortController === controller) this.nativeAbortController = null;
     }
   }
 
@@ -1779,15 +1355,13 @@ class FullDesktopModeRuntime {
     const result = await this.beforePassive({
       win,
       display,
-      reason: String(reason || "passive"),
-      status: this.getStatus("before-passive"),
+      reason: String(reason || 'passive'),
+      status: this.getStatus('before-passive'),
     });
-    if (result && typeof result === "object" && result.ok === false) {
-      throw new Error(
-        String(result.error || "FULL_DESKTOP_PASSIVE_PREPARE_FAILED"),
-      );
+    if (result && typeof result === 'object' && result.ok === false) {
+      throw new Error(String(result.error || 'FULL_DESKTOP_PASSIVE_PREPARE_FAILED'));
     }
-    return result && typeof result === "object" ? result : { ok: true };
+    return result && typeof result === 'object' ? result : { ok: true };
   }
 
   async attach(win, display) {
@@ -1799,19 +1373,14 @@ class FullDesktopModeRuntime {
       width: bounds.width,
       height: bounds.height,
     });
-    if (
-      !result ||
-      result.ok !== true ||
-      !result.parentWindowId ||
-      String(result.parentWindowId) === "0"
-    ) {
-      throw new Error("WALLPAPER_WORKERW_ACK_INVALID");
+    if (!result || result.ok !== true || !result.parentWindowId || String(result.parentWindowId) === '0') {
+      throw new Error('WALLPAPER_WORKERW_ACK_INVALID');
     }
     this.attachment = {
-      kind: "passive-workerw",
-      targetWindowId: String(result.targetWindowId || ""),
-      parentWindowId: String(result.parentWindowId || ""),
-      parentClassName: String(result.parentClassName || ""),
+      kind: 'passive-workerw',
+      targetWindowId: String(result.targetWindowId || ''),
+      parentWindowId: String(result.parentWindowId || ''),
+      parentClassName: String(result.parentClassName || ''),
       displayId: display.displayId,
       bounds: { ...display.bounds },
       physicalBounds: { ...display.physicalBounds },
@@ -1830,26 +1399,20 @@ class FullDesktopModeRuntime {
       width: bounds.width,
       height: bounds.height,
     });
-    if (
-      !result ||
-      result.ok !== true ||
-      result.coexist !== true ||
-      !result.parentWindowId ||
-      String(result.parentWindowId) === "0" ||
-      !result.desktopViewWindowId ||
-      !result.desktopListWindowId ||
-      !result.topLevelHostWindowId
-    ) {
-      throw new Error("FULL_DESKTOP_ICON_HOST_ACK_INVALID");
+    if (!result || result.ok !== true || result.coexist !== true
+      || !result.parentWindowId || String(result.parentWindowId) === '0'
+      || !result.desktopViewWindowId || !result.desktopListWindowId
+      || !result.topLevelHostWindowId) {
+      throw new Error('FULL_DESKTOP_ICON_HOST_ACK_INVALID');
     }
     this.attachment = {
-      kind: "icon-host",
-      targetWindowId: String(result.targetWindowId || ""),
-      parentWindowId: String(result.parentWindowId || ""),
-      parentClassName: String(result.parentClassName || ""),
-      topLevelHostWindowId: String(result.topLevelHostWindowId || ""),
-      desktopViewWindowId: String(result.desktopViewWindowId || ""),
-      desktopListWindowId: String(result.desktopListWindowId || ""),
+      kind: 'icon-host',
+      targetWindowId: String(result.targetWindowId || ''),
+      parentWindowId: String(result.parentWindowId || ''),
+      parentClassName: String(result.parentClassName || ''),
+      topLevelHostWindowId: String(result.topLevelHostWindowId || ''),
+      desktopViewWindowId: String(result.desktopViewWindowId || ''),
+      desktopListWindowId: String(result.desktopListWindowId || ''),
       displayId: display.displayId,
       bounds: { ...display.bounds },
       physicalBounds: { ...display.physicalBounds },
@@ -1868,68 +1431,44 @@ class FullDesktopModeRuntime {
       width: bounds.width,
       height: bounds.height,
     });
-    if (
-      !result ||
-      result.ok !== true ||
-      (Object.prototype.hasOwnProperty.call(result, "parentWindowId") &&
-        String(result.parentWindowId) !== "0") ||
-      result.child === true ||
-      result.popup === false
-    )
-      throw new Error("FULL_DESKTOP_DETACH_ACK_INVALID");
+    if (!result || result.ok !== true
+      || (Object.prototype.hasOwnProperty.call(result, 'parentWindowId') && String(result.parentWindowId) !== '0')
+      || result.child === true || result.popup === false) throw new Error('FULL_DESKTOP_DETACH_ACK_INVALID');
     this.attachment = null;
     return result;
   }
 
-  async recoverAfterDetachFailure(
-    win,
-    display,
-    snapshot,
-    originalError,
-    reason,
-  ) {
-    const originalMessage = String(
-      (originalError && originalError.message) ||
-        originalError ||
-        "FULL_DESKTOP_DETACH_FAILED",
-    );
+  async recoverAfterDetachFailure(win, display, snapshot, originalError, reason) {
+    const originalMessage = String(originalError && originalError.message || originalError || 'FULL_DESKTOP_DETACH_FAILED');
     await this.stopIconShapeWatcher();
-    safeCall(win, "hide", null);
+    safeCall(win, 'hide', null);
     const cleared = this.clearIconShapeState(win, { clearWindow: false });
     if (!cleared || cleared.ok !== true) {
-      this.lastError = `${originalMessage}|${String((cleared && cleared.error) || "DESKTOP_ICON_SHAPE_CLEAR_FAILED")}`;
-      if (
-        this.interactive === true &&
-        this.attachment &&
-        this.attachment.kind === "icon-host" &&
-        this.iconShapeActive === true
-      ) {
-        this.phase = "interactive";
+      this.lastError = `${originalMessage}|${String(cleared && cleared.error || 'DESKTOP_ICON_SHAPE_CLEAR_FAILED')}`;
+      if (this.interactive === true && this.attachment && this.attachment.kind === 'icon-host' && this.iconShapeActive === true) {
+        this.phase = 'interactive';
         this.startIconShapeWatcher();
-        this.applyInteractive(
-          win,
-          this.attachment.bounds || (display && display.bounds),
-        );
+        this.applyInteractive(win, this.attachment.bounds || display && display.bounds);
         this.generation += 1;
         return {
           ok: false,
           enabled: true,
           interactive: true,
-          recovered: "interactive",
+          recovered: 'interactive',
           error: this.lastError,
-          status: this.emitStatus(reason + "-shape-clear-recovered"),
+          status: this.emitStatus(reason + '-shape-clear-recovered'),
         };
       }
-      this.phase = "error-unknown-native-state";
+      this.phase = 'error-unknown-native-state';
       this.generation += 1;
       return {
         ok: false,
         enabled: this.enabled,
         interactive: this.interactive,
-        recovered: "hidden-unknown",
+        recovered: 'hidden-unknown',
         nativeStateKnown: false,
         error: this.lastError,
-        status: this.emitStatus(reason + "-shape-clear-failed"),
+        status: this.emitStatus(reason + '-shape-clear-failed'),
       };
     }
     this.attachment = null;
@@ -1937,11 +1476,11 @@ class FullDesktopModeRuntime {
     let resolvedDisplay = display || null;
     try {
       if (!resolvedDisplay) resolvedDisplay = this.displaySnapshot(win);
-      await this.preparePassive(win, resolvedDisplay, reason + "-recovery");
+      await this.preparePassive(win, resolvedDisplay, reason + '-recovery');
       await this.attach(win, resolvedDisplay);
       this.enabled = true;
       this.interactive = false;
-      this.phase = "passive";
+      this.phase = 'passive';
       this.lastError = originalMessage;
       this.applyPassive(win);
       this.generation += 1;
@@ -1949,251 +1488,180 @@ class FullDesktopModeRuntime {
         ok: false,
         enabled: true,
         interactive: false,
-        recovered: "passive",
+        recovered: 'passive',
         error: this.lastError,
-        status: this.emitStatus(reason + "-recovered-passive"),
+        status: this.emitStatus(reason + '-recovered-passive'),
       };
     } catch (attachError) {
       this.attachment = null;
-      const attachMessage = String(
-        (attachError && attachError.message) ||
-          attachError ||
-          "FULL_DESKTOP_PASSIVE_RECOVERY_FAILED",
-      );
+      const attachMessage = String(attachError && attachError.message || attachError || 'FULL_DESKTOP_PASSIVE_RECOVERY_FAILED');
       const restoreSnapshot = snapshot || this.snapshot;
-      const fallbackBounds =
-        (restoreSnapshot &&
-          (restoreSnapshot.physicalBounds || restoreSnapshot.bounds)) ||
-        (resolvedDisplay &&
-          (resolvedDisplay.physicalBounds || resolvedDisplay.bounds)) ||
-        safeCall(win, "getBounds", null);
+      const fallbackBounds = restoreSnapshot && (restoreSnapshot.physicalBounds || restoreSnapshot.bounds)
+        || resolvedDisplay && (resolvedDisplay.physicalBounds || resolvedDisplay.bounds)
+        || safeCall(win, 'getBounds', null);
       try {
         await this.detach(win, fallbackBounds);
         if (restoreSnapshot) this.restoreWindow(win, restoreSnapshot);
         this.enabled = false;
         this.interactive = false;
         this.window = null;
-        this.nativeWindowId = "";
+        this.nativeWindowId = '';
         this.snapshot = null;
         this.attachment = null;
-        this.phase = "disabled";
-        this.lastError = originalMessage + "|" + attachMessage;
+        this.phase = 'disabled';
+        this.lastError = originalMessage + '|' + attachMessage;
         this.generation += 1;
         return {
           ok: false,
           enabled: false,
           interactive: false,
-          recovered: "disabled",
+          recovered: 'disabled',
           error: this.lastError,
-          status: this.emitStatus(reason + "-failed-closed"),
+          status: this.emitStatus(reason + '-failed-closed'),
         };
       } catch (detachError) {
-        const detachMessage = String(
-          (detachError && detachError.message) ||
-            detachError ||
-            "FULL_DESKTOP_FAIL_CLOSED_DETACH_FAILED",
-        );
-        safeCall(win, "hide", null);
-        safeCall(win, "setIgnoreMouseEvents", null, true);
-        safeCall(win, "setFocusable", null, false);
-        safeCall(win, "setResizable", null, false);
-        safeCall(win, "setMovable", null, false);
+        const detachMessage = String(detachError && detachError.message || detachError || 'FULL_DESKTOP_FAIL_CLOSED_DETACH_FAILED');
+        safeCall(win, 'hide', null);
+        safeCall(win, 'setIgnoreMouseEvents', null, true);
+        safeCall(win, 'setFocusable', null, false);
+        safeCall(win, 'setResizable', null, false);
+        safeCall(win, 'setMovable', null, false);
         this.enabled = true;
         this.interactive = false;
         this.attachment = null;
-        this.phase = "error-unknown-native-state";
-        this.lastError =
-          originalMessage + "|" + attachMessage + "|" + detachMessage;
+        this.phase = 'error-unknown-native-state';
+        this.lastError = originalMessage + '|' + attachMessage + '|' + detachMessage;
         this.generation += 1;
         return {
           ok: false,
           enabled: true,
           interactive: false,
-          recovered: "hidden-unknown",
+          recovered: 'hidden-unknown',
           nativeStateKnown: false,
           error: this.lastError,
-          status: this.emitStatus(reason + "-native-state-unknown"),
+          status: this.emitStatus(reason + '-native-state-unknown'),
         };
       }
     }
   }
 
   prepareWindow(win, bounds, options = {}) {
-    if (options.hide !== false) safeCall(win, "hide", null);
+    if (options.hide !== false) safeCall(win, 'hide', null);
     // The visual HWND remains one continuous Mineradio surface below Explorer's
     // color-keyed icon layer. Clear legacy BrowserWindow holes before reparenting.
-    safeCall(win, "setShape", null, []);
-    safeCall(win, "setHasShadow", null, false);
-    if (safeCall(win, "isMinimized", false)) safeCall(win, "restore", null);
-    if (safeCall(win, "isFullScreen", false))
-      safeCall(win, "setFullScreen", null, false);
-    if (safeCall(win, "isMaximized", false)) safeCall(win, "unmaximize", null);
-    safeCall(win, "setBounds", null, bounds, false);
-    safeCall(win, "setResizable", null, false);
-    safeCall(win, "setMovable", null, false);
+    safeCall(win, 'setShape', null, []);
+    safeCall(win, 'setHasShadow', null, false);
+    if (safeCall(win, 'isMinimized', false)) safeCall(win, 'restore', null);
+    if (safeCall(win, 'isFullScreen', false)) safeCall(win, 'setFullScreen', null, false);
+    if (safeCall(win, 'isMaximized', false)) safeCall(win, 'unmaximize', null);
+    safeCall(win, 'setBounds', null, bounds, false);
+    safeCall(win, 'setResizable', null, false);
+    safeCall(win, 'setMovable', null, false);
   }
 
   applyPassive(win) {
     // Do not forward synthetic pointer events: the real Windows cursor and
     // desktop icons remain authoritative in passive mode.
-    safeCall(win, "setIgnoreMouseEvents", null, true);
+    safeCall(win, 'setIgnoreMouseEvents', null, true);
     this.pointerIgnoreMouseEvents = null;
-    safeCall(win && win.webContents, "setBackgroundThrottling", null, false);
-    safeCall(win, "setFocusable", null, false);
-    safeCall(win, "setResizable", null, false);
-    safeCall(win, "setMovable", null, false);
-    safeCall(win, "showInactive", null);
+    safeCall(win && win.webContents, 'setBackgroundThrottling', null, false);
+    safeCall(win, 'setFocusable', null, false);
+    safeCall(win, 'setResizable', null, false);
+    safeCall(win, 'setMovable', null, false);
+    safeCall(win, 'showInactive', null);
   }
 
   applyInteractive(win, bounds) {
-    if (!this.attachment || this.attachment.kind !== "icon-host") {
-      safeCall(win, "setBounds", null, bounds, false);
+    if (!this.attachment || this.attachment.kind !== 'icon-host') {
+      safeCall(win, 'setBounds', null, bounds, false);
     }
-    safeCall(win && win.webContents, "setBackgroundThrottling", null, false);
-    safeCall(win, "setFocusable", null, true);
-    safeCall(win, "setResizable", null, false);
-    safeCall(win, "setMovable", null, false);
+    safeCall(win && win.webContents, 'setBackgroundThrottling', null, false);
+    safeCall(win, 'setFocusable', null, true);
+    safeCall(win, 'setResizable', null, false);
+    safeCall(win, 'setMovable', null, false);
     this.applyInteractivePointerRoute(win, { force: true });
-    safeCall(win, "showInactive", null);
+    safeCall(win, 'showInactive', null);
   }
 
   restoreWindow(win, snapshot) {
     if (!this.isWindowAlive(win) || !snapshot) return;
-    safeCall(win, "setIgnoreMouseEvents", null, false);
+    safeCall(win, 'setIgnoreMouseEvents', null, false);
     this.pointerIgnoreMouseEvents = null;
-    safeCall(
-      win && win.webContents,
-      "setBackgroundThrottling",
-      null,
-      snapshot.backgroundThrottling,
-    );
-    safeCall(win, "setFocusable", null, snapshot.focusable);
-    safeCall(win, "setFullScreen", null, false);
-    safeCall(win, "unmaximize", null);
-    if (safeCall(win, "isMinimized", false)) safeCall(win, "restore", null);
-    if (Array.isArray(snapshot.minimumSize))
-      safeCall(
-        win,
-        "setMinimumSize",
-        null,
-        snapshot.minimumSize[0],
-        snapshot.minimumSize[1],
-      );
-    if (Array.isArray(snapshot.maximumSize))
-      safeCall(
-        win,
-        "setMaximumSize",
-        null,
-        snapshot.maximumSize[0],
-        snapshot.maximumSize[1],
-      );
-    safeCall(win, "setBounds", null, snapshot.bounds, false);
-    safeCall(win, "setResizable", null, snapshot.resizable);
-    safeCall(win, "setMovable", null, snapshot.movable);
-    safeCall(win, "setHasShadow", null, snapshot.hasShadow);
-    if (snapshot.maximized) safeCall(win, "maximize", null);
-    if (snapshot.fullScreen) safeCall(win, "setFullScreen", null, true);
-    if (snapshot.minimized) safeCall(win, "minimize", null);
-    if (snapshot.visible) safeCall(win, "show", null);
-    else safeCall(win, "hide", null);
-    if (snapshot.visible && snapshot.focused && !snapshot.minimized)
-      safeCall(win, "focus", null);
+    safeCall(win && win.webContents, 'setBackgroundThrottling', null, snapshot.backgroundThrottling);
+    safeCall(win, 'setFocusable', null, snapshot.focusable);
+    safeCall(win, 'setFullScreen', null, false);
+    safeCall(win, 'unmaximize', null);
+    if (safeCall(win, 'isMinimized', false)) safeCall(win, 'restore', null);
+    if (Array.isArray(snapshot.minimumSize)) safeCall(win, 'setMinimumSize', null, snapshot.minimumSize[0], snapshot.minimumSize[1]);
+    if (Array.isArray(snapshot.maximumSize)) safeCall(win, 'setMaximumSize', null, snapshot.maximumSize[0], snapshot.maximumSize[1]);
+    safeCall(win, 'setBounds', null, snapshot.bounds, false);
+    safeCall(win, 'setResizable', null, snapshot.resizable);
+    safeCall(win, 'setMovable', null, snapshot.movable);
+    safeCall(win, 'setHasShadow', null, snapshot.hasShadow);
+    if (snapshot.maximized) safeCall(win, 'maximize', null);
+    if (snapshot.fullScreen) safeCall(win, 'setFullScreen', null, true);
+    if (snapshot.minimized) safeCall(win, 'minimize', null);
+    if (snapshot.visible) safeCall(win, 'show', null);
+    else safeCall(win, 'hide', null);
+    if (snapshot.visible && snapshot.focused && !snapshot.minimized) safeCall(win, 'focus', null);
   }
 
   async rollback(win, snapshot, reason, originalError) {
     try {
       await this.stopIconShapeWatcher();
-      safeCall(win, "hide", null);
+      safeCall(win, 'hide', null);
       const cleared = this.clearIconShapeState(win, { clearWindow: false });
-      if (!cleared || cleared.ok !== true)
-        throw new Error(
-          String(
-            (cleared && cleared.error) || "DESKTOP_ICON_SHAPE_CLEAR_FAILED",
-          ),
-        );
-      if (this.isWindowAlive(win))
-        await this.detach(win, snapshot.physicalBounds || snapshot.bounds);
+      if (!cleared || cleared.ok !== true) throw new Error(String(cleared && cleared.error || 'DESKTOP_ICON_SHAPE_CLEAR_FAILED'));
+      if (this.isWindowAlive(win)) await this.detach(win, snapshot.physicalBounds || snapshot.bounds);
       this.restoreWindow(win, snapshot);
       this.enabled = false;
       this.interactive = false;
       this.window = null;
-      this.nativeWindowId = "";
+      this.nativeWindowId = '';
       this.snapshot = null;
       this.attachment = null;
       this.softwareInteractionLocked = false;
       this.iconInteractionLocked = false;
-      this.iconInteractionLockError = "";
+      this.iconInteractionLockError = '';
       this.desktopIconsVisible = true;
       this.desktopIconsVisibilityExplicit = false;
       this.pointerRoute = { overSoftwareUi: false, overDesktopControls: false };
       this.pointerIgnoreMouseEvents = null;
-      this.phase = "disabled";
-      this.lastError = String(
-        (originalError && originalError.message) ||
-          originalError ||
-          "FULL_DESKTOP_ENABLE_FAILED",
-      );
+      this.phase = 'disabled';
+      this.lastError = String(originalError && originalError.message || originalError || 'FULL_DESKTOP_ENABLE_FAILED');
       this.generation += 1;
-      return {
-        ok: false,
-        enabled: false,
-        interactive: false,
-        error: this.lastError,
-        status: this.emitStatus(reason),
-      };
+      return { ok: false, enabled: false, interactive: false, error: this.lastError, status: this.emitStatus(reason) };
     } catch (cleanupError) {
       const combinedError = new Error(
-        String(
-          (originalError && originalError.message) ||
-            originalError ||
-            "FULL_DESKTOP_ENABLE_FAILED",
-        ) +
-          "|" +
-          String((cleanupError && cleanupError.message) || cleanupError),
+        String(originalError && originalError.message || originalError || 'FULL_DESKTOP_ENABLE_FAILED')
+        + '|' + String(cleanupError && cleanupError.message || cleanupError)
       );
       let display = null;
-      try {
-        display = this.displaySnapshot(win);
-      } catch (_) {}
-      return this.recoverAfterDetachFailure(
-        win,
-        display,
-        snapshot,
-        combinedError,
-        reason + "-cleanup-failed",
-      );
+      try { display = this.displaySnapshot(win); } catch (_) { }
+      return this.recoverAfterDetachFailure(win, display, snapshot, combinedError, reason + '-cleanup-failed');
     }
   }
 
   enable(win, options = {}) {
-    return this.enqueue("enable", async () => {
-      if (this.disposed || this.disposeRequested)
-        throw new Error("FULL_DESKTOP_DISPOSED");
-      if (!this.isSupported())
-        throw new Error("FULL_DESKTOP_PLATFORM_UNSUPPORTED");
-      if (!this.isWindowAlive(win))
-        throw new Error("FULL_DESKTOP_WINDOW_UNAVAILABLE");
+    return this.enqueue('enable', async () => {
+      if (this.disposed || this.disposeRequested) throw new Error('FULL_DESKTOP_DISPOSED');
+      if (!this.isSupported()) throw new Error('FULL_DESKTOP_PLATFORM_UNSUPPORTED');
+      if (!this.isWindowAlive(win)) throw new Error('FULL_DESKTOP_WINDOW_UNAVAILABLE');
       const interactive = !options || options.interactive !== false;
-      const reason = String((options && options.reason) || "enabled");
+      const reason = String(options && options.reason || 'enabled');
       if (this.enabled) {
-        if (win !== this.window)
-          throw new Error("FULL_DESKTOP_WINDOW_MISMATCH");
+        if (win !== this.window) throw new Error('FULL_DESKTOP_WINDOW_MISMATCH');
         return this.setInteractiveInternal(interactive, reason);
       }
       this.window = win;
       this.nativeWindowId = nativeWindowHandleDecimal(win);
       this.snapshot = captureBrowserWindowState(win, this.screen);
-      this.phase = "enabling";
+      this.phase = 'enabling';
       const display = this.displaySnapshot(win);
       try {
         if (!interactive) await this.preparePassive(win, display, reason);
-        if (
-          this.disposed ||
-          this.disposeRequested ||
-          this.window !== win ||
-          !this.isWindowAlive(win)
-        ) {
-          throw new Error("FULL_DESKTOP_PASSIVE_PREPARE_SUPERSEDED");
+        if (this.disposed || this.disposeRequested || this.window !== win || !this.isWindowAlive(win)) {
+          throw new Error('FULL_DESKTOP_PASSIVE_PREPARE_SUPERSEDED');
         }
         // The coexistence state is re-parented inside DefView below the real
         // icon ListView. Keep it hidden until the native color-key ACK.
@@ -2211,17 +1679,12 @@ class FullDesktopModeRuntime {
           this.interactive = false;
           this.applyPassive(win);
         }
-        this.phase = this.interactive ? "interactive" : "passive";
-        this.lastError = "";
+        this.phase = this.interactive ? 'interactive' : 'passive';
+        this.lastError = '';
         this.generation += 1;
-        return {
-          ok: true,
-          enabled: true,
-          interactive: this.interactive,
-          status: this.emitStatus(reason),
-        };
+        return { ok: true, enabled: true, interactive: this.interactive, status: this.emitStatus(reason) };
       } catch (error) {
-        return this.rollback(win, this.snapshot, "enable-failed", error);
+        return this.rollback(win, this.snapshot, 'enable-failed', error);
       }
     });
   }
@@ -2229,38 +1692,33 @@ class FullDesktopModeRuntime {
   interactiveBindingHealthy() {
     const visible = !this.isWindowAlive(this.window)
       ? false
-      : typeof this.window.isVisible !== "function" || this.window.isVisible();
-    return (
-      this.enabled === true &&
-      this.interactive === true &&
-      this.phase === "interactive" &&
-      visible &&
-      !!this.attachment &&
-      this.attachment.kind === "icon-host" &&
-      !!this.iconShapeWatcher &&
-      this.iconShapeActive === true &&
-      this.iconLayerMode === "explorer-layered-colorkey" &&
-      this.pointerIgnoreMouseEvents ===
-        (this.softwareInteractionLocked === true &&
-          this.pointerRoute.overDesktopControls !== true)
-    );
+      : (typeof this.window.isVisible !== 'function' || this.window.isVisible());
+    return this.enabled === true
+      && this.interactive === true
+      && this.phase === 'interactive'
+      && visible
+      && !!this.attachment
+      && this.attachment.kind === 'icon-host'
+      && !!this.iconShapeWatcher
+      && this.iconShapeActive === true
+      && this.iconLayerMode === 'explorer-layered-colorkey'
+      && this.pointerIgnoreMouseEvents === (this.softwareInteractionLocked === true
+        && this.pointerRoute.overDesktopControls !== true);
   }
 
-  async reconcileInteractiveInternal(reason = "interactive-reconcile") {
+  async reconcileInteractiveInternal(reason = 'interactive-reconcile') {
     const display = this.displaySnapshot(this.window);
     try {
       await this.stopIconShapeWatcher();
-      safeCall(this.window, "hide", null);
+      safeCall(this.window, 'hide', null);
       const cleared = this.clearIconShapeState(this.window, {
         preserveShields: true,
         preserveDesktopIconsVisible: true,
         clearWindow: false,
       });
       if (!cleared || cleared.ok !== true) {
-        this.phase = "interactive";
-        this.lastError = String(
-          (cleared && cleared.error) || "DESKTOP_ICON_SHAPE_CLEAR_FAILED",
-        );
+        this.phase = 'interactive';
+        this.lastError = String(cleared && cleared.error || 'DESKTOP_ICON_SHAPE_CLEAR_FAILED');
         this.startIconShapeWatcher();
         this.applyInteractive(this.window, display.bounds);
         this.generation += 1;
@@ -2269,7 +1727,7 @@ class FullDesktopModeRuntime {
           enabled: true,
           interactive: true,
           error: this.lastError,
-          status: this.emitStatus(reason + "-shape-clear-failed"),
+          status: this.emitStatus(reason + '-shape-clear-failed'),
         };
       }
       await this.attachCoexist(this.window, display);
@@ -2279,120 +1737,90 @@ class FullDesktopModeRuntime {
       });
       this.applyInteractive(this.window, display.bounds);
       await this.ensureIconLayerOrder();
-      this.phase = "interactive";
-      this.lastError = "";
+      this.phase = 'interactive';
+      this.lastError = '';
       this.generation += 1;
-      return {
-        ok: true,
-        enabled: true,
-        interactive: true,
-        status: this.emitStatus(reason),
-      };
+      return { ok: true, enabled: true, interactive: true, status: this.emitStatus(reason) };
     } catch (error) {
       // A failed repair must restore a normal visible window; never leave the
       // WE base alive behind enabled=true plus a hidden Mineradio HWND.
-      return this.disableInternal(reason + "-failed", error);
+      return this.disableInternal(reason + '-failed', error);
     }
   }
 
   async setInteractiveInternal(value, reason) {
-    if (this.disposeRequested) throw new Error("FULL_DESKTOP_DISPOSED");
+    if (this.disposeRequested) throw new Error('FULL_DESKTOP_DISPOSED');
     if (!this.enabled) {
       return {
         ok: false,
         enabled: false,
         interactive: false,
-        error: "FULL_DESKTOP_NOT_ENABLED",
-        status: this.getStatus(reason || "interaction-inactive"),
+        error: 'FULL_DESKTOP_NOT_ENABLED',
+        status: this.getStatus(reason || 'interaction-inactive'),
       };
     }
-    if (!this.isWindowAlive())
-      throw new Error("FULL_DESKTOP_WINDOW_UNAVAILABLE");
+    if (!this.isWindowAlive()) throw new Error('FULL_DESKTOP_WINDOW_UNAVAILABLE');
     if (this.iconLayerRestoreUnconfirmed) {
-      throw new Error("DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED");
+      throw new Error('DESKTOP_ICON_LAYER_RESTORE_UNCONFIRMED');
     }
     const desired = value === true;
     if (desired === this.interactive) {
       if (desired && !this.interactiveBindingHealthy()) {
-        return this.reconcileInteractiveInternal(
-          reason || "interactive-repair",
-        );
+        return this.reconcileInteractiveInternal(reason || 'interactive-repair');
       }
-      this.lastError = "";
-      return {
-        ok: true,
-        enabled: true,
-        interactive: desired,
-        status: this.emitStatus(reason || "interaction-unchanged"),
-      };
+      this.lastError = '';
+      return { ok: true, enabled: true, interactive: desired, status: this.emitStatus(reason || 'interaction-unchanged') };
     }
     const win = this.window;
     const display = this.displaySnapshot(win);
-    this.phase = desired ? "detaching" : "attaching";
+    this.phase = desired ? 'detaching' : 'attaching';
     if (desired) {
       try {
         await this.detach(win, display.physicalBounds);
-        safeCall(win, "hide", null);
+        safeCall(win, 'hide', null);
         await this.attachCoexist(win, display);
         this.interactive = true;
-        await this.enableIconShape(win, display, reason || "interactive");
+        await this.enableIconShape(win, display, reason || 'interactive');
         this.applyInteractive(win, display.bounds);
         await this.ensureIconLayerOrder();
-        this.phase = "interactive";
-        this.lastError = "";
+        this.phase = 'interactive';
+        this.lastError = '';
         this.generation += 1;
-        return {
-          ok: true,
-          enabled: true,
-          interactive: true,
-          status: this.emitStatus(reason || "interactive"),
-        };
+        return { ok: true, enabled: true, interactive: true, status: this.emitStatus(reason || 'interactive') };
       } catch (error) {
         return this.recoverAfterDetachFailure(
           win,
           display,
           this.snapshot,
           error,
-          "interactive-failed",
+          'interactive-failed'
         );
       }
     }
     try {
-      await this.preparePassive(win, display, reason || "passive");
-      if (
-        this.disposed ||
-        this.disposeRequested ||
-        this.window !== win ||
-        !this.isWindowAlive(win) ||
-        !this.enabled ||
-        this.interactive !== true
-      ) {
-        throw new Error("FULL_DESKTOP_PASSIVE_PREPARE_SUPERSEDED");
+      await this.preparePassive(win, display, reason || 'passive');
+      if (this.disposed || this.disposeRequested || this.window !== win
+        || !this.isWindowAlive(win) || !this.enabled || this.interactive !== true) {
+        throw new Error('FULL_DESKTOP_PASSIVE_PREPARE_SUPERSEDED');
       }
     } catch (error) {
-      this.phase = "interactive";
-      this.lastError = String(
-        (error && error.message) ||
-          error ||
-          "FULL_DESKTOP_PASSIVE_PREPARE_FAILED",
-      );
+      this.phase = 'interactive';
+      this.lastError = String(error && error.message || error || 'FULL_DESKTOP_PASSIVE_PREPARE_FAILED');
       this.generation += 1;
       return {
         ok: false,
         enabled: true,
         interactive: true,
         error: this.lastError,
-        status: this.emitStatus("passive-prepare-failed"),
+        status: this.emitStatus('passive-prepare-failed'),
       };
     }
-    safeCall(win, "hide", null);
+    safeCall(win, 'hide', null);
     await this.stopIconShapeWatcher();
     const cleared = this.clearIconShapeState(win, { clearWindow: false });
     if (!cleared || cleared.ok !== true) {
-      this.phase = "interactive";
-      this.lastError = String(
-        (cleared && cleared.error) || "DESKTOP_ICON_SHAPE_CLEAR_FAILED",
-      );
+      this.phase = 'interactive';
+      this.lastError = String(cleared && cleared.error || 'DESKTOP_ICON_SHAPE_CLEAR_FAILED');
       this.startIconShapeWatcher();
       this.applyInteractive(win, display.bounds);
       this.generation += 1;
@@ -2401,7 +1829,7 @@ class FullDesktopModeRuntime {
         enabled: true,
         interactive: true,
         error: this.lastError,
-        status: this.emitStatus("passive-shape-clear-failed"),
+        status: this.emitStatus('passive-shape-clear-failed'),
       };
     }
     try {
@@ -2413,51 +1841,28 @@ class FullDesktopModeRuntime {
       await this.attach(win, display);
       this.applyPassive(win);
       this.interactive = false;
-      this.phase = "passive";
-      this.lastError = "";
+      this.phase = 'passive';
+      this.lastError = '';
       this.generation += 1;
-      return {
-        ok: true,
-        enabled: true,
-        interactive: false,
-        status: this.emitStatus(reason || "passive"),
-      };
+      return { ok: true, enabled: true, interactive: false, status: this.emitStatus(reason || 'passive') };
     } catch (error) {
-      return this.disableInternal("passive-attach-failed", error);
+      return this.disableInternal('passive-attach-failed', error);
     }
   }
 
-  setInteractive(value, reason = "interaction-changed") {
-    return this.enqueue("set-interactive", () =>
-      this.setInteractiveInternal(value, reason),
-    );
+  setInteractive(value, reason = 'interaction-changed') {
+    return this.enqueue('set-interactive', () => this.setInteractiveInternal(value, reason));
   }
 
-  toggleInteractive(reason = "interaction-toggled") {
-    return this.enqueue("toggle-interactive", () =>
-      this.setInteractiveInternal(!this.interactive, reason),
-    );
+  toggleInteractive(reason = 'interaction-toggled') {
+    return this.enqueue('toggle-interactive', () => this.setInteractiveInternal(!this.interactive, reason));
   }
 
-  reconcile(reason = "display-change") {
-    return this.enqueue("reconcile", async () => {
-      if (this.disposeRequested)
-        return {
-          ok: false,
-          enabled: this.enabled,
-          interactive: this.interactive,
-          error: "FULL_DESKTOP_DISPOSED",
-          status: this.getStatus(reason),
-        };
-      if (!this.enabled)
-        return {
-          ok: true,
-          enabled: false,
-          interactive: false,
-          status: this.getStatus(reason),
-        };
-      if (!this.isWindowAlive())
-        throw new Error("FULL_DESKTOP_WINDOW_UNAVAILABLE");
+  reconcile(reason = 'display-change') {
+    return this.enqueue('reconcile', async () => {
+      if (this.disposeRequested) return { ok: false, enabled: this.enabled, interactive: this.interactive, error: 'FULL_DESKTOP_DISPOSED', status: this.getStatus(reason) };
+      if (!this.enabled) return { ok: true, enabled: false, interactive: false, status: this.getStatus(reason) };
+      if (!this.isWindowAlive()) throw new Error('FULL_DESKTOP_WINDOW_UNAVAILABLE');
       const display = this.displaySnapshot(this.window);
       if (this.interactive) {
         return this.reconcileInteractiveInternal(reason);
@@ -2466,34 +1871,22 @@ class FullDesktopModeRuntime {
           await this.attach(this.window, display);
           this.applyPassive(this.window);
         } catch (error) {
-          return this.disableInternal("reconcile-failed", error);
+          return this.disableInternal('reconcile-failed', error);
         }
       }
-      this.phase = this.interactive ? "interactive" : "passive";
-      this.lastError = "";
+      this.phase = this.interactive ? 'interactive' : 'passive';
+      this.lastError = '';
       this.generation += 1;
-      return {
-        ok: true,
-        enabled: true,
-        interactive: this.interactive,
-        status: this.emitStatus(reason),
-      };
+      return { ok: true, enabled: true, interactive: this.interactive, status: this.emitStatus(reason) };
     });
   }
 
-  async disableInternal(reason = "disabled", preservedError = null) {
+  async disableInternal(reason = 'disabled', preservedError = null) {
     await this.stopIconShapeWatcher();
     if (!this.enabled && !this.snapshot) {
-      this.clearIconShapeState(this.window, {
-        clearWindow: this.isWindowAlive(this.window),
-      });
-      this.phase = "disabled";
-      return {
-        ok: true,
-        enabled: false,
-        interactive: false,
-        status: this.getStatus(reason),
-      };
+      this.clearIconShapeState(this.window, { clearWindow: this.isWindowAlive(this.window) });
+      this.phase = 'disabled';
+      return { ok: true, enabled: false, interactive: false, status: this.getStatus(reason) };
     }
     const win = this.window;
     let snapshot = this.snapshot;
@@ -2502,40 +1895,26 @@ class FullDesktopModeRuntime {
       this.enabled = false;
       this.interactive = false;
       this.window = null;
-      this.nativeWindowId = "";
+      this.nativeWindowId = '';
       this.snapshot = null;
       this.attachment = null;
       this.softwareInteractionLocked = false;
       this.iconInteractionLocked = false;
-      this.iconInteractionLockError = "";
+      this.iconInteractionLockError = '';
       this.desktopIconsVisible = true;
       this.desktopIconsVisibilityExplicit = false;
       this.pointerRoute = { overSoftwareUi: false, overDesktopControls: false };
       this.pointerIgnoreMouseEvents = null;
-      this.phase = "disabled";
-      this.lastError = String(
-        (preservedError && preservedError.message) || preservedError || "",
-      );
-      return {
-        ok: true,
-        enabled: false,
-        interactive: false,
-        status: this.emitStatus(reason),
-      };
+      this.phase = 'disabled';
+      this.lastError = String(preservedError && preservedError.message || preservedError || '');
+      return { ok: true, enabled: false, interactive: false, status: this.emitStatus(reason) };
     }
-    safeCall(win, "hide", null);
+    safeCall(win, 'hide', null);
     const cleared = this.clearIconShapeState(win, { clearWindow: false });
     if (!cleared || cleared.ok !== true) {
-      this.phase = this.interactive ? "interactive" : "passive";
-      this.lastError = String(
-        (cleared && cleared.error) || "DESKTOP_ICON_SHAPE_CLEAR_FAILED",
-      );
-      if (
-        this.interactive &&
-        this.attachment &&
-        this.attachment.kind === "icon-host" &&
-        this.iconShapeActive
-      ) {
+      this.phase = this.interactive ? 'interactive' : 'passive';
+      this.lastError = String(cleared && cleared.error || 'DESKTOP_ICON_SHAPE_CLEAR_FAILED');
+      if (this.interactive && this.attachment && this.attachment.kind === 'icon-host' && this.iconShapeActive) {
         this.startIconShapeWatcher();
         this.applyInteractive(win, this.attachment.bounds || snapshot.bounds);
       }
@@ -2545,73 +1924,58 @@ class FullDesktopModeRuntime {
         enabled: true,
         interactive: this.interactive,
         error: this.lastError,
-        status: this.emitStatus(reason + "-shape-clear-failed"),
+        status: this.emitStatus(reason + '-shape-clear-failed'),
       };
     }
-    const knownInteractiveTopLevel =
-      this.interactive === true &&
-      !this.attachment &&
-      this.phase === "interactive";
-    this.phase = "disabling";
+    const knownInteractiveTopLevel = this.interactive === true
+      && !this.attachment
+      && this.phase === 'interactive';
+    this.phase = 'disabling';
     let display = null;
     try {
       display = this.displaySnapshot(win);
       snapshot = this.snapshot || snapshot;
-    } catch (_) {}
+    } catch (_) { }
     if (!knownInteractiveTopLevel) {
       try {
         await this.detach(win, snapshot.physicalBounds || snapshot.bounds);
       } catch (error) {
-        return this.recoverAfterDetachFailure(
-          win,
-          display,
-          snapshot,
-          error,
-          reason + "-detach-failed",
-        );
+        return this.recoverAfterDetachFailure(win, display, snapshot, error, reason + '-detach-failed');
       }
     }
     this.restoreWindow(win, snapshot);
     this.enabled = false;
     this.interactive = false;
     this.window = null;
-    this.nativeWindowId = "";
+    this.nativeWindowId = '';
     this.snapshot = null;
     this.attachment = null;
     this.softwareInteractionLocked = false;
     this.iconInteractionLocked = false;
-    this.iconInteractionLockError = "";
+    this.iconInteractionLockError = '';
     this.desktopIconsVisible = true;
     this.desktopIconsVisibilityExplicit = false;
     this.pointerRoute = { overSoftwareUi: false, overDesktopControls: false };
     this.pointerIgnoreMouseEvents = null;
-    this.phase = "disabled";
-    this.lastError = String(
-      (preservedError && preservedError.message) || preservedError || "",
-    );
+    this.phase = 'disabled';
+    this.lastError = String(preservedError && preservedError.message || preservedError || '');
     this.generation += 1;
-    return {
-      ok: !this.lastError,
-      enabled: false,
-      interactive: false,
-      error: this.lastError,
-      status: this.emitStatus(reason),
-    };
+    return { ok: !this.lastError, enabled: false, interactive: false, error: this.lastError, status: this.emitStatus(reason) };
   }
 
-  disable(reason = "disabled") {
+  disable(reason = 'disabled') {
     this.abortNative();
     this.abortIconShapeProbe();
     this.requestIconShapeWatcherStop();
-    return this.enqueue("disable", () => this.disableInternal(reason));
+    return this.enqueue('disable', () => this.disableInternal(reason));
   }
 
-  dispose(reason = "dispose") {
+  dispose(reason = 'dispose') {
     this.disposeRequested = true;
     this.abortNative();
     this.abortIconShapeProbe();
     this.requestIconShapeWatcherStop();
-    return this.enqueue("dispose", async () => {
+    return this.enqueue('dispose', async () => {
       const result = await this.disableInternal(reason);
       if (result.ok === true) this.disposed = true;
       return result;
