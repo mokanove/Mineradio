@@ -130,8 +130,26 @@ const {
   planCuefieldTransitionFromCache,
 } = require("./cuefield/mineradio-bridge");
 
+function commandLineListenHost(argv) {
+  const args = Array.isArray(argv) ? argv : [];
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = String(args[index] || "");
+    if (arg === "-l" || arg === "--listen") {
+      return String(args[index + 1] || "").trim();
+    }
+    if (arg.startsWith("--listen=")) {
+      return arg.slice("--listen=".length).trim();
+    }
+  }
+  return "";
+}
+
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || "0.0.0.0";
+const HOST =
+  commandLineListenHost(process.argv) ||
+  String(process.env.MINERADIO_LISTEN_HOST || "").trim() ||
+  String(process.env.HOST || "").trim() ||
+  "127.0.0.1";
 const LOGIN_EASTER_EGG_GATE_FILE = String(
   process.env.MINERADIO_LOGIN_EASTER_EGG_GATE_FILE || "",
 );

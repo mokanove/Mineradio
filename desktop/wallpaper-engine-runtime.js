@@ -5088,6 +5088,21 @@ class WallpaperEngineRuntime {
   }
 
   async dispose() {
+    // Wallpaper Engine integration is Windows-only. Do not run its native
+    // close protocol on Linux/macOS or report a false close failure at exit.
+    if (this.platform !== "win32") {
+      this.disposed = true;
+      this.pending = null;
+      this.active = null;
+      this.signatureCache.clear();
+      this.executableCache = null;
+      return {
+        ok: true,
+        stopped: false,
+        active: false,
+        sessionId: "",
+      };
+    }
     if (this.disposed) {
       return {
         ok: !this.active && !this.pending,

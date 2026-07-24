@@ -68,6 +68,7 @@ let desktopLyricsHotBounds = null;
 let desktopLyricsLastMiddleAt = 0;
 let htmlFullscreenActive = false;
 let windowFullscreenActive = false;
+let fullscreenTransitionTimer = null;
 let mainWindowStateTimer = null;
 let appMemoryTrimTimer = null;
 let appMemoryTrimInFlight = false;
@@ -115,6 +116,24 @@ const WINDOWED_SCALE = 3 / 4;
 const WINDOWED_MARGIN = 32;
 const MIN_WINDOWED_WIDTH = 960;
 const MIN_WINDOWED_HEIGHT = 540;
+function commandLineListenHost(argv) {
+  const args = Array.isArray(argv) ? argv : [];
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = String(args[index] || "");
+    if (arg === "-l" || arg === "--listen") {
+      return String(args[index + 1] || "").trim();
+    }
+    if (arg.startsWith("--listen=")) {
+      return arg.slice("--listen=".length).trim();
+    }
+  }
+  return "";
+}
+const LOCAL_SERVER_HOST =
+  commandLineListenHost(process.argv) ||
+  String(process.env.MINERADIO_LISTEN_HOST || "").trim() ||
+  String(process.env.HOST || "").trim() ||
+  "127.0.0.1";
 const APP_PACKAGE_INFO = (() => {
   try {
     return require("../package.json");
@@ -653,6 +672,19 @@ const CHROMIUM_SAFE_PERFORMANCE_SWITCHES = [
   ["enable-accelerated-2d-canvas"],
   ...(resolveAngleBackend() ? [["use-angle", resolveAngleBackend()]] : []),
 ];
+if (
+  process.platform === "linux" &&
+  (process.env.XDG_SESSION_TYPE === "wayland" ||
+    Boolean(process.env.WAYLAND_DISPLAY))
+) {
+  // Electron 43 can advertise Wayland's optional color-management protocol,
+  // while several compositors still omit the transfer-function request.
+  // Falling back to Chromium's regular sRGB path avoids noisy protocol errors.
+  CHROMIUM_SAFE_PERFORMANCE_SWITCHES.push([
+    "disable-features",
+    "WaylandWpColorManagerV1",
+  ]);
+}
 const CHROMIUM_OPT_IN_PERFORMANCE_SWITCHES = [
   ["ignore-gpu-blocklist", null, "MINERADIO_IGNORE_GPU_BLOCKLIST"],
   ["force_high_performance_gpu", null, "MINERADIO_FORCE_HIGH_PERFORMANCE_GPU"],
@@ -2557,6 +2589,10 @@ function getWindowState(win) {
 
 function setMainWindowFullscreenResizeGuard(win, fullscreen) {
   if (!win || win.isDestroyed()) return;
+  // Several Linux window managers refuse a fullscreen transition after a
+  // frameless window has been made non-resizable. Native fullscreen already
+  // prevents interactive resizing there, so leave this property untouched.
+  if (process.platform === "linux") return;
   const shouldResize = !fullscreen;
   try {
     if (
@@ -5183,15 +5219,13 @@ async function openSpotifyMusicLoginWindow(owner) {
           message: "Spotify 授权窗口已关闭。",
         });
     });
-    loginWindow
-      .loadURL(authUrl)
-      .catch((e) =>
-        finish({
-          ok: false,
-          provider: "spotify",
-          error: e.message || "Spotify 授权页打开失败",
-        }),
-      );
+    loginWindow.loadURL(authUrl).catch((e) =>
+      finish({
+        ok: false,
+        provider: "spotify",
+        error: e.message || "Spotify 授权页打开失败",
+      }),
+    );
   });
 }
 
@@ -5457,6 +5491,14 @@ function toggleFullscreen(win) {
   setMainWindowFullscreenResizeGuard(win, true);
   win.setFullScreen(true);
   sendWindowState(win);
+  clearTimeout(fullscreenTransitionTimer);
+  fullscreenTransitionTimer = setTimeout(() => {
+    fullscreenTransitionTimer = null;
+    if (!win.isDestroyed() && !win.isFullScreen()) {
+      windowFullscreenActive = false;
+      sendWindowState(win);
+    }
+  }, 1200);
 }
 
 function overlayUrl(page) {
@@ -7385,7 +7427,8 @@ ipcMain.handle("mineradio-wallpaper-get-status", async (event) => {
 });
 
 function configureLocalServerEnvironment(port) {
-  process.env.HOST = "127.0.0.1";
+  process.env.MINERADIO_LISTEN_HOST = LOCAL_SERVER_HOST;
+  process.env.HOST = LOCAL_SERVER_HOST;
   process.env.PORT = String(port);
   process.env.MINERADIO_BEAT_CACHE_DIR = cacheSettings.beatmapsPath;
   process.env.CUEFIELD_FEEDBACK_FILE = path.join(
@@ -8058,6 +8101,8 @@ async function createWindowOnce() {
     }
   });
   win.on("enter-full-screen", () => {
+    clearTimeout(fullscreenTransitionTimer);
+    fullscreenTransitionTimer = null;
     windowFullscreenActive = true;
     setMainWindowFullscreenResizeGuard(win, true);
     sendWindowState(win);
@@ -8069,6 +8114,8 @@ async function createWindowOnce() {
     );
   });
   win.on("leave-full-screen", () => {
+    clearTimeout(fullscreenTransitionTimer);
+    fullscreenTransitionTimer = null;
     windowFullscreenActive = false;
     setMainWindowFullscreenResizeGuard(win, false);
     setTimeout(() => {
